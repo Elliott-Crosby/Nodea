@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes + Knowledge edges
+   Nodea - Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes + Knowledge edges
    =========================== */
 
 /** CONFIG **/
@@ -221,7 +221,7 @@ function renderNodes(){
 
     stage.appendChild(el);
 
-    // DRAG: handle-only
+    // DRAG - handle-only
     enableDrag(el, n.id, drag);
   }
   renderEdges();
@@ -279,7 +279,7 @@ function renderBoard(){
   renderNodes();
 }
 
-/** DRAG — handle-only **/
+/** DRAG - handle-only **/
 function enableDrag(el, nodeId, handleEl){
   const node = state.board.nodes[nodeId];
   let startX=0,startY=0,startLeft=0,startTop=0, dragging=false, moved=false;
@@ -595,7 +595,7 @@ function clearWorkspace(){
   saveBoard(); renderBoard(); toast("Workspace cleared.");
 }
 
-/** UI — Settings / Context **/
+/** UI - Settings / Context **/
 function openSettings(){
   modalSettings.classList.remove("hidden");
   modalSettings.setAttribute("aria-hidden","false");
@@ -714,19 +714,7 @@ function wireEvents(){
   // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
 
-  // Optional keyboard toggle for collapse on focused node
-  document.addEventListener("keydown", (e)=>{
-    if(e.key.toLowerCase() !== "c") return;
-    const el = document.activeElement?.closest?.(".node");
-    if(!el) return;
-    const id = el.dataset.id;
-    const n = state.board.nodes[id];
-    if(!n) return;
-    n.meta = n.meta || {};
-    n.meta.collapsed = !n.meta.collapsed;
-    saveBoard();
-    renderBoard();
-  });
+  // Keyboard shortcut removed by request
 }
 
 function init(){
