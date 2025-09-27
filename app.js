@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea - Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes + Knowledge edges
+   Nodea - Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes + Knowledge edges + Auto-branch + Manual Branch button
    =========================== */
 
 /** CONFIG **/
@@ -141,26 +141,34 @@ function renderNodes(){
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
-    // Actions
+    // Actions (Run on prompt; Branch on both; Knowledge connector on both)
     if(n.type === "prompt"){
       const btnRun = document.createElement("button");
       btnRun.className = "btn secondary";
       btnRun.textContent = state.ui.running ? "Running…" : "Run";
       btnRun.disabled = state.ui.running;
       btnRun.onclick = (e)=>{ e.stopPropagation(); runPrompt(n.id); };
-      toolbarRight.append(btnRun);
+
+      const btnBranch = document.createElement("button");
+      btnBranch.className = "btn";
+      btnBranch.textContent = "Branch";
+      btnBranch.title = "Branch (create next step)";
+      btnBranch.onclick = (e)=>{ e.stopPropagation(); manualBranch(n.id); };
+
+      toolbarRight.append(btnBranch, btnRun);
     } else if(n.type === "response"){
-      const btnFollow = document.createElement("button");
-      btnFollow.className = "btn secondary";
-      btnFollow.textContent = "Follow-up";
-      btnFollow.onclick = (e)=>{ e.stopPropagation(); branchFrom(n.id); };
-      toolbarRight.append(btnFollow);
+      const btnBranch = document.createElement("button");
+      btnBranch.className = "btn";
+      btnBranch.textContent = "Branch";
+      btnBranch.title = "Branch (create next step)";
+      btnBranch.onclick = (e)=>{ e.stopPropagation(); manualBranch(n.id); };
+      toolbarRight.append(btnBranch);
     }
 
-    // Knowledge connector
+    // Knowledge connector (undirected network link)
     const connector = document.createElement("div");
     connector.className = "connector";
-    connector.title = "Connect this node to another";
+    connector.title = "Connect knowledge (drag onto another node)";
     connector.onpointerdown = (e)=>{
       e.stopPropagation();
       state.ui.pendingConnect = { srcId: n.id };
@@ -419,6 +427,20 @@ function branchFrom(nodeId){
   return id;
 }
 
+// Manual Branch wrapper to focus and scroll
+function manualBranch(nodeId){
+  const id = branchFrom(nodeId);
+  if (state.board.nodes[id]) {
+    state.board.nodes[id].meta = state.board.nodes[id].meta || {};
+    state.board.nodes[id].meta.autofocus = true;
+  }
+  setTimeout(()=>{
+    const el = document.querySelector(`.node[data-id="${id}"]`);
+    if(el) el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, 0);
+  saveBoard(); renderBoard();
+}
+
 /** CONTEXT **/
 function getLineage(nodeId){
   const { edges } = state.board;
@@ -516,12 +538,26 @@ async function runPrompt(promptNodeId){
     state.ui.running = true; renderBoard();
 
     const messages = buildMessagesForPrompt(promptNodeId);
-    // no auto-open of context drawer
+    // no auto-open; user opens Context manually if needed
 
     const model = (modelGet() || MODEL_DEFAULT).trim() || MODEL_DEFAULT;
     const result = await callChat({ messages, model, temperature:0.2, max_tokens:600 });
 
-    createResponseNode(promptNodeId, result.text || "", { model: result.model || model });
+    // 1) create response under the prompt
+    const respId = createResponseNode(promptNodeId, result.text || "", { model: result.model || model });
+
+    // 2) auto-branch to a new prompt on the right of the response
+    const newPromptId = branchFrom(respId);
+    if (state.board.nodes[newPromptId]) {
+      state.board.nodes[newPromptId].meta = state.board.nodes[newPromptId].meta || {};
+      state.board.nodes[newPromptId].meta.autofocus = true;
+    }
+    setTimeout(()=>{
+      const el = document.querySelector(`.node[data-id="${newPromptId}"]`);
+      if(el) el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    }, 0);
+
+    saveBoard(); renderBoard();
     toast("Done.");
   }catch(err){
     const msg = String(err?.message || err);
@@ -714,7 +750,7 @@ function wireEvents(){
   // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
 
-  // Keyboard shortcut removed by request
+  // No keyboard shortcuts
 }
 
 function init(){
