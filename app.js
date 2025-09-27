@@ -714,7 +714,20 @@ function wireEvents(){
   // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
 
-
+  // Optional keyboard toggle for collapse on focused node
+  document.addEventListener("keydown", (e)=>{
+    if(e.key.toLowerCase() !== "c") return;
+    const el = document.activeElement?.closest?.(".node");
+    if(!el) return;
+    const id = el.dataset.id;
+    const n = state.board.nodes[id];
+    if(!n) return;
+    n.meta = n.meta || {};
+    n.meta.collapsed = !n.meta.collapsed;
+    saveBoard();
+    renderBoard();
+  });
+}
 
 function init(){
   loadBoard();
@@ -725,5 +738,3 @@ function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
-
