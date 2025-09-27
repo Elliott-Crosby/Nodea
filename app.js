@@ -442,14 +442,50 @@ async function runPrompt(promptNodeId){
 function serializeBoard(){
   return { version: 1, savedAt: new Date().toISOString(), board: state.board };
 }
-function exportBoard(){
-  const blob = new Blob([JSON.stringify(serializeBoard(), null, 2)], { type: "application/json" });
+function downloadBlob(blob, filename){
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `nodea-workspace-${Date.now()}.nodea.json`;
-  document.body.appendChild(a); a.click(); a.remove();
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   URL.revokeObjectURL(url);
-  toast("Workspace exported.");
+}
+
+/** EXPORT with Save As (choose name & folder when supported) */
+async function exportBoard(){
+  const data = serializeBoard();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const suggested = `nodea-workspace-${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.nodea.json`;
+
+  try {
+    // Chromium browsers: full Save As dialog with folder selection
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: suggested,
+        types: [{
+          description: "Nodea Workspace",
+          accept: { "application/json": [".nodea.json", ".json"] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      toast("Workspace saved.");
+      return;
+    }
+  } catch (err) {
+    // If user cancels the dialog, just abort quietly
+    if (err && err.name === "AbortError") return;
+    console.warn("showSaveFilePicker failed, falling back:", err);
+  }
+
+  // Fallback: prompt for a file name, save to default Downloads
+  const name = (prompt("File name:", suggested) || suggested).trim() || suggested;
+  downloadBlob(blob, name);
+  toast("Saved to your Downloads folder.");
+
 }
 function importBoardFromFile(file){
   const r = new FileReader();
@@ -593,3 +629,4 @@ function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
