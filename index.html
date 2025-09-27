@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Nodea — Live MVP (Phase 1)</title>
+  <title>Nodea — Live MVP</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/app.css" />
 </head>
@@ -16,23 +16,21 @@
       <span id="keyChip" class="chip muted">Key: Missing</span>
       <button id="btnSettings" class="btn">Settings</button>
       <button id="btnContext" class="btn secondary">Context</button>
-      <div id="app"></div>
-<div id="toast" aria-live="polite"></div>
-<noscript>This app needs JavaScript enabled.</noscript>
-
+      <button id="btnExport" class="btn secondary">Export</button>
+      <button id="btnImport" class="btn secondary">Import</button>
+      <button id="btnClear" class="btn danger">Clear</button>
+      <input id="fileImport" type="file" accept="application/json" style="display:none" />
     </div>
   </header>
 
   <main>
     <div id="canvas" class="canvas">
-      <!-- SVG edges layer -->
       <svg id="edgesLayer" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
-      <!-- Nodes will be injected here -->
     </div>
     <button id="btnNewPrompt" class="fab">＋ New Prompt</button>
   </main>
 
-  <!-- Settings Modal (BYOK) -->
+  <!-- Settings Modal -->
   <div id="modalSettings" class="modal hidden" aria-hidden="true" role="dialog" aria-label="Settings">
     <div class="modal-card">
       <div class="modal-header">
@@ -42,7 +40,7 @@
       <div class="modal-body">
         <label class="label">OpenAI API key</label>
         <input id="inpKey" class="input" type="password" placeholder="sk-..." autocomplete="off" />
-        <p class="help">Your key is stored locally in your browser (localStorage) and sent only in the Authorization header to your server.</p>
+        <p class="help">Stored only in your browser (localStorage). Sent in the Authorization header to your Nodea API.</p>
 
         <label class="label">Default Model</label>
         <input id="inpModel" class="input" type="text" value="gpt-4o-mini" />
@@ -67,9 +65,23 @@
     </div>
   </aside>
 
+  <!-- Clear Workspace Confirm -->
+  <div id="modalClear" class="modal hidden" aria-hidden="true" role="dialog" aria-label="Confirm clear">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Clear workspace?</h2>
+        <button class="icon-btn" data-close-clear>✕</button>
+      </div>
+      <div class="modal-body">
+        <p>This will remove all nodes and links from this workspace. You can export first to save a copy.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelClear" class="btn secondary">Cancel</button>
+        <button id="btnConfirmClear" class="btn danger">Yes, clear</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>
-
-
-
