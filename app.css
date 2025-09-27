@@ -4,6 +4,7 @@
   --danger:#ef4444; --shadow:0 8px 24px rgba(0,0,0,.35);
   --radius:14px; --radius-sm:10px; --gap:12px;
   --node-w:320px;
+  --drawer-w: 360px; /* width of the Context drawer */
   font-synthesis-weight:none;
 }
 
@@ -143,5 +144,46 @@ main{height:calc(100dvh - 58px); position:relative}
 .node.dragging .drag-handle{ cursor:grabbing; }
 .toolbar .title{ display:flex; align-items:center; gap:8px; }
 .toolbar .title .drag-handle::after{ content:"⋮"; line-height:1; }
+
+/* Drawer push layout so header, canvas padding, and FAB do not get covered */
+.drawer-open .header { padding-right: var(--drawer-w); }
+.drawer-open .canvas  { padding-right: calc(40px + var(--drawer-w)); }
+.drawer-open .fab     { right: calc(22px + var(--drawer-w)); }
+
+/* Collapsible nodes */
+.node .body {
+  transition: max-height 180ms ease, opacity 180ms ease;
+  max-height: 800px;
+  opacity: 1;
+  overflow: hidden;
+}
+.node.collapsed .body {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: 0;
+}
+
+/* One-line preview shown only when collapsed */
+.node .preview {
+  display: none;
+  padding: 10px;
+  color: #cfe0ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid #232a3a;
+}
+.node.collapsed .preview { display: block; }
+
+/* Small chevron button on the toolbar */
+.icon-btn.chev {
+  width: 28px; height: 26px;
+  display: inline-grid; place-items: center;
+  border-radius: 8px; border: 1px solid #2a3246;
+  background: #1a2030; color: #9fb3d9;
+  cursor: pointer;
+}
 
 /* Keep this at the end so it wins specificity if duplicated elsewhere */
