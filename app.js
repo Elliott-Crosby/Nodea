@@ -1,13 +1,14 @@
 /* ===========================
-   Nodea — Phase 1 Frontend (fixed)
+   Nodea — Phase 1.5 (YouPac chaining + Export/Import + Clear)
    =========================== */
 
 /** CONFIG **/
-const API_BASE = "https://nodea-api.onrender.com"; // Your Render backend URL
+const API_BASE = "https://nodea-api.onrender.com";
 const LS_KEY = "OPENAI_KEY";
 const LS_BOARD = "NODEA_BOARD";
 const MODEL_DEFAULT = "gpt-4o-mini";
-const TOKEN_BUDGET_PAIRS = 6; // keep last N prompt/response pairs from lineage
+const TOKEN_BUDGET_PAIRS = 6;
+const FILE_VERSION = 1;
 
 /** STATE **/
 const state = {
@@ -19,7 +20,7 @@ const state = {
   },
   ui: {
     running: false,
-    lastContext: []   // preview of messages about to be sent
+    lastContext: []
   }
 };
 
@@ -28,9 +29,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const uid = (p="n") => `${p}_${Math.random().toString(36).slice(2,9)}_${Date.now().toString(36)}`;
 
-function saveBoard(){
-  localStorage.setItem(LS_BOARD, JSON.stringify(state.board));
-}
+function saveBoard(){ localStorage.setItem(LS_BOARD, JSON.stringify(state.board)); }
 function loadBoard(){
   try{
     const raw = localStorage.getItem(LS_BOARD);
@@ -61,6 +60,13 @@ const btnNewPrompt = $("#btnNewPrompt");
 const drawerContext = $("#drawerContext");
 const ctxList = $("#ctxList");
 const ctxCount = $("#ctxCount");
+const btnExport = $("#btnExport");
+const btnImport = $("#btnImport");
+const fileImport = $("#fileImport");
+const btnClear = $("#btnClear");
+const modalClear = $("#modalClear");
+const btnCancelClear = $("#btnCancelClear");
+const btnConfirmClear = $("#btnConfirmClear");
 
 /** RENDERERS **/
 function renderHeader(){
@@ -82,14 +88,14 @@ function renderNodes(){
     el.style.width = (n.w || 320) + "px";
     el.dataset.id = n.id;
 
-    // Toolbar (title + actions)
+    // Toolbar
     const bar = document.createElement("div");
     bar.className = "toolbar";
 
     const title = document.createElement("div");
     title.className = "title";
 
-    // NEW: dedicated drag handle (only this starts drag)
+    // Drag handle
     const drag = document.createElement("span");
     drag.className = "drag-handle";
     title.appendChild(drag);
@@ -111,21 +117,26 @@ function renderNodes(){
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
-    // Actions (branch on both; run on prompt only)
-    const btnBranch = document.createElement("button");
-    btnBranch.className = "btn secondary";
-    btnBranch.textContent = "Branch";
-    btnBranch.onclick = (e) => { e.stopPropagation(); branchFrom(n.id); };
-
+    // Actions: Branch on prompt, Follow-up on response (both create new prompt to the right)
     if(n.type === "prompt"){
+      const btnBranch = document.createElement("button");
+      btnBranch.className = "btn secondary";
+      btnBranch.textContent = "Branch";
+      btnBranch.onclick = (e)=>{ e.stopPropagation(); branchFrom(n.id); };
+
       const btnRun = document.createElement("button");
       btnRun.className = "btn secondary";
       btnRun.textContent = state.ui.running ? "Running…" : "Run";
       btnRun.disabled = state.ui.running;
-      btnRun.onclick = (e) => { e.stopPropagation(); runPrompt(n.id); };
+      btnRun.onclick = (e)=>{ e.stopPropagation(); runPrompt(n.id); };
+
       toolbarRight.append(btnBranch, btnRun);
-    } else {
-      toolbarRight.append(btnBranch);
+    } else if(n.type === "response"){
+      const btnFollow = document.createElement("button");
+      btnFollow.className = "btn secondary";
+      btnFollow.textContent = "Follow-up";
+      btnFollow.onclick = (e)=>{ e.stopPropagation(); branchFrom(n.id); };
+      toolbarRight.append(btnFollow);
     }
 
     bar.append(title, badges, spacer, toolbarRight);
@@ -134,7 +145,6 @@ function renderNodes(){
     // Body
     const body = document.createElement("div");
     body.className = "body";
-
     if(n.type === "prompt"){
       const ta = document.createElement("textarea");
       ta.placeholder = "Type your prompt…";
@@ -147,11 +157,10 @@ function renderNodes(){
       pre.textContent = n.content || "";
       body.appendChild(pre);
     }
-
     el.appendChild(body);
     canvas.appendChild(el);
 
-    // DRAG: handle-only
+    // Drag: handle-only
     enableDrag(el, n.id, drag);
   }
   renderEdges();
@@ -167,7 +176,7 @@ function renderEdges(){
     if(!src || !dst) continue;
 
     const srcX = (src.x||0) + (src.w||320)/2;
-    const srcY = (src.y||0) + 30; // toolbar center
+    const srcY = (src.y||0) + 30;
     const dstX = (dst.x||0) + (dst.w||320)/2;
     const dstY = (dst.y||0) + 30;
 
@@ -188,7 +197,7 @@ function renderBoard(){
   renderNodes();
 }
 
-/** DRAG — handle-only with tiny threshold **/
+/** DRAG — handle-only **/
 function enableDrag(el, nodeId, handleEl){
   const node = state.board.nodes[nodeId];
   let startX=0,startY=0,startLeft=0,startTop=0, dragging=false, moved=false;
@@ -206,9 +215,8 @@ function enableDrag(el, nodeId, handleEl){
     if(!dragging) return;
     const dx = ev.clientX - startX;
     const dy = ev.clientY - startY;
-    if(!moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) moved = true; // prevent accidental drags
+    if(!moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) moved = true;
     if(!moved) return;
-
     const nx = Math.round(startLeft + dx);
     const ny = Math.round(startTop  + dy);
     el.style.left = nx + "px";
@@ -222,7 +230,6 @@ function enableDrag(el, nodeId, handleEl){
     el.classList.remove("dragging");
     saveBoard();
   }
-
   handleEl.addEventListener("pointerdown", onDown);
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
@@ -287,7 +294,7 @@ function getLineage(nodeId){
 
 function buildMessagesForPrompt(promptNodeId){
   const { nodes } = state.board;
-  const lineageOrder = getLineage(promptNodeId); // root..parent
+  const lineageOrder = getLineage(promptNodeId);
   const msgs = [];
 
   for(const id of lineageOrder){
@@ -355,6 +362,56 @@ async function runPrompt(promptNodeId){
   }
 }
 
+/** EXPORT / IMPORT / CLEAR **/
+function serializeBoard(){
+  return {
+    version: FILE_VERSION,
+    savedAt: new Date().toISOString(),
+    board: state.board
+  };
+}
+
+function exportBoard(){
+  const data = serializeBoard();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nodea-workspace-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.nodea.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast("Workspace exported.");
+}
+
+function importBoardFromFile(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data || !data.board || !data.version) throw new Error("Invalid file.");
+      state.board = data.board;
+      // revive selection set
+      state.board.selection = new Set();
+      saveBoard(); renderBoard();
+      toast("Workspace imported.");
+    }catch(e){
+      toast("Import failed: " + (e.message || e));
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openClearConfirm(){ modalClear.classList.remove("hidden"); modalClear.setAttribute("aria-hidden","false"); }
+function closeClearConfirm(){ modalClear.classList.add("hidden"); modalClear.setAttribute("aria-hidden","true"); }
+
+function clearWorkspace(){
+  state.board = { nodes:{}, edges:[], selection:new Set(), viewport:{x:0,y:0,zoom:1} };
+  saveBoard(); renderBoard();
+  toast("Workspace cleared.");
+}
+
 /** UI — Settings / Context **/
 function openSettings(){
   modalSettings.classList.remove("hidden");
@@ -414,9 +471,21 @@ function wireEvents(){
 
   btnNewPrompt.onclick = ()=>{ createPromptNode(centerPoint()); };
 
+  // Export / Import
+  btnExport.onclick = exportBoard;
+  btnImport.onclick = ()=> fileImport.click();
+  fileImport.onchange = (e)=>{ const f = e.target.files?.[0]; if(f) importBoardFromFile(f); e.target.value=""; };
+
+  // Clear workspace confirm
+  btnClear.onclick = openClearConfirm;
+  btnCancelClear.onclick = closeClearConfirm;
+  $("[data-close-clear]").onclick = closeClearConfirm;
+  btnConfirmClear.onclick = ()=>{ closeClearConfirm(); clearWorkspace(); };
+
   // Close modals on background click
   modalSettings.addEventListener("click", (e)=>{ if(e.target === modalSettings) closeSettings(); });
   drawerContext.addEventListener("click", (e)=>{ if(e.target === drawerContext) closeContextDrawer(); });
+  modalClear.addEventListener("click", (e)=>{ if(e.target === modalClear) closeClearConfirm(); });
 
   // Background click clears selection (future)
   canvas.addEventListener("pointerdown", (e)=>{ if(e.target === canvas) state.board.selection.clear(); });
@@ -430,5 +499,4 @@ function init(){
   renderBoard();
 }
 
-// IMPORTANT: actually boot the app
 document.addEventListener("DOMContentLoaded", init);
