@@ -124,5 +124,20 @@ main{height:calc(100dvh - 58px); position:relative}
 .toolbar .title{ display:flex; align-items:center; gap:8px; }
 .toolbar .title .drag-handle::after{ content:"⋮"; line-height:1; }
 
+/* Stage gets the transform for pan/zoom */
+.stage{
+  position:relative;
+  transform-origin: 0 0;
+}
+
+/* Show panning cursor when dragging background */
+.canvas.panning{ cursor: grabbing; }
+
+/* Make edges sit under nodes but still visible */
+.edges{ position:absolute; inset:0; pointer-events:none; z-index:0; }
+.node{ z-index:1; }
+
+
+
 
 
