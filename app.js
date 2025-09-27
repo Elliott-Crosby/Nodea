@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Phase 1.5 (YouPac chaining + Export/Import + Clear)
+   Nodea — Branch links + Pan/Zoom
    =========================== */
 
 /** CONFIG **/
@@ -8,26 +8,29 @@ const LS_KEY = "OPENAI_KEY";
 const LS_BOARD = "NODEA_BOARD";
 const MODEL_DEFAULT = "gpt-4o-mini";
 const TOKEN_BUDGET_PAIRS = 6;
-const FILE_VERSION = 1;
+
+// Pan/Zoom limits
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 1.8;
+const WORLD_BOUNDS = { minX: -2400, minY: -1600, maxX: 2400, maxY: 1600 };
 
 /** STATE **/
 const state = {
   board: {
-    nodes: {},        // id -> node
-    edges: [],        // { id, src, dst, kind: 'lineage' }
+    nodes: {},
+    edges: [], // { id, src, dst, kind: 'lineage' }
     selection: new Set(),
-    viewport: { x: 0, y: 0, zoom: 1 }
+    viewport: { x: 0, y: 0, zoom: 1 } // translate(x,y) and scale(zoom) applied to #stage
   },
-  ui: {
-    running: false,
-    lastContext: []
-  }
+  ui: { running: false, lastContext: [] },
+  pan: { active: false, startX: 0, startY: 0, origX: 0, origY: 0 }
 };
 
 /** UTIL **/
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const uid = (p="n") => `${p}_${Math.random().toString(36).slice(2,9)}_${Date.now().toString(36)}`;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function saveBoard(){ localStorage.setItem(LS_BOARD, JSON.stringify(state.board)); }
 function loadBoard(){
@@ -47,6 +50,7 @@ function modelGet(){ return $("#inpModel")?.value || MODEL_DEFAULT; }
 
 /** DOM refs **/
 const canvas = $("#canvas");
+const stage  = $("#stage");
 const edgesLayer = $("#edgesLayer");
 const keyChip = $("#keyChip");
 const btnSettings = $("#btnSettings");
@@ -75,9 +79,14 @@ function renderHeader(){
   keyChip.classList.toggle("muted", !hasKey);
 }
 
+function applyViewport(){
+  const { x, y, zoom } = state.board.viewport;
+  stage.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
+}
+
 function renderNodes(){
   // Clear existing nodes
-  $$(".node", canvas).forEach(n => n.remove());
+  $$(".node", stage).forEach(n => n.remove());
 
   for(const nodeId in state.board.nodes){
     const n = state.board.nodes[nodeId];
@@ -117,7 +126,6 @@ function renderNodes(){
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
-    // Actions: Branch on prompt, Follow-up on response (both create new prompt to the right)
     if(n.type === "prompt"){
       const btnBranch = document.createElement("button");
       btnBranch.className = "btn secondary";
@@ -158,16 +166,18 @@ function renderNodes(){
       body.appendChild(pre);
     }
     el.appendChild(body);
-    canvas.appendChild(el);
+    stage.appendChild(el);
 
-    // Drag: handle-only
+    // DRAG: handle-only
     enableDrag(el, n.id, drag);
   }
   renderEdges();
 }
 
 function renderEdges(){
+  // Clear all paths
   while(edgesLayer.firstChild) edgesLayer.removeChild(edgesLayer.firstChild);
+
   const { edges, nodes } = state.board;
 
   for(const e of edges){
@@ -175,25 +185,27 @@ function renderEdges(){
     const src = nodes[e.src], dst = nodes[e.dst];
     if(!src || !dst) continue;
 
+    // from center-top of toolbars
     const srcX = (src.x||0) + (src.w||320)/2;
     const srcY = (src.y||0) + 30;
     const dstX = (dst.x||0) + (dst.w||320)/2;
     const dstY = (dst.y||0) + 30;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-    const dx = (dstX - srcX) * 0.4;
+    const dx = (dstX - srcX) * 0.40;
     const d = `M ${srcX} ${srcY} C ${srcX+dx} ${srcY}, ${dstX-dx} ${dstY}, ${dstX} ${dstY}`;
     path.setAttribute("d", d);
     path.setAttribute("fill","none");
-    path.setAttribute("stroke","#2f3a55");
-    path.setAttribute("stroke-width","2");
-    path.setAttribute("opacity","0.9");
+    path.setAttribute("stroke","#79a8ff");     // brighter so it’s obvious
+    path.setAttribute("stroke-width","2.5");
+    path.setAttribute("opacity","0.95");
     edgesLayer.appendChild(path);
   }
 }
 
 function renderBoard(){
   renderHeader();
+  applyViewport();
   renderNodes();
 }
 
@@ -217,8 +229,9 @@ function enableDrag(el, nodeId, handleEl){
     const dy = ev.clientY - startY;
     if(!moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) moved = true;
     if(!moved) return;
-    const nx = Math.round(startLeft + dx);
-    const ny = Math.round(startTop  + dy);
+
+    const nx = clamp(Math.round(startLeft + dx), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+    const ny = clamp(Math.round(startTop  + dy), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
     el.style.left = nx + "px";
     el.style.top  = ny + "px";
     node.x = nx; node.y = ny;
@@ -235,12 +248,72 @@ function enableDrag(el, nodeId, handleEl){
   window.addEventListener("pointerup", onUp);
 }
 
+/** PAN & ZOOM **/
+function startPan(ev){
+  state.pan.active = true;
+  state.pan.startX = ev.clientX;
+  state.pan.startY = ev.clientY;
+  state.pan.origX = state.board.viewport.x;
+  state.pan.origY = state.board.viewport.y;
+  canvas.classList.add("panning");
+}
+function movePan(ev){
+  if(!state.pan.active) return;
+  const dx = ev.clientX - state.pan.startX;
+  const dy = ev.clientY - state.pan.startY;
+  state.board.viewport.x = clamp(state.pan.origX + dx, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  state.board.viewport.y = clamp(state.pan.origY + dy, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+  applyViewport();
+}
+function endPan(){
+  if(!state.pan.active) return;
+  state.pan.active = false;
+  canvas.classList.remove("panning");
+  saveBoard();
+}
+
+// Zoom around cursor (Ctrl/⌘ + wheel)
+function onWheel(ev){
+  if(!(ev.ctrlKey || ev.metaKey)) return; // only zoom when modifier held
+  ev.preventDefault();
+  const { x, y, zoom } = state.board.viewport;
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+
+  // world coords under cursor before zoom
+  const wx = (mx - x) / zoom;
+  const wy = (my - y) / zoom;
+
+  const delta = -ev.deltaY; // trackpad natural
+  const factor = delta > 0 ? 1.1 : 0.9;
+  const newZoom = clamp(zoom * factor, ZOOM_MIN, ZOOM_MAX);
+
+  // keep cursor anchored
+  state.board.viewport.x = mx - wx * newZoom;
+  state.board.viewport.y = my - wy * newZoom;
+  state.board.viewport.zoom = newZoom;
+
+  // clamp viewport within bounds
+  state.board.viewport.x = clamp(state.board.viewport.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  state.board.viewport.y = clamp(state.board.viewport.y, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+
+  applyViewport();
+  saveBoard();
+}
+
 /** CREATE / BRANCH / RESPONSE **/
 function centerPoint(){
+  // convert screen center to world coords
   const rect = canvas.getBoundingClientRect();
-  const scrollX = canvas.scrollLeft || 0;
-  const scrollY = canvas.scrollTop || 0;
-  return { x: Math.round(scrollX + rect.width/2 - 160), y: Math.round(scrollY + rect.height/2 - 80) };
+  const { x, y, zoom } = state.board.viewport;
+  const worldX = (rect.width/2 - x)/zoom - 160;
+  const worldY = (rect.height/2 - y)/zoom - 80;
+  return {
+    x: clamp(Math.round(worldX), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
+    y: clamp(Math.round(worldY), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY)
+  };
 }
 
 function createPromptNode(pos){
@@ -254,9 +327,10 @@ function createPromptNode(pos){
 function createResponseNode(parentId, text, meta={}){
   const parent = state.board.nodes[parentId];
   const id = uid("resp");
-  const y = (parent.y||0) + 160; // below
+  const y = (parent.y||0) + 160;
   const r = { id, type:"response", title:"Response", content: text, x: parent.x, y, w:320, h:140, meta };
   state.board.nodes[id] = r;
+  // lineage edge parent -> response
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
   return id;
@@ -268,15 +342,17 @@ function branchFrom(nodeId){
   const id = uid("prompt");
   const p = {
     id, type:"prompt", title:"Prompt", content:"", w:320, h:140,
-    x: (parent.x||0) + 260, y: parent.y||0, meta:{ autofocus:true }
+    x: clamp((parent.x||0) + 300, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
+    y: parent.y||0, meta:{ autofocus:true }
   };
   state.board.nodes[id] = p;
+  // lineage edge parent -> new prompt
   state.board.edges.push({ id: uid("e"), src: nodeId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
   return id;
 }
 
-/** CONTEXT (Phase 1: lineage only) **/
+/** CONTEXT (lineage only) **/
 function getLineage(nodeId){
   const { nodes, edges } = state.board;
   const path = [];
@@ -311,12 +387,11 @@ function buildMessagesForPrompt(promptNodeId){
 
   const maxMsgs = TOKEN_BUDGET_PAIRS*2 + 1;
   const trimmed = msgs.slice(-maxMsgs);
-
   state.ui.lastContext = trimmed.map(m => ({ role:m.role, content: m.content.slice(0,140) }));
   return trimmed;
 }
 
-/** NETWORKING **/
+/** NETWORK **/
 async function callChat({ messages, model, temperature=0.2, max_tokens=600 }){
   const key = keyGet();
   if(!key) throw new Error("Missing API key. Open Settings to paste your OpenAI key.");
@@ -335,7 +410,7 @@ async function callChat({ messages, model, temperature=0.2, max_tokens=600 }){
     const msg = data?.error || `HTTP ${resp.status}`;
     throw new Error(msg);
   }
-  return data; // { text, usage, model }
+  return data;
 }
 
 /** RUN **/
@@ -364,52 +439,34 @@ async function runPrompt(promptNodeId){
 
 /** EXPORT / IMPORT / CLEAR **/
 function serializeBoard(){
-  return {
-    version: FILE_VERSION,
-    savedAt: new Date().toISOString(),
-    board: state.board
-  };
+  return { version: 1, savedAt: new Date().toISOString(), board: state.board };
 }
-
 function exportBoard(){
-  const data = serializeBoard();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(serializeBoard(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = `nodea-workspace-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.nodea.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  a.href = url; a.download = `nodea-workspace-${Date.now()}.nodea.json`;
+  document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   toast("Workspace exported.");
 }
-
 function importBoardFromFile(file){
-  const reader = new FileReader();
-  reader.onload = () => {
+  const r = new FileReader();
+  r.onload = ()=>{
     try{
-      const data = JSON.parse(reader.result);
-      if(!data || !data.board || !data.version) throw new Error("Invalid file.");
-      state.board = data.board;
-      // revive selection set
-      state.board.selection = new Set();
-      saveBoard(); renderBoard();
-      toast("Workspace imported.");
-    }catch(e){
-      toast("Import failed: " + (e.message || e));
-    }
+      const data = JSON.parse(r.result);
+      if(!data || !data.board) throw new Error("Invalid file.");
+      state.board = data.board; state.board.selection = new Set();
+      saveBoard(); renderBoard(); toast("Workspace imported.");
+    }catch(e){ toast("Import failed: "+(e.message||e)); }
   };
-  reader.readAsText(file);
+  r.readAsText(file);
 }
-
 function openClearConfirm(){ modalClear.classList.remove("hidden"); modalClear.setAttribute("aria-hidden","false"); }
 function closeClearConfirm(){ modalClear.classList.add("hidden"); modalClear.setAttribute("aria-hidden","true"); }
-
 function clearWorkspace(){
-  state.board = { nodes:{}, edges:[], selection:new Set(), viewport:{x:0,y:0,zoom:1} };
-  saveBoard(); renderBoard();
-  toast("Workspace cleared.");
+  state.board = { nodes:{}, edges:[], selection:new Set(), viewport:{ x:0, y:0, zoom:1 } };
+  saveBoard(); renderBoard(); toast("Workspace cleared.");
 }
 
 /** UI — Settings / Context **/
@@ -461,34 +518,40 @@ function ensureFirstPrompt(){
 }
 
 function wireEvents(){
+  // Settings
   btnSettings.onclick = openSettings;
   $("[data-close-settings]").onclick = closeSettings;
   btnSaveKey.onclick = ()=>{ keySet(inpKey.value.trim()); renderHeader(); closeSettings(); toast("Key saved."); };
   btnClearKey.onclick = ()=>{ keySet(""); renderHeader(); closeSettings(); toast("Key cleared."); };
 
+  // Context
   btnContext.onclick = openContextDrawer;
   $("[data-close-context]").onclick = closeContextDrawer;
 
-  btnNewPrompt.onclick = ()=>{ createPromptNode(centerPoint()); };
+  // New prompt
+  btnNewPrompt.onclick = ()=> createPromptNode(centerPoint());
 
   // Export / Import
   btnExport.onclick = exportBoard;
   btnImport.onclick = ()=> fileImport.click();
   fileImport.onchange = (e)=>{ const f = e.target.files?.[0]; if(f) importBoardFromFile(f); e.target.value=""; };
 
-  // Clear workspace confirm
+  // Clear workspace
   btnClear.onclick = openClearConfirm;
   btnCancelClear.onclick = closeClearConfirm;
   $("[data-close-clear]").onclick = closeClearConfirm;
   btnConfirmClear.onclick = ()=>{ closeClearConfirm(); clearWorkspace(); };
 
-  // Close modals on background click
-  modalSettings.addEventListener("click", (e)=>{ if(e.target === modalSettings) closeSettings(); });
-  drawerContext.addEventListener("click", (e)=>{ if(e.target === drawerContext) closeContextDrawer(); });
-  modalClear.addEventListener("click", (e)=>{ if(e.target === modalClear) closeClearConfirm(); });
-
-  // Background click clears selection (future)
-  canvas.addEventListener("pointerdown", (e)=>{ if(e.target === canvas) state.board.selection.clear(); });
+  // Pan
+  canvas.addEventListener("pointerdown", (e)=>{
+    // only pan if background is grabbed (not a node / not a control)
+    if(e.target === canvas){
+      startPan(e);
+    }
+  });
+  window.addEventListener("pointermove", movePan);
+  window.addEventListener("pointerup", endPan);
+  canvas.addEventListener("wheel", onWheel, { passive:false });
 }
 
 function init(){
