@@ -15,7 +15,7 @@ body{
   color:var(--text); font:500 15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 }
 
-.header{
+.header{ 
   position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between;
   padding:12px 18px; background:rgba(10,12,16,.7); backdrop-filter:blur(8px); border-bottom:1px solid #1e2530;
 }
@@ -23,6 +23,75 @@ body{
 .logo{display:inline-grid; place-items:center; width:26px; height:26px; border-radius:8px; background:var(--accent); color:#08101f; font-weight:900}
 .header h1{margin:0; font-size:18px; letter-spacing:.4px}
 .header-actions{display:flex; align-items:center; gap:10px}
+
+.btn-icon{
+  width:36px; height:36px;
+  border-radius:10px;
+  border:1px solid #2a3140;
+  background:var(--card-2);
+  color:var(--text);
+  display:inline-grid;
+  place-items:center;
+  font-size:18px;
+  cursor:pointer;
+  box-shadow:var(--shadow);
+  transition:background-color 120ms ease, border-color 120ms ease;
+}
+.btn-icon:hover{background:#232a3a; border-color:#39445a}
+.btn-icon:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.overflow-menu{position:relative; display:inline-flex}
+.menu-panel{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  min-width:240px;
+  padding:8px;
+  border-radius:14px;
+  border:1px solid #273047;
+  background:var(--panel);
+  box-shadow:0 18px 48px rgba(0,0,0,.45);
+  display:grid;
+  gap:6px;
+  z-index:120;
+}
+.menu-panel.hidden{display:none}
+.menu-item{
+  appearance:none;
+  border:none;
+  width:100%;
+  border-radius:10px;
+  padding:10px 12px;
+  background:transparent;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+  font:600 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  transition:background-color 120ms ease, color 120ms ease;
+}
+.menu-item:hover{background:#1f2432}
+.menu-item:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.menu-item .menu-label{flex:1}
+.menu-item .menu-icon{font-size:16px; line-height:1}
+.menu-heading{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+  padding:6px 4px 0;
+}
+.menu-group{
+  border-top:1px solid #232b3c;
+  padding-top:4px;
+  display:grid;
+  gap:6px;
+}
+.menu-meta{font-size:12px; color:var(--muted)}
+.menu-meta.active{color:var(--accent)}
+.menu-item.danger{color:var(--danger)}
+.menu-item.danger:hover{background:rgba(239,68,68,.15)}
 
 .btn{
   appearance:none; border:none; border-radius:10px; padding:8px 12px;
@@ -70,10 +139,12 @@ main{height:calc(100dvh - 58px); position:relative}
   border:1px solid #263046; border-radius:var(--radius); box-shadow:var(--shadow);
   display:flex; flex-direction:column; user-select:none; z-index:1;
 }
+.node.highlight{border-color:var(--accent-2); box-shadow:0 0 0 3px rgba(77,208,181,.4), var(--shadow)}
 .node .toolbar{
   display:flex; justify-content:space-between; align-items:center;
   padding:8px 10px; border-bottom:1px solid #232a3a; background:linear-gradient(180deg,#1a202a,#171c24);
   cursor:grab; border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);
+  transition:opacity 140ms ease;
 }
 .node.dragging .toolbar{cursor:grabbing}
 .node .title{font-weight:700; font-size:13px; color:#cfe0ff}
@@ -185,6 +256,20 @@ main{height:calc(100dvh - 58px); position:relative}
   background: #1a2030; color: #9fb3d9;
   cursor: pointer;
 }
+
+/* Zen mode */
+body.zen-mode .mini-map,
+body.zen-mode .zoom-controls,
+body.zen-mode .canvas-toolbar,
+body.zen-mode .node .toolbar{opacity:0; pointer-events:none;}
+body.zen-mode .canvas:hover .mini-map,
+body.zen-mode .canvas:hover .zoom-controls,
+body.zen-mode .canvas:hover .canvas-toolbar,
+body.zen-mode .canvas:hover .node .toolbar,
+body.zen-mode .canvas:focus-within .mini-map,
+body.zen-mode .canvas:focus-within .zoom-controls,
+body.zen-mode .canvas:focus-within .canvas-toolbar,
+body.zen-mode .canvas:focus-within .node .toolbar{opacity:1; pointer-events:auto;}
 
 /* Connector handle for knowledge linking */
 .connector {

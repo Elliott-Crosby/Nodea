@@ -13,15 +13,37 @@
     <h1>Nodea</h1>
   </div>
   <div class="header-actions">
-    <span id="keyChip" class="chip muted">Key: Missing</span>
-    <button id="btnSettings" class="btn">Settings</button>
-    <button id="btnContext" class="btn secondary">Context</button>
-    <button id="btnCenter"  class="btn secondary">Center</button>
-    <button id="btnExport"  class="btn secondary">Export</button>
-    <button id="btnImport"  class="btn secondary">Import</button>
-    <button id="btnClear"   class="btn danger">Clear</button>
-    <input id="fileImport" type="file" accept="application/json" style="display:none" />
+    <button id="btnSearch" class="btn-icon" type="button" aria-label="Search workspace" title="Search workspace">🔍</button>
+    <button id="btnQuickExport" class="btn-icon" type="button" aria-label="Export workspace" title="Export workspace">↗</button>
+    <div class="overflow-menu">
+      <button id="btnOverflow" class="btn-icon" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menuOverflow" title="More actions">⋯</button>
+      <div id="menuOverflow" class="menu-panel hidden" role="menu" aria-hidden="true">
+        <button class="menu-item" type="button" data-action="key" role="menuitem">
+          <span class="menu-label">Key Set</span>
+          <span id="keyChip" class="menu-meta muted">Missing</span>
+        </button>
+        <button class="menu-item" type="button" data-action="import" role="menuitem">Import</button>
+        <div class="menu-group" role="none">
+          <div class="menu-heading" role="presentation">Export</div>
+          <button class="menu-item" type="button" data-action="export-download" role="menuitem">Download .nodea.json</button>
+          <button class="menu-item" type="button" data-action="export-copy" role="menuitem">Copy JSON to clipboard</button>
+        </div>
+        <button class="menu-item" type="button" data-action="center" role="menuitem">Center / Fit</button>
+        <button class="menu-item" type="button" data-action="context" role="menuitem">
+          <span class="menu-label">Context Panel</span>
+          <span id="contextStatus" class="menu-meta">Off</span>
+        </button>
+        <button class="menu-item" type="button" data-action="settings" role="menuitem">Settings</button>
+        <button class="menu-item" type="button" data-action="zen" role="menuitem">
+          <span class="menu-icon" aria-hidden="true">👁</span>
+          <span class="menu-label">Zen Mode</span>
+          <span id="zenStatus" class="menu-meta">Off</span>
+        </button>
+        <button class="menu-item danger" type="button" data-action="clear" role="menuitem">Clear Board</button>
+      </div>
+    </div>
   </div>
+  <input id="fileImport" type="file" accept="application/json" hidden />
 </header>
 
   <main>

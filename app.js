@@ -6,6 +6,7 @@
 const API_BASE = "https://nodea-api.onrender.com";
 const LS_KEY = "OPENAI_KEY";
 const LS_BOARD = "NODEA_BOARD";
+const LS_ZEN = "NODEA_ZEN";
 const MODEL_DEFAULT = "gpt-4o-mini";
 const TOKEN_BUDGET_PAIRS = 6;
 
@@ -22,7 +23,7 @@ const state = {
     selection: new Set(),
     viewport: { x: 0, y: 0, zoom: 1 } // translate(x,y) and scale(zoom) applied to #stage
   },
-  ui: { running: false, lastContext: [], pendingConnect: null }, // pendingConnect: { srcId }
+  ui: { running: false, lastContext: [], pendingConnect: null, highlight: null, highlightTimer: null, zen: false }, // pendingConnect: { srcId }
   pan: { active: false, startX: 0, startY: 0, origX: 0, origY: 0 }
 };
 
@@ -53,9 +54,12 @@ const canvas = $("#canvas");
 const stage  = $("#stage");
 const edgesLayer = $("#edgesLayer");
 const keyChip = $("#keyChip");
-const btnSettings = $("#btnSettings");
-const btnContext  = $("#btnContext");
-const btnCenter   = $("#btnCenter");
+const btnSearch = $("#btnSearch");
+const btnQuickExport = $("#btnQuickExport");
+const btnOverflow = $("#btnOverflow");
+const menuOverflow = $("#menuOverflow");
+const contextStatus = $("#contextStatus");
+const zenStatus = $("#zenStatus");
 const modalSettings = $("#modalSettings");
 const inpKey = $("#inpKey");
 const inpModel = $("#inpModel");
@@ -65,19 +69,51 @@ const btnNewPrompt = $("#btnNewPrompt");
 const drawerContext = $("#drawerContext");
 const ctxList = $("#ctxList");
 const ctxCount = $("#ctxCount");
-const btnExport = $("#btnExport");
-const btnImport = $("#btnImport");
 const fileImport = $("#fileImport");
-const btnClear = $("#btnClear");
 const modalClear = $("#modalClear");
 const btnCancelClear = $("#btnCancelClear");
 const btnConfirmClear = $("#btnConfirmClear");
+let overflowOpen = false;
 
 /** RENDERERS **/
 function renderHeader(){
   const hasKey = !!keyGet();
-  keyChip.textContent = hasKey ? "Key: Set" : "Key: Missing";
-  keyChip.classList.toggle("muted", !hasKey);
+  if(keyChip){
+    keyChip.textContent = hasKey ? "Set" : "Missing";
+    keyChip.classList.toggle("muted", !hasKey);
+    keyChip.classList.toggle("active", hasKey);
+  }
+  if(contextStatus){
+    const open = !drawerContext.classList.contains("hidden");
+    contextStatus.textContent = open ? "On" : "Off";
+    contextStatus.classList.toggle("active", open);
+  }
+  if(zenStatus){
+    const on = !!state.ui.zen;
+    zenStatus.textContent = on ? "On" : "Off";
+    zenStatus.classList.toggle("active", on);
+  }
+}
+
+function applyZenMode(){
+  document.body.classList.toggle("zen-mode", state.ui.zen);
+}
+
+function setZenMode(on){
+  state.ui.zen = !!on;
+  applyZenMode();
+  localStorage.setItem(LS_ZEN, state.ui.zen ? "1" : "0");
+  renderHeader();
+  toast(state.ui.zen ? "Zen mode on." : "Zen mode off.", 1600);
+}
+
+function toggleZenMode(){
+  setZenMode(!state.ui.zen);
+}
+
+function loadZenMode(){
+  state.ui.zen = localStorage.getItem(LS_ZEN) === "1";
+  applyZenMode();
 }
 
 function applyViewport(){
@@ -92,7 +128,10 @@ function renderNodes(){
   for(const nodeId in state.board.nodes){
     const n = state.board.nodes[nodeId];
     const el = document.createElement("div");
-    el.className = `node ${n.type}${n.dragging ? " dragging":""}`;
+    const classes = ["node", n.type];
+    if(n.dragging) classes.push("dragging");
+    if(state.ui.highlight === n.id) classes.push("highlight");
+    el.className = classes.join(" ");
     el.style.left = (n.x||0) + "px";
     el.style.top  = (n.y||0) + "px";
     el.style.width = (n.w || 320) + "px";
@@ -285,6 +324,72 @@ function renderBoard(){
   renderHeader();
   applyViewport();
   renderNodes();
+}
+
+/** SEARCH & FOCUS **/
+function highlightNode(nodeId, { render = true } = {}){
+  if(state.ui.highlightTimer){
+    clearTimeout(state.ui.highlightTimer);
+    state.ui.highlightTimer = null;
+  }
+  state.ui.highlight = nodeId || null;
+  if(render) renderBoard();
+  if(nodeId){
+    state.ui.highlightTimer = setTimeout(()=>{
+      state.ui.highlight = null;
+      state.ui.highlightTimer = null;
+      renderBoard();
+    }, 2000);
+  }
+}
+
+function focusOnNode(nodeId){
+  const node = state.board.nodes[nodeId];
+  if(!node) return;
+
+  const vp = state.board.viewport;
+  const rect = canvas.getBoundingClientRect();
+  const w = node.w || 320;
+  const h = node.h || 140;
+  const z = vp.zoom;
+
+  const targetX = rect.width/2  - ((node.x||0) + w/2) * z;
+  const targetY = rect.height/2 - ((node.y||0) + h/2) * z;
+
+  vp.x = clamp(targetX, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  vp.y = clamp(targetY, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+
+  saveBoard();
+  highlightNode(nodeId, { render: false });
+  renderBoard();
+}
+
+function openSearchDialog(){
+  const nodes = Object.values(state.board.nodes);
+  if(nodes.length === 0){
+    toast("No nodes on the board yet.");
+    return;
+  }
+
+  const input = prompt("Search nodes (matches prompt & response text):");
+  if(!input) return;
+
+  const query = input.trim().toLowerCase();
+  if(!query) return;
+
+  const match = nodes.find(n => {
+    const haystack = `${n.title || ""} ${n.content || ""} ${n.id || ""}`.toLowerCase();
+    return haystack.includes(query);
+  });
+
+  if(!match){
+    toast("No nodes matched your search.");
+    return;
+  }
+
+  focusOnNode(match.id);
+  const label = match.type === "prompt" ? "prompt" : (match.type === "response" ? "response" : "node");
+  toast(`Focused on ${label}.`, 1400);
 }
 
 /** DRAG - handle-only **/
@@ -612,6 +717,17 @@ async function exportBoard(){
   downloadBlob(blob, name);
   toast("Saved to your Downloads folder.");
 }
+
+async function copyBoardToClipboard(){
+  try{
+    const payload = JSON.stringify(serializeBoard(), null, 2);
+    await navigator.clipboard.writeText(payload);
+    toast("Workspace copied to clipboard.");
+  }catch(err){
+    console.warn("Clipboard copy failed", err);
+    toast("Copy failed. Check browser permissions.", 2400);
+  }
+}
 function importBoardFromFile(file){
   const r = new FileReader();
   r.onload = ()=>{
@@ -619,24 +735,40 @@ function importBoardFromFile(file){
       const data = JSON.parse(r.result);
       if(!data || !data.board) throw new Error("Invalid file.");
       state.board = data.board; state.board.selection = new Set();
+      if(state.ui.highlightTimer){
+        clearTimeout(state.ui.highlightTimer);
+        state.ui.highlightTimer = null;
+      }
+      state.ui.highlight = null;
       saveBoard(); renderBoard(); toast("Workspace imported.");
     }catch(e){ toast("Import failed: "+(e.message||e)); }
   };
   r.readAsText(file);
 }
-function openClearConfirm(){ modalClear.classList.remove("hidden"); modalClear.setAttribute("aria-hidden","false"); }
+function openClearConfirm(){
+  closeOverflowMenu();
+  modalClear.classList.remove("hidden");
+  modalClear.setAttribute("aria-hidden","false");
+}
 function closeClearConfirm(){ modalClear.classList.add("hidden"); modalClear.setAttribute("aria-hidden","true"); }
 function clearWorkspace(){
   state.board = { nodes:{}, edges:[], selection:new Set(), viewport:{ x:0, y:0, zoom:1 } };
+  if(state.ui.highlightTimer){
+    clearTimeout(state.ui.highlightTimer);
+    state.ui.highlightTimer = null;
+  }
+  state.ui.highlight = null;
   saveBoard(); renderBoard(); toast("Workspace cleared.");
 }
 
 /** UI - Settings / Context **/
 function openSettings(){
+  closeOverflowMenu();
   modalSettings.classList.remove("hidden");
   modalSettings.setAttribute("aria-hidden","false");
   inpKey.value = keyGet();
   if(inpModel) inpModel.value = MODEL_DEFAULT;
+  setTimeout(()=> inpKey?.focus(), 50);
 }
 function closeSettings(){
   modalSettings.classList.add("hidden");
@@ -653,11 +785,91 @@ function openContextDrawer(){
   drawerContext.classList.remove("hidden");
   drawerContext.setAttribute("aria-hidden","false");
   document.body.classList.add("drawer-open");
+  renderHeader();
 }
 function closeContextDrawer(){
   drawerContext.classList.add("hidden");
   drawerContext.setAttribute("aria-hidden","true");
   document.body.classList.remove("drawer-open");
+  renderHeader();
+}
+
+function toggleContextPanel(){
+  if(drawerContext.classList.contains("hidden")) openContextDrawer();
+  else closeContextDrawer();
+}
+
+function openOverflowMenu(){
+  if(!menuOverflow) return;
+  menuOverflow.classList.remove("hidden");
+  menuOverflow.setAttribute("aria-hidden","false");
+  btnOverflow?.setAttribute("aria-expanded","true");
+  overflowOpen = true;
+}
+
+function closeOverflowMenu(){
+  if(!menuOverflow) return;
+  menuOverflow.classList.add("hidden");
+  menuOverflow.setAttribute("aria-hidden","true");
+  btnOverflow?.setAttribute("aria-expanded","false");
+  overflowOpen = false;
+}
+
+function toggleOverflowMenu(){
+  if(overflowOpen) closeOverflowMenu();
+  else openOverflowMenu();
+}
+
+function handleOverflowAction(ev){
+  const target = ev.target.closest("[data-action]");
+  if(!target) return;
+  const action = target.dataset.action;
+
+  switch(action){
+    case "key":
+    case "settings":
+      openSettings();
+      break;
+    case "import":
+      closeOverflowMenu();
+      fileImport?.click();
+      break;
+    case "export-download":
+      closeOverflowMenu();
+      exportBoard();
+      break;
+    case "export-copy":
+      closeOverflowMenu();
+      copyBoardToClipboard();
+      break;
+    case "center":
+      closeOverflowMenu();
+      centerOnGraph();
+      break;
+    case "context":
+      closeOverflowMenu();
+      toggleContextPanel();
+      break;
+    case "zen":
+      closeOverflowMenu();
+      toggleZenMode();
+      break;
+    case "clear":
+      openClearConfirm();
+      break;
+  }
+}
+
+function handleGlobalClick(ev){
+  if(!overflowOpen) return;
+  if(menuOverflow?.contains(ev.target) || btnOverflow?.contains(ev.target)) return;
+  closeOverflowMenu();
+}
+
+function handleGlobalKeydown(ev){
+  if(ev.key === "Escape" && overflowOpen){
+    closeOverflowMenu();
+  }
 }
 
 /** Center on graph **/
@@ -709,34 +921,45 @@ function ensureFirstPrompt(){
 }
 
 function wireEvents(){
-  // Settings
-  btnSettings.onclick = openSettings;
-  $("[data-close-settings]").onclick = closeSettings;
-  btnSaveKey.onclick = ()=>{ keySet(inpKey.value.trim()); renderHeader(); closeSettings(); toast("Key saved."); };
-  btnClearKey.onclick = ()=>{ keySet(""); renderHeader(); closeSettings(); toast("Key cleared."); };
+  btnSearch?.addEventListener("click", ()=>{ closeOverflowMenu(); openSearchDialog(); });
+  btnQuickExport?.addEventListener("click", ()=>{ closeOverflowMenu(); exportBoard(); });
+  btnOverflow?.addEventListener("click", toggleOverflowMenu);
+  menuOverflow?.addEventListener("click", handleOverflowAction);
+  document.addEventListener("click", handleGlobalClick);
+  document.addEventListener("keydown", handleGlobalKeydown);
 
-  // Context
-  btnContext.onclick = openContextDrawer;
-  $("[data-close-context]").onclick = closeContextDrawer;
+  const closeSettingsBtn = $("[data-close-settings]");
+  closeSettingsBtn?.addEventListener("click", closeSettings);
+  btnSaveKey?.addEventListener("click", ()=>{
+    keySet(inpKey.value.trim());
+    renderHeader();
+    closeSettings();
+    toast("Key saved.");
+  });
+  btnClearKey?.addEventListener("click", ()=>{
+    keySet("");
+    renderHeader();
+    closeSettings();
+    toast("Key cleared.");
+  });
 
-  // Center
-  if(btnCenter) btnCenter.onclick = centerOnGraph;
+  const closeContextBtn = $("[data-close-context]");
+  closeContextBtn?.addEventListener("click", closeContextDrawer);
 
-  // New prompt
-  btnNewPrompt.onclick = ()=> createPromptNode(centerPoint());
+  btnNewPrompt?.addEventListener("click", ()=> createPromptNode(centerPoint()));
 
-  // Export / Import
-  btnExport.onclick = exportBoard;
-  btnImport.onclick = ()=> fileImport.click();
-  fileImport.onchange = (e)=>{ const f = e.target.files?.[0]; if(f) importBoardFromFile(f); e.target.value=""; };
+  if(fileImport){
+    fileImport.onchange = (e)=>{
+      const f = e.target.files?.[0];
+      if(f) importBoardFromFile(f);
+      e.target.value="";
+    };
+  }
 
-  // Clear workspace
-  btnClear.onclick = openClearConfirm;
-  btnCancelClear.onclick = closeClearConfirm;
-  $("[data-close-clear]").onclick = closeClearConfirm;
-  btnConfirmClear.onclick = ()=>{ closeClearConfirm(); clearWorkspace(); };
+  btnCancelClear?.addEventListener("click", closeClearConfirm);
+  $("[data-close-clear]")?.addEventListener("click", closeClearConfirm);
+  btnConfirmClear?.addEventListener("click", ()=>{ closeClearConfirm(); clearWorkspace(); });
 
-  // Pan on empty background and cancel pending connector
   canvas.addEventListener("pointerdown", (e)=>{
     if(e.target === canvas || e.target === stage){
       state.board.selection.clear?.();
@@ -747,14 +970,12 @@ function wireEvents(){
   window.addEventListener("pointermove", movePan);
   window.addEventListener("pointerup", endPan);
 
-  // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
-
-  // No keyboard shortcuts
 }
 
 function init(){
   loadBoard();
+  loadZenMode();
   renderHeader();
   ensureFirstPrompt();
   wireEvents();
