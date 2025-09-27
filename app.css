@@ -36,18 +36,38 @@ body{
 .small{font-size:12px}
 
 main{height:calc(100dvh - 58px); position:relative}
+
+/* Canvas and Stage */
 .canvas{
   position:relative; height:100%; overflow:auto; padding:40px; background:
     radial-gradient(1px 1px at 0 0, #223 1px, transparent 1px),
     radial-gradient(1px 1px at 10px 10px, #223 1px, transparent 1px);
   background-size:20px 20px;
 }
-.edges{position:absolute; inset:0; pointer-events:none}
+.canvas.panning{ cursor: grabbing; }
+
+/* Stage gets the transform for pan/zoom and a real size so SVG can draw */
+.stage{
+  position:relative;
+  width:4000px;    /* adjust world size as needed */
+  height:3000px;
+  transform-origin:0 0;
+}
+
+/* Edges layer sits under nodes and covers the whole stage */
+.edges{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  z-index:0;
+}
 
 .node{
   position:absolute; width:var(--node-w); min-height:84px; background:var(--card);
   border:1px solid #263046; border-radius:var(--radius); box-shadow:var(--shadow);
-  display:flex; flex-direction:column; user-select:none;
+  display:flex; flex-direction:column; user-select:none; z-index:1;
 }
 .node .toolbar{
   display:flex; justify-content:space-between; align-items:center;
@@ -124,20 +144,4 @@ main{height:calc(100dvh - 58px); position:relative}
 .toolbar .title{ display:flex; align-items:center; gap:8px; }
 .toolbar .title .drag-handle::after{ content:"⋮"; line-height:1; }
 
-/* Stage gets the transform for pan/zoom */
-.stage{
-  position:relative;
-  transform-origin: 0 0;
-}
-
-/* Show panning cursor when dragging background */
-.canvas.panning{ cursor: grabbing; }
-
-/* Make edges sit under nodes but still visible */
-.edges{ position:absolute; inset:0; pointer-events:none; z-index:0; }
-.node{ z-index:1; }
-
-
-
-
-
+/* Keep this at the end so it wins specificity if duplicated elsewhere */
