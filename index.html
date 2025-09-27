@@ -1,1 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Nodea — Live MVP (Phase 1)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <span class="logo">⟁</span>
+      <h1>Nodea</h1>
+    </div>
+    <div class="header-actions">
+      <span id="keyChip" class="chip muted">Key: Missing</span>
+      <button id="btnSettings" class="btn">Settings</button>
+      <button id="btnContext" class="btn secondary">Context</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="canvas" class="canvas">
+      <!-- SVG edges layer -->
+      <svg id="edgesLayer" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- Nodes will be injected here -->
+    </div>
+    <button id="btnNewPrompt" class="fab">＋ New Prompt</button>
+  </main>
+
+  <!-- Settings Modal (BYOK) -->
+  <div id="modalSettings" class="modal hidden" aria-hidden="true" role="dialog" aria-label="Settings">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="icon-btn" data-close-settings>✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="label">OpenAI API key</label>
+        <input id="inpKey" class="input" type="password" placeholder="sk-..." autocomplete="off" />
+        <p class="help">Your key is stored locally in your browser (localStorage) and sent only in the Authorization header to your server.</p>
+
+        <label class="label">Default Model</label>
+        <input id="inpModel" class="input" type="text" value="gpt-4o-mini" />
+      </div>
+      <div class="modal-footer">
+        <button id="btnSaveKey" class="btn">Save</button>
+        <button id="btnClearKey" class="btn danger">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Drawer -->
+  <aside id="drawerContext" class="drawer hidden" aria-hidden="true" aria-label="Context Preview">
+    <div class="drawer-header">
+      <h2>Context Preview</h2>
+      <button class="icon-btn" data-close-context>✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="row"><span class="muted">Messages to send:</span> <span id="ctxCount" class="chip">0</span></div>
+      <ul id="ctxList" class="ctx-list"></ul>
+      <p class="muted small" id="ctxNote">Lineage only (Phase 1). Oldest items trimmed if long.</p>
+    </div>
+  </aside>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
+
 
