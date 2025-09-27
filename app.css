@@ -114,4 +114,15 @@ main{height:calc(100dvh - 58px); position:relative}
   bottom:20px; background:#17202e; color:#eaf0ff; border:1px solid #2a3246; border-radius:10px; padding:10px 14px; box-shadow:var(--shadow);
 }
 
+/* Drag handle: only this area starts drag */
+.drag-handle{
+  width:18px; height:18px; margin-right:8px; border-radius:6px;
+  background:#283145; border:1px solid #314061; display:inline-flex; align-items:center; justify-content:center;
+  color:#8fa8d6; font-weight:900; cursor:grab; user-select:none;
+}
+.node.dragging .drag-handle{ cursor:grabbing; }
+.toolbar .title{ display:flex; align-items:center; gap:8px; }
+.toolbar .title .drag-handle::after{ content:"⋮"; line-height:1; }
+
+
 
