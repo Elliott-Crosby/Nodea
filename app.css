@@ -5,13 +5,18 @@
   --radius:14px; --radius-sm:10px; --gap:12px;
   --node-w:320px;
   --drawer-w: 360px; /* width of the Context drawer */
+  --grid:rgba(159,179,217,0.03);
+  --t:320ms;
+  --t-fast:160ms;
+  --e:cubic-bezier(0.22, 1, 0.36, 1);
+  --guide:rgba(110,168,254,0.55);
   font-synthesis-weight:none;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0; background:linear-gradient(180deg,#0b0d11,#0e1218 40%,#0b0d11 100%);
+  margin:0; background:var(--bg);
   color:var(--text); font:500 15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 }
 
@@ -109,10 +114,7 @@ main{height:calc(100dvh - 58px); position:relative}
 
 /* Canvas and Stage */
 .canvas{
-  position:relative; height:100%; overflow:auto; padding:40px; background:
-    radial-gradient(1px 1px at 0 0, #223 1px, transparent 1px),
-    radial-gradient(1px 1px at 10px 10px, #223 1px, transparent 1px);
-  background-size:20px 20px;
+  position:relative; height:100%; overflow:auto; padding:40px; background:var(--bg);
 }
 .canvas.panning{ cursor: grabbing; }
 
@@ -122,6 +124,18 @@ main{height:calc(100dvh - 58px); position:relative}
   width:4000px;    /* adjust world size as needed */
   height:3000px;
   transform-origin:0 0;
+  transition:transform var(--t) var(--e);
+}
+.canvas.panning .stage{ transition:none; }
+
+.grid-layer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background-image:
+    repeating-linear-gradient(0deg, var(--grid), var(--grid) 1px, transparent 1px, transparent 32px),
+    repeating-linear-gradient(90deg, var(--grid), var(--grid) 1px, transparent 1px, transparent 32px);
+  z-index:0;
 }
 
 /* Edges layer sits under nodes and covers the whole stage */
@@ -131,13 +145,13 @@ main{height:calc(100dvh - 58px); position:relative}
   width:100%;
   height:100%;
   pointer-events:none;
-  z-index:0;
+  z-index:1;
 }
 
 .node{
   position:absolute; width:var(--node-w); min-height:84px; background:var(--card);
   border:1px solid #263046; border-radius:var(--radius); box-shadow:var(--shadow);
-  display:flex; flex-direction:column; user-select:none; z-index:1;
+  display:flex; flex-direction:column; user-select:none; z-index:2;
 }
 .node.highlight{border-color:var(--accent-2); box-shadow:0 0 0 3px rgba(77,208,181,.4), var(--shadow)}
 .node .toolbar{
@@ -170,6 +184,18 @@ main{height:calc(100dvh - 58px); position:relative}
   position:absolute; right:22px; bottom:22px; border-radius:999px; padding:14px 16px; font-weight:800;
   background:linear-gradient(180deg,#6ea8fe,#7ec8ff); color:#07101f; box-shadow:var(--shadow); border:none; cursor:pointer;
 }
+
+.guide-line{
+  position:absolute;
+  background:var(--guide);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 140ms ease;
+  z-index:3;
+}
+.guide-line.vertical{top:0; width:2px; height:100%;}
+.guide-line.horizontal{left:0; height:2px; width:100%;}
+.guide-line.active{opacity:1;}
 
 .modal{
   position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.35); z-index:100;
@@ -256,6 +282,44 @@ main{height:calc(100dvh - 58px); position:relative}
   background: #1a2030; color: #9fb3d9;
   cursor: pointer;
 }
+
+.minimap{
+  position:absolute;
+  right:24px;
+  bottom:24px;
+  width:220px;
+  border-radius:12px;
+  border:1px solid #2a3246;
+  background:rgba(12,15,22,0.82);
+  box-shadow:0 18px 36px rgba(0,0,0,0.45);
+  overflow:hidden;
+  pointer-events:none;
+  opacity:0.7;
+  transition:opacity var(--t-fast) var(--e);
+  backdrop-filter:blur(6px);
+}
+.minimap.interacting{opacity:1;}
+.minimap-nodes,
+.minimap-viewport{
+  position:absolute;
+  inset:0;
+}
+.minimap-nodes{z-index:1;}
+.minimap-node{
+  position:absolute;
+  border-radius:3px;
+  background:rgba(110,168,254,0.55);
+}
+.minimap-node.response{background:rgba(77,208,181,0.55);}
+.minimap-viewport{
+  z-index:2;
+  border:1px solid rgba(110,168,254,0.8);
+  border-radius:6px;
+  box-shadow:0 0 0 1px rgba(7,16,31,0.55);
+  background:rgba(110,168,254,0.08);
+}
+
+body.zen-mode .minimap{display:none;}
 
 /* Zen mode */
 body.zen-mode .mini-map,
