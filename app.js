@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes
+   Nodea — Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes + Knowledge edges
    =========================== */
 
 /** CONFIG **/
@@ -18,11 +18,11 @@ const WORLD_BOUNDS = { minX: -2400, minY: -1600, maxX: 2400, maxY: 1600 };
 const state = {
   board: {
     nodes: {},
-    edges: [], // { id, src, dst, kind: 'lineage' }
+    edges: [], // { id, src, dst, kind: 'lineage' | 'knowledge' }
     selection: new Set(),
     viewport: { x: 0, y: 0, zoom: 1 } // translate(x,y) and scale(zoom) applied to #stage
   },
-  ui: { running: false, lastContext: [] },
+  ui: { running: false, lastContext: [], pendingConnect: null }, // pendingConnect: { srcId }
   pan: { active: false, startX: 0, startY: 0, origX: 0, origY: 0 }
 };
 
@@ -113,7 +113,7 @@ function renderNodes(){
     const titleText = document.createElement("span");
     titleText.textContent = n.type === "prompt" ? "Prompt" : (n.type === "response" ? "Response" : "Node");
 
-    // Chevron for collapse toggle
+    // Collapse chevron
     const btnChev = document.createElement("button");
     btnChev.className = "icon-btn chev";
     btnChev.title = (n.meta?.collapsed ? "Expand" : "Collapse");
@@ -125,7 +125,6 @@ function renderNodes(){
       saveBoard();
       renderBoard();
     };
-    // Place before title text
     title.appendChild(btnChev);
     title.appendChild(titleText);
 
@@ -142,9 +141,7 @@ function renderNodes(){
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
-    // Actions:
-    // Prompt: only Run
-    // Response: Follow-up (creates a new prompt child)
+    // Actions
     if(n.type === "prompt"){
       const btnRun = document.createElement("button");
       btnRun.className = "btn secondary";
@@ -159,6 +156,17 @@ function renderNodes(){
       btnFollow.onclick = (e)=>{ e.stopPropagation(); branchFrom(n.id); };
       toolbarRight.append(btnFollow);
     }
+
+    // Knowledge connector
+    const connector = document.createElement("div");
+    connector.className = "connector";
+    connector.title = "Connect this node to another";
+    connector.onpointerdown = (e)=>{
+      e.stopPropagation();
+      state.ui.pendingConnect = { srcId: n.id };
+      toast("Select another node to connect...");
+    };
+    toolbarRight.append(connector);
 
     bar.append(title, badges, spacer, toolbarRight);
     el.appendChild(bar);
@@ -193,6 +201,24 @@ function renderNodes(){
     if(n.meta?.collapsed){ el.classList.add("collapsed"); }
     else { el.classList.remove("collapsed"); }
 
+    // If releasing on this node while connector active -> make knowledge edge
+    el.addEventListener("pointerup", ()=>{
+      const pending = state.ui.pendingConnect;
+      if(pending && pending.srcId !== n.id){
+        const src = pending.srcId;
+        const dst = n.id;
+        const exists = state.board.edges.some(e =>
+          e.kind==="knowledge" && ((e.src===src && e.dst===dst) || (e.src===dst && e.dst===src))
+        );
+        if(!exists){
+          state.board.edges.push({ id: uid("e"), src, dst, kind:"knowledge" });
+          saveBoard(); renderBoard();
+          toast("Nodes connected.");
+        }
+        state.ui.pendingConnect = null;
+      }
+    });
+
     stage.appendChild(el);
 
     // DRAG: handle-only
@@ -207,12 +233,12 @@ function renderEdges(){
 
   const { edges, nodes } = state.board;
 
+  // lineage edges (curved)
   for(const e of edges){
     if(e.kind !== "lineage") continue;
     const src = nodes[e.src], dst = nodes[e.dst];
     if(!src || !dst) continue;
 
-    // from center-top of toolbars
     const srcX = (src.x||0) + (src.w||320)/2;
     const srcY = (src.y||0) + 30;
     const dstX = (dst.x||0) + (dst.w||320)/2;
@@ -227,6 +253,23 @@ function renderEdges(){
     path.setAttribute("stroke-width","2.5");
     path.setAttribute("opacity","0.95");
     edgesLayer.appendChild(path);
+  }
+
+  // knowledge edges (straight dashed)
+  for(const e of edges){
+    if(e.kind !== "knowledge") continue;
+    const a = nodes[e.src], b = nodes[e.dst];
+    if(!a || !b) continue;
+
+    const ax = (a.x||0) + (a.w||320)/2;
+    const ay = (a.y||0) + 30;
+    const bx = (b.x||0) + (b.w||320)/2;
+    const by = (b.y||0) + 30;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg","path");
+    line.setAttribute("d", `M ${ax} ${ay} L ${bx} ${by}`);
+    line.setAttribute("class","knowledge");
+    edgesLayer.appendChild(line);
   }
 }
 
@@ -300,7 +343,7 @@ function endPan(){
   saveBoard();
 }
 
-// Wheel zoom around cursor (always; no modifier key)
+// Wheel zoom around cursor
 function onWheel(ev){
   ev.preventDefault();
   const vp = state.board.viewport;
@@ -308,19 +351,16 @@ function onWheel(ev){
   const mx = ev.clientX - rect.left;
   const my = ev.clientY - rect.top;
 
-  // world coords under cursor before zoom
   const wx = (mx - vp.x) / vp.zoom;
   const wy = (my - vp.y) / vp.zoom;
 
   const factor = ev.deltaY < 0 ? 1.1 : 0.9;
   const newZoom = clamp(vp.zoom * factor, ZOOM_MIN, ZOOM_MAX);
 
-  // keep cursor anchored
   vp.x = mx - wx * newZoom;
   vp.y = my - wy * newZoom;
   vp.zoom = newZoom;
 
-  // clamp viewport within bounds
   vp.x = clamp(vp.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
   vp.y = clamp(vp.y, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
 
@@ -330,7 +370,6 @@ function onWheel(ev){
 
 /** CREATE / BRANCH / RESPONSE **/
 function centerPoint(){
-  // convert screen center to world coords
   const rect = canvas.getBoundingClientRect();
   const { x, y, zoom } = state.board.viewport;
   const worldX = (rect.width/2 - x)/zoom - 160;
@@ -355,7 +394,6 @@ function createResponseNode(parentId, text, meta={}){
   const y = (parent.y||0) + 160;
   const r = { id, type:"response", title:"Response", content: text, x: parent.x, y, w:320, h:140, meta };
   state.board.nodes[id] = r;
-  // lineage edge prompt -> response when running
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
   return id;
@@ -375,16 +413,15 @@ function branchFrom(nodeId){
   state.board.nodes[id] = p;
 
   if(parent.type === "response"){
-    // lineage edge response -> prompt only
     state.board.edges.push({ id: uid("e"), src: nodeId, dst: id, kind:"lineage" });
   }
   saveBoard(); renderBoard();
   return id;
 }
 
-/** CONTEXT (lineage only) **/
+/** CONTEXT **/
 function getLineage(nodeId){
-  const { nodes, edges } = state.board;
+  const { edges } = state.board;
   const path = [];
   let current = nodeId;
   const visited = new Set();
@@ -398,11 +435,31 @@ function getLineage(nodeId){
   return path.reverse();
 }
 
+function getConnectedComponent(startId){
+  const { edges } = state.board;
+  const visited = new Set();
+  const stack = [startId];
+  while(stack.length){
+    const id = stack.pop();
+    if(visited.has(id)) continue;
+    visited.add(id);
+    for(const e of edges){
+      if(e.kind !== "knowledge") continue;
+      if(e.src === id && !visited.has(e.dst)) stack.push(e.dst);
+      if(e.dst === id && !visited.has(e.src)) stack.push(e.src);
+    }
+  }
+  return Array.from(visited);
+}
+
 function buildMessagesForPrompt(promptNodeId){
   const { nodes } = state.board;
   const lineageOrder = getLineage(promptNodeId);
+  const network = getConnectedComponent(promptNodeId);
+
   const msgs = [];
 
+  // lineage first
   for(const id of lineageOrder){
     const n = nodes[id];
     if(!n) continue;
@@ -410,10 +467,20 @@ function buildMessagesForPrompt(promptNodeId){
     if(n.type === "response" && n.content) msgs.push({ role:"assistant", content: n.content });
   }
 
+  // current prompt
   const current = nodes[promptNodeId];
   const promptText = (current?.content || "").trim();
   if(!promptText) throw new Error("Prompt is empty.");
   msgs.push({ role:"user", content: promptText });
+
+  // add other nodes in knowledge network
+  for(const id of network){
+    if(id === promptNodeId || lineageOrder.includes(id)) continue;
+    const n = nodes[id];
+    if(!n || !n.content) continue;
+    if(n.type === "prompt")   msgs.push({ role:"user", content: n.content });
+    if(n.type === "response") msgs.push({ role:"assistant", content: n.content });
+  }
 
   const maxMsgs = TOKEN_BUDGET_PAIRS*2 + 1;
   const trimmed = msgs.slice(-maxMsgs);
@@ -449,7 +516,7 @@ async function runPrompt(promptNodeId){
     state.ui.running = true; renderBoard();
 
     const messages = buildMessagesForPrompt(promptNodeId);
-    openContextDrawer();
+    // no auto-open of context drawer
 
     const model = (modelGet() || MODEL_DEFAULT).trim() || MODEL_DEFAULT;
     const result = await callChat({ messages, model, temperature:0.2, max_tokens:600 });
@@ -482,7 +549,7 @@ function downloadBlob(blob, filename){
   URL.revokeObjectURL(url);
 }
 
-/** EXPORT with Save As (choose name and folder when supported) */
+/** EXPORT with Save As */
 async function exportBoard(){
   const data = serializeBoard();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -492,10 +559,7 @@ async function exportBoard(){
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName: suggested,
-        types: [{
-          description: "Nodea Workspace",
-          accept: { "application/json": [".nodea.json", ".json"] }
-        }]
+        types: [{ description: "Nodea Workspace", accept: { "application/json": [".nodea.json", ".json"] } }]
       });
       const writable = await handle.createWritable();
       await writable.write(blob);
@@ -552,7 +616,6 @@ function openContextDrawer(){
   ctxCount.textContent = (state.ui.lastContext||[]).length;
   drawerContext.classList.remove("hidden");
   drawerContext.setAttribute("aria-hidden","false");
-  // push layout so header, canvas padding, and FAB do not get covered
   document.body.classList.add("drawer-open");
 }
 function closeContextDrawer(){
@@ -637,9 +700,13 @@ function wireEvents(){
   $("[data-close-clear]").onclick = closeClearConfirm;
   btnConfirmClear.onclick = ()=>{ closeClearConfirm(); clearWorkspace(); };
 
-  // Pan on empty background (canvas or stage)
+  // Pan on empty background and cancel pending connector
   canvas.addEventListener("pointerdown", (e)=>{
-    if(e.target === canvas || e.target === stage){ startPan(e); }
+    if(e.target === canvas || e.target === stage){
+      state.board.selection.clear?.();
+      state.ui.pendingConnect = null;
+      startPan(e);
+    }
   });
   window.addEventListener("pointermove", movePan);
   window.addEventListener("pointerup", endPan);
