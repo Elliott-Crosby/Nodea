@@ -24,8 +24,12 @@
   </header>
 
   <main>
-    <div id="canvas" class="canvas">
-      <svg id="edgesLayer" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+    <!-- Canvas (viewport). We pan/zoom this by transforming the inner #stage -->
+    <div id="canvas" class="canvas" aria-label="Canvas">
+      <div id="stage" class="stage">
+        <svg id="edgesLayer" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+        <!-- Nodes will be injected here -->
+      </div>
     </div>
     <button id="btnNewPrompt" class="fab">＋ New Prompt</button>
   </main>
@@ -40,7 +44,7 @@
       <div class="modal-body">
         <label class="label">OpenAI API key</label>
         <input id="inpKey" class="input" type="password" placeholder="sk-..." autocomplete="off" />
-        <p class="help">Stored only in your browser (localStorage). Sent in the Authorization header to your Nodea API.</p>
+        <p class="help">Stored only in your browser. Sent in the Authorization header to your Nodea API.</p>
 
         <label class="label">Default Model</label>
         <input id="inpModel" class="input" type="text" value="gpt-4o-mini" />
@@ -61,7 +65,7 @@
     <div class="drawer-body">
       <div class="row"><span class="muted">Messages to send:</span> <span id="ctxCount" class="chip">0</span></div>
       <ul id="ctxList" class="ctx-list"></ul>
-      <p class="muted small" id="ctxNote">Lineage only (Phase 1). Oldest items trimmed if long.</p>
+      <p class="muted small">Lineage only. Oldest items trimmed if long.</p>
     </div>
   </aside>
 
@@ -73,7 +77,7 @@
         <button class="icon-btn" data-close-clear>✕</button>
       </div>
       <div class="modal-body">
-        <p>This will remove all nodes and links from this workspace. You can export first to save a copy.</p>
+        <p>This removes all nodes and links. Export first if you want a copy.</p>
       </div>
       <div class="modal-footer">
         <button id="btnCancelClear" class="btn secondary">Cancel</button>
