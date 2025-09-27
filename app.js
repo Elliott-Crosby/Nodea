@@ -1,2 +1,3 @@
-const API_BASE = "https://<your-render>.onrender.com";
+const API_BASE = "https://nodea-api.onrender.com";
+
 
