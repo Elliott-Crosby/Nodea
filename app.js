@@ -716,7 +716,6 @@ function wireEvents(){
 
   // Optional keyboard toggle for collapse on focused node
   document.addEventListener("keydown", (e)=>{
-    if(e.key.toLowerCase() !== "c") return;
     const el = document.activeElement?.closest?.(".node");
     if(!el) return;
     const id = el.dataset.id;
@@ -738,3 +737,4 @@ function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
