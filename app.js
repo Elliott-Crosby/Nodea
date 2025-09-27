@@ -14,6 +14,11 @@ const TOKEN_BUDGET_PAIRS = 6;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.8;
 const WORLD_BOUNDS = { minX: -2400, minY: -1600, maxX: 2400, maxY: 1600 };
+const GRID_SIZE = 32;
+const ALIGN_THRESHOLD = 8;
+const MINIMAP_WIDTH = 220;
+const MINIMAP_PADDING = 160;
+const MINIMAP_IDLE_DELAY = 420;
 
 /** STATE **/
 const state = {
@@ -32,6 +37,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const uid = (p="n") => `${p}_${Math.random().toString(36).slice(2,9)}_${Date.now().toString(36)}`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
 
 function saveBoard(){ localStorage.setItem(LS_BOARD, JSON.stringify(state.board)); }
 function loadBoard(){
@@ -52,6 +58,7 @@ function modelGet(){ return $("#inpModel")?.value || MODEL_DEFAULT; }
 /** DOM refs **/
 const canvas = $("#canvas");
 const stage  = $("#stage");
+const gridLayer = $("#gridLayer");
 const edgesLayer = $("#edgesLayer");
 const keyChip = $("#keyChip");
 const btnSearch = $("#btnSearch");
@@ -73,7 +80,17 @@ const fileImport = $("#fileImport");
 const modalClear = $("#modalClear");
 const btnCancelClear = $("#btnCancelClear");
 const btnConfirmClear = $("#btnConfirmClear");
+const mainEl = $("main");
 let overflowOpen = false;
+
+let guideLines = null;
+let minimap = null;
+let minimapNodesLayer = null;
+let minimapViewport = null;
+let minimapBounds = null;
+let minimapScale = 1;
+let minimapActivityTimer = null;
+const minimapNodeEls = new Map();
 
 /** RENDERERS **/
 function renderHeader(){
@@ -119,6 +136,7 @@ function loadZenMode(){
 function applyViewport(){
   const { x, y, zoom } = state.board.viewport;
   stage.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
+  updateMinimapViewport();
 }
 
 function renderNodes(){
@@ -320,10 +338,229 @@ function renderEdges(){
   }
 }
 
+function setupGuides(){
+  if(guideLines || !stage) return;
+  const vertical = document.createElement("div");
+  vertical.className = "guide-line vertical";
+  const horizontal = document.createElement("div");
+  horizontal.className = "guide-line horizontal";
+  stage.appendChild(vertical);
+  stage.appendChild(horizontal);
+  guideLines = { vertical, horizontal };
+}
+
+function hideGuides(){
+  if(!guideLines) return;
+  guideLines.vertical.classList.remove("active");
+  guideLines.horizontal.classList.remove("active");
+}
+
+function updateAlignmentGuides(nodeId, x, y, w, h){
+  setupGuides();
+  if(!guideLines) return;
+
+  const nodes = state.board.nodes;
+  const currentX = [x, x + w / 2, x + w];
+  const currentY = [y, y + h / 2, y + h];
+  let bestVertical = null;
+  let bestHorizontal = null;
+
+  for(const id in nodes){
+    if(id === nodeId) continue;
+    const other = nodes[id];
+    if(!other) continue;
+    const ox = other.x || 0;
+    const oy = other.y || 0;
+    const ow = other.w || 320;
+    const oh = other.h || 140;
+    const otherX = [ox, ox + ow / 2, ox + ow];
+    const otherY = [oy, oy + oh / 2, oy + oh];
+
+    for(const cx of currentX){
+      for(const oxVal of otherX){
+        const diff = Math.abs(cx - oxVal);
+        if(diff <= ALIGN_THRESHOLD && (!bestVertical || diff < bestVertical.diff)){
+          bestVertical = { pos: oxVal, diff };
+        }
+      }
+    }
+
+    for(const cy of currentY){
+      for(const oyVal of otherY){
+        const diff = Math.abs(cy - oyVal);
+        if(diff <= ALIGN_THRESHOLD && (!bestHorizontal || diff < bestHorizontal.diff)){
+          bestHorizontal = { pos: oyVal, diff };
+        }
+      }
+    }
+  }
+
+  if(bestVertical){
+    guideLines.vertical.style.left = `${bestVertical.pos}px`;
+    guideLines.vertical.classList.add("active");
+  } else {
+    guideLines.vertical.classList.remove("active");
+  }
+
+  if(bestHorizontal){
+    guideLines.horizontal.style.top = `${bestHorizontal.pos}px`;
+    guideLines.horizontal.classList.add("active");
+  } else {
+    guideLines.horizontal.classList.remove("active");
+  }
+}
+
+function setupMinimap(){
+  if(minimap || !mainEl) return;
+  minimap = document.createElement("div");
+  minimap.id = "minimap";
+  minimap.className = "minimap";
+  minimap.setAttribute("aria-hidden", "true");
+
+  minimapNodesLayer = document.createElement("div");
+  minimapNodesLayer.className = "minimap-nodes";
+  minimapViewport = document.createElement("div");
+  minimapViewport.className = "minimap-viewport";
+
+  minimap.append(minimapNodesLayer, minimapViewport);
+  mainEl.appendChild(minimap);
+}
+
+function getBoardBounds(){
+  const nodes = state.board.nodes || {};
+  const ids = Object.keys(nodes);
+  if(ids.length === 0){
+    return {
+      minX: WORLD_BOUNDS.minX,
+      minY: WORLD_BOUNDS.minY,
+      maxX: WORLD_BOUNDS.maxX + 320,
+      maxY: WORLD_BOUNDS.maxY + 320
+    };
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for(const id of ids){
+    const node = nodes[id];
+    if(!node) continue;
+    const w = node.w || 320;
+    const h = node.h || 140;
+    const x = node.x || 0;
+    const y = node.y || 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  }
+
+  return {
+    minX: minX - MINIMAP_PADDING,
+    minY: minY - MINIMAP_PADDING,
+    maxX: maxX + MINIMAP_PADDING,
+    maxY: maxY + MINIMAP_PADDING
+  };
+}
+
+function renderMinimap(){
+  if(!mainEl) return;
+  if(!minimap) setupMinimap();
+  if(!minimap || !minimapNodesLayer || !minimapViewport) return;
+
+  const bounds = getBoardBounds();
+  const width = Math.max(bounds.maxX - bounds.minX, 1);
+  const height = Math.max(bounds.maxY - bounds.minY, 1);
+  minimapScale = MINIMAP_WIDTH / width;
+  minimapBounds = { minX: bounds.minX, minY: bounds.minY, width, height };
+  minimap.style.height = `${height * minimapScale}px`;
+
+  minimapNodesLayer.innerHTML = "";
+  minimapNodeEls.clear();
+
+  for(const id in state.board.nodes){
+    const node = state.board.nodes[id];
+    if(!node) continue;
+    const nodeEl = document.createElement("div");
+    nodeEl.className = `minimap-node${node.type ? ` ${node.type}` : ""}`;
+    const nodeWidth = Math.max((node.w || 320) * minimapScale, 4);
+    const nodeHeight = Math.max((node.h || 140) * minimapScale, 4);
+    const left = ((node.x || 0) - minimapBounds.minX) * minimapScale;
+    const top = ((node.y || 0) - minimapBounds.minY) * minimapScale;
+    nodeEl.style.width = `${nodeWidth}px`;
+    nodeEl.style.height = `${nodeHeight}px`;
+    nodeEl.style.left = `${left}px`;
+    nodeEl.style.top = `${top}px`;
+    minimapNodesLayer.appendChild(nodeEl);
+    minimapNodeEls.set(id, nodeEl);
+  }
+
+  updateMinimapViewport();
+}
+
+function updateMinimapViewport(){
+  if(!minimap || !minimapViewport || !minimapBounds || !canvas) return;
+  const { viewport } = state.board;
+  const rect = canvas.getBoundingClientRect();
+  const worldX = (-viewport.x) / viewport.zoom;
+  const worldY = (-viewport.y) / viewport.zoom;
+  const worldW = rect.width / viewport.zoom;
+  const worldH = rect.height / viewport.zoom;
+
+  const left = (worldX - minimapBounds.minX) * minimapScale;
+  const top = (worldY - minimapBounds.minY) * minimapScale;
+  const width = Math.max(worldW * minimapScale, 6);
+  const height = Math.max(worldH * minimapScale, 6);
+
+  const mapWidth = minimapBounds.width * minimapScale;
+  const mapHeight = minimapBounds.height * minimapScale;
+  const clampedLeft = Math.min(Math.max(left, 0), Math.max(mapWidth - width, 0));
+  const clampedTop = Math.min(Math.max(top, 0), Math.max(mapHeight - height, 0));
+
+  minimapViewport.style.width = `${width}px`;
+  minimapViewport.style.height = `${height}px`;
+  minimapViewport.style.left = `${clampedLeft}px`;
+  minimapViewport.style.top = `${clampedTop}px`;
+}
+
+function updateMinimapNodePosition(nodeId, x, y, w, h){
+  if(!minimapBounds || !minimapNodeEls.has(nodeId)) return;
+  const el = minimapNodeEls.get(nodeId);
+  if(!el) return;
+  el.style.left = `${(x - minimapBounds.minX) * minimapScale}px`;
+  el.style.top = `${(y - minimapBounds.minY) * minimapScale}px`;
+  el.style.width = `${Math.max(w * minimapScale, 4)}px`;
+  el.style.height = `${Math.max(h * minimapScale, 4)}px`;
+}
+
+function beginMinimapInteraction(){
+  if(!minimap) return;
+  minimap.classList.add("interacting");
+  if(minimapActivityTimer){
+    clearTimeout(minimapActivityTimer);
+    minimapActivityTimer = null;
+  }
+}
+
+function endMinimapInteraction(delay = MINIMAP_IDLE_DELAY){
+  if(!minimap) return;
+  if(minimapActivityTimer){
+    clearTimeout(minimapActivityTimer);
+  }
+  minimapActivityTimer = setTimeout(()=>{
+    minimap?.classList.remove("interacting");
+    minimapActivityTimer = null;
+  }, delay);
+}
+
+function flashMinimap(){
+  beginMinimapInteraction();
+  endMinimapInteraction();
+}
+
 function renderBoard(){
   renderHeader();
   applyViewport();
+  hideGuides();
   renderNodes();
+  renderMinimap();
 }
 
 /** SEARCH & FOCUS **/
@@ -404,6 +641,8 @@ function enableDrag(el, nodeId, handleEl){
     startX = ev.clientX; startY = ev.clientY;
     startLeft = parseFloat(el.style.left)||0;
     startTop  = parseFloat(el.style.top)||0;
+    setupGuides();
+    hideGuides();
     handleEl.setPointerCapture?.(ev.pointerId);
   }
   function onMove(ev){
@@ -413,18 +652,27 @@ function enableDrag(el, nodeId, handleEl){
     if(!moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) moved = true;
     if(!moved) return;
 
-    const nx = clamp(Math.round(startLeft + dx), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
-    const ny = clamp(Math.round(startTop  + dy), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+    const rawX = startLeft + dx;
+    const rawY = startTop + dy;
+    const nx = clamp(snapToGrid(rawX), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+    const ny = clamp(snapToGrid(rawY), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
     el.style.left = nx + "px";
     el.style.top  = ny + "px";
     node.x = nx; node.y = ny;
+    const width = node.w || 320;
+    const height = node.h || 140;
+    updateAlignmentGuides(nodeId, nx, ny, width, height);
+    updateMinimapNodePosition(nodeId, nx, ny, width, height);
     renderEdges();
   }
-  function onUp(){
+  function onUp(ev){
     if(!dragging) return;
     dragging = false;
     el.classList.remove("dragging");
+    hideGuides();
+    if(moved) renderMinimap();
     saveBoard();
+    handleEl.releasePointerCapture?.(ev.pointerId);
   }
   handleEl.addEventListener("pointerdown", onDown);
   window.addEventListener("pointermove", onMove);
@@ -440,6 +688,7 @@ function startPan(ev){
   state.pan.origX = state.board.viewport.x;
   state.pan.origY = state.board.viewport.y;
   canvas.classList.add("panning");
+  beginMinimapInteraction();
 }
 function movePan(ev){
   if(!state.pan.active) return;
@@ -454,11 +703,13 @@ function endPan(){
   state.pan.active = false;
   canvas.classList.remove("panning");
   saveBoard();
+  endMinimapInteraction();
 }
 
 // Wheel zoom around cursor
 function onWheel(ev){
   ev.preventDefault();
+  flashMinimap();
   const vp = state.board.viewport;
   const rect = canvas.getBoundingClientRect();
   const mx = ev.clientX - rect.left;
@@ -479,6 +730,7 @@ function onWheel(ev){
 
   applyViewport();
   saveBoard();
+  endMinimapInteraction();
 }
 
 /** CREATE / BRANCH / RESPONSE **/
@@ -488,14 +740,16 @@ function centerPoint(){
   const worldX = (rect.width/2 - x)/zoom - 160;
   const worldY = (rect.height/2 - y)/zoom - 80;
   return {
-    x: clamp(Math.round(worldX), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
-    y: clamp(Math.round(worldY), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY)
+    x: clamp(snapToGrid(worldX), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
+    y: clamp(snapToGrid(worldY), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY)
   };
 }
 
 function createPromptNode(pos){
   const id = uid("prompt");
-  const p = { id, type:"prompt", title:"Prompt", content:"", x: pos.x, y: pos.y, w:320, h:140, meta:{ autofocus:true } };
+  const px = clamp(snapToGrid(pos?.x ?? 0), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  const py = clamp(snapToGrid(pos?.y ?? 0), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+  const p = { id, type:"prompt", title:"Prompt", content:"", x: px, y: py, w:320, h:140, meta:{ autofocus:true } };
   state.board.nodes[id] = p;
   saveBoard(); renderBoard();
   return id;
@@ -504,8 +758,9 @@ function createPromptNode(pos){
 function createResponseNode(parentId, text, meta={}){
   const parent = state.board.nodes[parentId];
   const id = uid("resp");
-  const y = (parent.y||0) + 160;
-  const r = { id, type:"response", title:"Response", content: text, x: parent.x, y, w:320, h:140, meta };
+  const x = clamp(snapToGrid(parent.x||0), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  const y = clamp(snapToGrid((parent.y||0) + 160), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+  const r = { id, type:"response", title:"Response", content: text, x, y, w:320, h:140, meta };
   state.board.nodes[id] = r;
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
@@ -520,8 +775,9 @@ function branchFrom(nodeId){
   const id = uid("prompt");
   const p = {
     id, type:"prompt", title:"Prompt", content:"", w:320, h:140,
-    x: clamp((parent.x||0) + 300, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
-    y: parent.y||0, meta:{ autofocus:true }
+    x: clamp(snapToGrid((parent.x||0) + 300), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
+    y: clamp(snapToGrid(parent.y||0), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY),
+    meta:{ autofocus:true }
   };
   state.board.nodes[id] = p;
 
@@ -979,6 +1235,8 @@ function init(){
   renderHeader();
   ensureFirstPrompt();
   wireEvents();
+  setupGuides();
+  setupMinimap();
   renderBoard();
 }
 
