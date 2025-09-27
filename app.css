@@ -186,4 +186,24 @@ main{height:calc(100dvh - 58px); position:relative}
   cursor: pointer;
 }
 
+/* Connector handle for knowledge linking */
+.connector {
+  width:14px; height:14px;
+  border-radius:50%;
+  background:var(--accent-2);
+  border:1px solid #314061;
+  cursor:crosshair;
+  display:inline-block;
+  margin-left:6px;
+}
+
+/* Dashed teal lines for knowledge edges */
+path.knowledge {
+  stroke: var(--accent-2);
+  stroke-width: 2;
+  stroke-dasharray: 5,4;
+  opacity: 0.9;
+  fill: none;
+}
+
 /* Keep this at the end so it wins specificity if duplicated elsewhere */
