@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Branch links + Pan/Zoom + Center
+   Nodea — Branch links + Pan/Zoom + Center + Drawer push + Collapsible nodes
    =========================== */
 
 /** CONFIG **/
@@ -55,7 +55,7 @@ const edgesLayer = $("#edgesLayer");
 const keyChip = $("#keyChip");
 const btnSettings = $("#btnSettings");
 const btnContext  = $("#btnContext");
-const btnCenter   = $("#btnCenter"); // new
+const btnCenter   = $("#btnCenter");
 const modalSettings = $("#modalSettings");
 const inpKey = $("#inpKey");
 const inpModel = $("#inpModel");
@@ -112,6 +112,21 @@ function renderNodes(){
 
     const titleText = document.createElement("span");
     titleText.textContent = n.type === "prompt" ? "Prompt" : (n.type === "response" ? "Response" : "Node");
+
+    // Chevron for collapse toggle
+    const btnChev = document.createElement("button");
+    btnChev.className = "icon-btn chev";
+    btnChev.title = (n.meta?.collapsed ? "Expand" : "Collapse");
+    btnChev.textContent = n.meta?.collapsed ? "▸" : "▾";
+    btnChev.onclick = (e)=>{
+      e.stopPropagation();
+      n.meta = n.meta || {};
+      n.meta.collapsed = !n.meta.collapsed;
+      saveBoard();
+      renderBoard();
+    };
+    // Place before title text
+    title.appendChild(btnChev);
     title.appendChild(titleText);
 
     const badges = document.createElement("div");
@@ -148,22 +163,36 @@ function renderNodes(){
     bar.append(title, badges, spacer, toolbarRight);
     el.appendChild(bar);
 
-    // Body
+    // Body + Preview (collapsible)
     const body = document.createElement("div");
     body.className = "body";
+
+    let previewText = "";
     if(n.type === "prompt"){
       const ta = document.createElement("textarea");
       ta.placeholder = "Type your prompt…";
       ta.value = n.content || "";
       ta.oninput = (e) => { n.content = e.target.value; saveBoard(); };
       body.appendChild(ta);
+      previewText = (n.content || "").trim();
       if(n.meta?.autofocus){ setTimeout(()=> ta.focus(), 0); n.meta.autofocus = false; }
     } else if(n.type === "response"){
       const pre = document.createElement("pre");
       pre.textContent = n.content || "";
       body.appendChild(pre);
+      previewText = (n.content || "").trim();
     }
+
+    const preview = document.createElement("div");
+    preview.className = "preview";
+    preview.textContent = previewText || (n.type === "prompt" ? "(empty prompt)" : "(empty response)");
+
     el.appendChild(body);
+    el.appendChild(preview);
+
+    if(n.meta?.collapsed){ el.classList.add("collapsed"); }
+    else { el.classList.remove("collapsed"); }
+
     stage.appendChild(el);
 
     // DRAG: handle-only
@@ -203,7 +232,7 @@ function renderEdges(){
 
 function renderBoard(){
   renderHeader();
-  applyViewport();   // ensure transform applied before drawing nodes/edges
+  applyViewport();
   renderNodes();
 }
 
@@ -453,14 +482,13 @@ function downloadBlob(blob, filename){
   URL.revokeObjectURL(url);
 }
 
-/** EXPORT with Save As (choose name & folder when supported) */
+/** EXPORT with Save As (choose name and folder when supported) */
 async function exportBoard(){
   const data = serializeBoard();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const suggested = `nodea-workspace-${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.nodea.json`;
 
   try {
-    // Chromium browsers: full Save As dialog with folder selection
     if (window.showSaveFilePicker) {
       const handle = await window.showSaveFilePicker({
         suggestedName: suggested,
@@ -476,16 +504,13 @@ async function exportBoard(){
       return;
     }
   } catch (err) {
-    // If user cancels the dialog, just abort quietly
     if (err && err.name === "AbortError") return;
     console.warn("showSaveFilePicker failed, falling back:", err);
   }
 
-  // Fallback: prompt for a file name, save to default Downloads
   const name = (prompt("File name:", suggested) || suggested).trim() || suggested;
   downloadBlob(blob, name);
   toast("Saved to your Downloads folder.");
-
 }
 function importBoardFromFile(file){
   const r = new FileReader();
@@ -527,10 +552,13 @@ function openContextDrawer(){
   ctxCount.textContent = (state.ui.lastContext||[]).length;
   drawerContext.classList.remove("hidden");
   drawerContext.setAttribute("aria-hidden","false");
+  // push layout so header, canvas padding, and FAB do not get covered
+  document.body.classList.add("drawer-open");
 }
 function closeContextDrawer(){
   drawerContext.classList.add("hidden");
   drawerContext.setAttribute("aria-hidden","true");
+  document.body.classList.remove("drawer-open");
 }
 
 /** Center on graph **/
@@ -550,7 +578,7 @@ function centerOnGraph(){
 
   const rect = canvas.getBoundingClientRect();
   const vp = state.board.viewport;
-  const z = vp.zoom; // keep current zoom
+  const z = vp.zoom;
 
   vp.x = rect.width/2  - cx * z;
   vp.y = rect.height/2 - cy * z;
@@ -618,6 +646,20 @@ function wireEvents(){
 
   // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
+
+  // Optional keyboard toggle for collapse on focused node
+  document.addEventListener("keydown", (e)=>{
+    if(e.key.toLowerCase() !== "c") return;
+    const el = document.activeElement?.closest?.(".node");
+    if(!el) return;
+    const id = el.dataset.id;
+    const n = state.board.nodes[id];
+    if(!n) return;
+    n.meta = n.meta || {};
+    n.meta.collapsed = !n.meta.collapsed;
+    saveBoard();
+    renderBoard();
+  });
 }
 
 function init(){
@@ -629,4 +671,3 @@ function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
