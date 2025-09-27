@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Branch links + Pan/Zoom
+   Nodea — Branch links + Pan/Zoom + Center
    =========================== */
 
 /** CONFIG **/
@@ -55,6 +55,7 @@ const edgesLayer = $("#edgesLayer");
 const keyChip = $("#keyChip");
 const btnSettings = $("#btnSettings");
 const btnContext  = $("#btnContext");
+const btnCenter   = $("#btnCenter"); // new
 const modalSettings = $("#modalSettings");
 const inpKey = $("#inpKey");
 const inpModel = $("#inpModel");
@@ -126,19 +127,16 @@ function renderNodes(){
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
+    // Actions:
+    // Prompt: only Run
+    // Response: Follow-up (creates a new prompt child)
     if(n.type === "prompt"){
-      const btnBranch = document.createElement("button");
-      btnBranch.className = "btn secondary";
-      btnBranch.textContent = "Branch";
-      btnBranch.onclick = (e)=>{ e.stopPropagation(); branchFrom(n.id); };
-
       const btnRun = document.createElement("button");
       btnRun.className = "btn secondary";
       btnRun.textContent = state.ui.running ? "Running…" : "Run";
       btnRun.disabled = state.ui.running;
       btnRun.onclick = (e)=>{ e.stopPropagation(); runPrompt(n.id); };
-
-      toolbarRight.append(btnBranch, btnRun);
+      toolbarRight.append(btnRun);
     } else if(n.type === "response"){
       const btnFollow = document.createElement("button");
       btnFollow.className = "btn secondary";
@@ -196,7 +194,7 @@ function renderEdges(){
     const d = `M ${srcX} ${srcY} C ${srcX+dx} ${srcY}, ${dstX-dx} ${dstY}, ${dstX} ${dstY}`;
     path.setAttribute("d", d);
     path.setAttribute("fill","none");
-    path.setAttribute("stroke","#79a8ff");     // brighter so it’s obvious
+    path.setAttribute("stroke","#79a8ff");
     path.setAttribute("stroke-width","2.5");
     path.setAttribute("opacity","0.95");
     edgesLayer.appendChild(path);
@@ -205,7 +203,7 @@ function renderEdges(){
 
 function renderBoard(){
   renderHeader();
-  applyViewport();
+  applyViewport();   // ensure transform applied before drawing nodes/edges
   renderNodes();
 }
 
@@ -249,6 +247,7 @@ function enableDrag(el, nodeId, handleEl){
 }
 
 /** PAN & ZOOM **/
+// Start pan when grabbing empty background (canvas or empty stage)
 function startPan(ev){
   state.pan.active = true;
   state.pan.startX = ev.clientX;
@@ -272,32 +271,29 @@ function endPan(){
   saveBoard();
 }
 
-// Zoom around cursor (Ctrl/⌘ + wheel)
+// Wheel zoom around cursor (always; no modifier key)
 function onWheel(ev){
-  if(!(ev.ctrlKey || ev.metaKey)) return; // only zoom when modifier held
   ev.preventDefault();
-  const { x, y, zoom } = state.board.viewport;
-
+  const vp = state.board.viewport;
   const rect = canvas.getBoundingClientRect();
   const mx = ev.clientX - rect.left;
   const my = ev.clientY - rect.top;
 
   // world coords under cursor before zoom
-  const wx = (mx - x) / zoom;
-  const wy = (my - y) / zoom;
+  const wx = (mx - vp.x) / vp.zoom;
+  const wy = (my - vp.y) / vp.zoom;
 
-  const delta = -ev.deltaY; // trackpad natural
-  const factor = delta > 0 ? 1.1 : 0.9;
-  const newZoom = clamp(zoom * factor, ZOOM_MIN, ZOOM_MAX);
+  const factor = ev.deltaY < 0 ? 1.1 : 0.9;
+  const newZoom = clamp(vp.zoom * factor, ZOOM_MIN, ZOOM_MAX);
 
   // keep cursor anchored
-  state.board.viewport.x = mx - wx * newZoom;
-  state.board.viewport.y = my - wy * newZoom;
-  state.board.viewport.zoom = newZoom;
+  vp.x = mx - wx * newZoom;
+  vp.y = my - wy * newZoom;
+  vp.zoom = newZoom;
 
   // clamp viewport within bounds
-  state.board.viewport.x = clamp(state.board.viewport.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
-  state.board.viewport.y = clamp(state.board.viewport.y, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+  vp.x = clamp(vp.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  vp.y = clamp(vp.y, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
 
   applyViewport();
   saveBoard();
@@ -330,15 +326,17 @@ function createResponseNode(parentId, text, meta={}){
   const y = (parent.y||0) + 160;
   const r = { id, type:"response", title:"Response", content: text, x: parent.x, y, w:320, h:140, meta };
   state.board.nodes[id] = r;
-  // lineage edge parent -> response
+  // lineage edge prompt -> response when running
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
   return id;
 }
 
+// Only allow response -> prompt branches for follow-ups
 function branchFrom(nodeId){
   const parent = state.board.nodes[nodeId];
   if(!parent) return;
+
   const id = uid("prompt");
   const p = {
     id, type:"prompt", title:"Prompt", content:"", w:320, h:140,
@@ -346,8 +344,11 @@ function branchFrom(nodeId){
     y: parent.y||0, meta:{ autofocus:true }
   };
   state.board.nodes[id] = p;
-  // lineage edge parent -> new prompt
-  state.board.edges.push({ id: uid("e"), src: nodeId, dst: id, kind:"lineage" });
+
+  if(parent.type === "response"){
+    // lineage edge response -> prompt only
+    state.board.edges.push({ id: uid("e"), src: nodeId, dst: id, kind:"lineage" });
+  }
   saveBoard(); renderBoard();
   return id;
 }
@@ -496,6 +497,33 @@ function closeContextDrawer(){
   drawerContext.setAttribute("aria-hidden","true");
 }
 
+/** Center on graph **/
+function centerOnGraph(){
+  const ids = Object.keys(state.board.nodes);
+  if(ids.length === 0) return;
+
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for(const id of ids){
+    const n = state.board.nodes[id];
+    const x = n.x||0, y = n.y||0, w = n.w||320, h = n.h||140;
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+  }
+  const cx = (minX + maxX)/2;
+  const cy = (minY + maxY)/2;
+
+  const rect = canvas.getBoundingClientRect();
+  const vp = state.board.viewport;
+  const z = vp.zoom; // keep current zoom
+
+  vp.x = rect.width/2  - cx * z;
+  vp.y = rect.height/2 - cy * z;
+  vp.x = clamp(vp.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  vp.y = clamp(vp.y, WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+
+  applyViewport(); saveBoard();
+}
+
 /** TOAST **/
 let toastEl=null, toastTimer=null;
 function toast(msg, ms=1800){
@@ -528,6 +556,9 @@ function wireEvents(){
   btnContext.onclick = openContextDrawer;
   $("[data-close-context]").onclick = closeContextDrawer;
 
+  // Center
+  if(btnCenter) btnCenter.onclick = centerOnGraph;
+
   // New prompt
   btnNewPrompt.onclick = ()=> createPromptNode(centerPoint());
 
@@ -542,15 +573,14 @@ function wireEvents(){
   $("[data-close-clear]").onclick = closeClearConfirm;
   btnConfirmClear.onclick = ()=>{ closeClearConfirm(); clearWorkspace(); };
 
-  // Pan
+  // Pan on empty background (canvas or stage)
   canvas.addEventListener("pointerdown", (e)=>{
-    // only pan if background is grabbed (not a node / not a control)
-    if(e.target === canvas){
-      startPan(e);
-    }
+    if(e.target === canvas || e.target === stage){ startPan(e); }
   });
   window.addEventListener("pointermove", movePan);
   window.addEventListener("pointerup", endPan);
+
+  // Zoom anywhere over canvas
   canvas.addEventListener("wheel", onWheel, { passive:false });
 }
 
