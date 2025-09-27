@@ -1,5 +1,5 @@
 /* ===========================
-   Nodea — Phase 1 Frontend
+   Nodea — Phase 1 Frontend (fixed)
    =========================== */
 
 /** CONFIG **/
@@ -36,7 +36,6 @@ function loadBoard(){
     const raw = localStorage.getItem(LS_BOARD);
     if(!raw) return;
     const b = JSON.parse(raw);
-    // revive selection / defaults
     state.board.nodes = b.nodes || {};
     state.board.edges = b.edges || [];
     state.board.selection = new Set();
@@ -71,7 +70,7 @@ function renderHeader(){
 }
 
 function renderNodes(){
-  // Clear existing nodes (simple approach for Phase 1)
+  // Clear existing nodes
   $$(".node", canvas).forEach(n => n.remove());
 
   for(const nodeId in state.board.nodes){
@@ -83,12 +82,21 @@ function renderNodes(){
     el.style.width = (n.w || 320) + "px";
     el.dataset.id = n.id;
 
-    // Toolbar (drag handle + title + actions)
+    // Toolbar (title + actions)
     const bar = document.createElement("div");
     bar.className = "toolbar";
+
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = n.type === "prompt" ? "Prompt" : (n.type === "response" ? "Response" : "Node");
+
+    // NEW: dedicated drag handle (only this starts drag)
+    const drag = document.createElement("span");
+    drag.className = "drag-handle";
+    title.appendChild(drag);
+
+    const titleText = document.createElement("span");
+    titleText.textContent = n.type === "prompt" ? "Prompt" : (n.type === "response" ? "Response" : "Node");
+    title.appendChild(titleText);
 
     const badges = document.createElement("div");
     badges.className = "badges";
@@ -98,24 +106,26 @@ function renderNodes(){
       b.textContent = n.meta.model;
       badges.appendChild(b);
     }
+
     const toolbarRight = document.createElement("div");
     toolbarRight.className = "row";
     const spacer = document.createElement("div"); spacer.className = "spacer";
 
-    // Actions vary by node type
+    // Actions (branch on both; run on prompt only)
+    const btnBranch = document.createElement("button");
+    btnBranch.className = "btn secondary";
+    btnBranch.textContent = "Branch";
+    btnBranch.onclick = (e) => { e.stopPropagation(); branchFrom(n.id); };
+
     if(n.type === "prompt"){
       const btnRun = document.createElement("button");
       btnRun.className = "btn secondary";
       btnRun.textContent = state.ui.running ? "Running…" : "Run";
       btnRun.disabled = state.ui.running;
-      btnRun.onclick = () => runPrompt(n.id);
-
-      const btnBranch = document.createElement("button");
-      btnBranch.className = "btn secondary";
-      btnBranch.textContent = "Branch";
-      btnBranch.onclick = () => branchFrom(n.id);
-
+      btnRun.onclick = (e) => { e.stopPropagation(); runPrompt(n.id); };
       toolbarRight.append(btnBranch, btnRun);
+    } else {
+      toolbarRight.append(btnBranch);
     }
 
     bar.append(title, badges, spacer, toolbarRight);
@@ -131,6 +141,7 @@ function renderNodes(){
       ta.value = n.content || "";
       ta.oninput = (e) => { n.content = e.target.value; saveBoard(); };
       body.appendChild(ta);
+      if(n.meta?.autofocus){ setTimeout(()=> ta.focus(), 0); n.meta.autofocus = false; }
     } else if(n.type === "response"){
       const pre = document.createElement("pre");
       pre.textContent = n.content || "";
@@ -140,13 +151,13 @@ function renderNodes(){
     el.appendChild(body);
     canvas.appendChild(el);
 
-    // Dragging
-    enableDrag(el, n.id);
+    // DRAG: handle-only
+    enableDrag(el, n.id, drag);
   }
+  renderEdges();
 }
 
 function renderEdges(){
-  // Clear svg
   while(edgesLayer.firstChild) edgesLayer.removeChild(edgesLayer.firstChild);
   const { edges, nodes } = state.board;
 
@@ -175,42 +186,46 @@ function renderEdges(){
 function renderBoard(){
   renderHeader();
   renderNodes();
-  renderEdges();
 }
 
-/** DRAG **/
-function enableDrag(el, nodeId){
+/** DRAG — handle-only with tiny threshold **/
+function enableDrag(el, nodeId, handleEl){
   const node = state.board.nodes[nodeId];
-  const handle = el.querySelector(".toolbar");
-  let startX=0,startY=0,startLeft=0,startTop=0, dragging=false;
+  let startX=0,startY=0,startLeft=0,startTop=0, dragging=false, moved=false;
 
-  handle.addEventListener("pointerdown", (ev)=>{
-    dragging = true;
+  function onDown(ev){
+    ev.preventDefault();
+    dragging = true; moved = false;
     el.classList.add("dragging");
     startX = ev.clientX; startY = ev.clientY;
     startLeft = parseFloat(el.style.left)||0;
     startTop  = parseFloat(el.style.top)||0;
-    el.setPointerCapture(ev.pointerId);
-  });
-
-  handle.addEventListener("pointermove", (ev)=>{
+    handleEl.setPointerCapture?.(ev.pointerId);
+  }
+  function onMove(ev){
     if(!dragging) return;
     const dx = ev.clientX - startX;
     const dy = ev.clientY - startY;
-    const nx = Math.round((startLeft + dx));
-    const ny = Math.round((startTop  + dy));
+    if(!moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) moved = true; // prevent accidental drags
+    if(!moved) return;
+
+    const nx = Math.round(startLeft + dx);
+    const ny = Math.round(startTop  + dy);
     el.style.left = nx + "px";
     el.style.top  = ny + "px";
     node.x = nx; node.y = ny;
-    renderEdges(); // cheap redraw
-  });
-
-  handle.addEventListener("pointerup", (ev)=>{
+    renderEdges();
+  }
+  function onUp(){
     if(!dragging) return;
     dragging = false;
     el.classList.remove("dragging");
     saveBoard();
-  });
+  }
+
+  handleEl.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
 }
 
 /** CREATE / BRANCH / RESPONSE **/
@@ -223,7 +238,7 @@ function centerPoint(){
 
 function createPromptNode(pos){
   const id = uid("prompt");
-  const p = { id, type:"prompt", title:"Prompt", content:"", x: pos.x, y: pos.y, w:320, h:140, meta:{} };
+  const p = { id, type:"prompt", title:"Prompt", content:"", x: pos.x, y: pos.y, w:320, h:140, meta:{ autofocus:true } };
   state.board.nodes[id] = p;
   saveBoard(); renderBoard();
   return id;
@@ -235,7 +250,6 @@ function createResponseNode(parentId, text, meta={}){
   const y = (parent.y||0) + 160; // below
   const r = { id, type:"response", title:"Response", content: text, x: parent.x, y, w:320, h:140, meta };
   state.board.nodes[id] = r;
-  // lineage edge
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
   return id;
@@ -243,10 +257,11 @@ function createResponseNode(parentId, text, meta={}){
 
 function branchFrom(nodeId){
   const parent = state.board.nodes[nodeId];
+  if(!parent) return;
   const id = uid("prompt");
   const p = {
-    id, type:"prompt", title:"Prompt", content:"", w:320, h:140, meta:{},
-    x: (parent.x||0) + 260, y: parent.y||0
+    id, type:"prompt", title:"Prompt", content:"", w:320, h:140,
+    x: (parent.x||0) + 260, y: parent.y||0, meta:{ autofocus:true }
   };
   state.board.nodes[id] = p;
   state.board.edges.push({ id: uid("e"), src: nodeId, dst: id, kind:"lineage" });
@@ -257,10 +272,8 @@ function branchFrom(nodeId){
 /** CONTEXT (Phase 1: lineage only) **/
 function getLineage(nodeId){
   const { nodes, edges } = state.board;
-  // Walk backwards following incoming lineage edges to root
   const path = [];
   let current = nodeId;
-  // Collect ancestors (prompts + responses)
   const visited = new Set();
   while(current && !visited.has(current)){
     visited.add(current);
@@ -269,7 +282,6 @@ function getLineage(nodeId){
     current = incoming.src;
     if(current) path.push(current);
   }
-  // path now has ancestors from child→...→root, reverse to root→...→parent
   return path.reverse();
 }
 
@@ -278,26 +290,21 @@ function buildMessagesForPrompt(promptNodeId){
   const lineageOrder = getLineage(promptNodeId); // root..parent
   const msgs = [];
 
-  // Convert lineage nodes into alternating user/assistant
   for(const id of lineageOrder){
     const n = nodes[id];
     if(!n) continue;
-    if(n.type === "prompt" && n.content) msgs.push({ role:"user", content: n.content });
+    if(n.type === "prompt" && n.content)   msgs.push({ role:"user",      content: n.content });
     if(n.type === "response" && n.content) msgs.push({ role:"assistant", content: n.content });
   }
 
-  // Finally add the current prompt text
   const current = nodes[promptNodeId];
   const promptText = (current?.content || "").trim();
   if(!promptText) throw new Error("Prompt is empty.");
   msgs.push({ role:"user", content: promptText });
 
-  // Budget: keep last N prompt/response pairs (~2 msgs per pair)
-  // We'll approximate by keeping last ~ (TOKEN_BUDGET_PAIRS*2 + 1) messages (the final user)
   const maxMsgs = TOKEN_BUDGET_PAIRS*2 + 1;
   const trimmed = msgs.slice(-maxMsgs);
 
-  // Save preview for drawer
   state.ui.lastContext = trimmed.map(m => ({ role:m.role, content: m.content.slice(0,140) }));
   return trimmed;
 }
@@ -329,20 +336,16 @@ async function runPrompt(promptNodeId){
   try{
     state.ui.running = true; renderBoard();
 
-    // Build context
     const messages = buildMessagesForPrompt(promptNodeId);
-    openContextDrawer(); // show preview
+    openContextDrawer();
 
-    // Call model
-    const model = ($("#inpModel")?.value || MODEL_DEFAULT).trim() || MODEL_DEFAULT;
+    const model = (modelGet() || MODEL_DEFAULT).trim() || MODEL_DEFAULT;
     const result = await callChat({ messages, model, temperature:0.2, max_tokens:600 });
 
-    // Create response
     createResponseNode(promptNodeId, result.text || "", { model: result.model || model });
     toast("Done.");
   }catch(err){
     const msg = String(err?.message || err);
-    // Friendly translations
     if(/Missing API key/i.test(msg)) toast("No API key. Open Settings.", 3500);
     else if(/401|invalid api key/i.test(msg)) toast("Invalid or missing API key.", 3500);
     else if(/insufficient_quota|rate|429/i.test(msg)) toast("Your key has no credits or hit rate limits.", 4000);
@@ -364,7 +367,6 @@ function closeSettings(){
   modalSettings.setAttribute("aria-hidden","true");
 }
 function openContextDrawer(){
-  // Populate list
   ctxList.innerHTML = "";
   (state.ui.lastContext||[]).forEach((m,i)=>{
     const li = document.createElement("li");
@@ -428,5 +430,5 @@ function init(){
   renderBoard();
 }
 
+// IMPORTANT: actually boot the app
 document.addEventListener("DOMContentLoaded", init);
-
