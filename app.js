@@ -9,6 +9,13 @@ const LS_BOARD = "NODEA_BOARD";
 const LS_ZEN = "NODEA_ZEN";
 const MODEL_DEFAULT = "gpt-4o-mini";
 const TOKEN_BUDGET_PAIRS = 6;
+const NODE_WIDTH_DEFAULT = 520;
+const NODE_WIDTH_MIN = 360;
+const NODE_WIDTH_MAX = 720;
+const NODE_HEIGHT_DEFAULT = 200;
+const NODE_VERTICAL_OFFSET = NODE_HEIGHT_DEFAULT + 40;
+const NODE_HORIZONTAL_OFFSET = NODE_WIDTH_DEFAULT + 120;
+const NODE_CLAMP_LINES = 12;
 
 // Pan/Zoom limits
 const ZOOM_MIN = 0.5;
@@ -91,6 +98,8 @@ let minimapBounds = null;
 let minimapScale = 1;
 let minimapActivityTimer = null;
 const minimapNodeEls = new Map();
+let nodeResizeObserver = null;
+let activeNodeMenu = null;
 
 /** RENDERERS **/
 function renderHeader(){
@@ -140,8 +149,16 @@ function applyViewport(){
 }
 
 function renderNodes(){
-  // Clear existing nodes
-  $$(".node", stage).forEach(n => n.remove());
+  $$(".node", stage).forEach(n => {
+    if(nodeResizeObserver){
+      nodeResizeObserver.unobserve(n);
+    }
+    n.remove();
+  });
+
+  closeActiveNodeMenu();
+  ensureNodeResizeObserver();
+  nodeResizeObserver?.disconnect();
 
   for(const nodeId in state.board.nodes){
     const n = state.board.nodes[nodeId];
@@ -149,124 +166,157 @@ function renderNodes(){
     const classes = ["node", n.type];
     if(n.dragging) classes.push("dragging");
     if(state.ui.highlight === n.id) classes.push("highlight");
+    if(n.meta?.collapsed) classes.push("collapsed");
     el.className = classes.join(" ");
-    el.style.left = (n.x||0) + "px";
-    el.style.top  = (n.y||0) + "px";
-    el.style.width = (n.w || 320) + "px";
     el.dataset.id = n.id;
 
-    // Toolbar
-    const bar = document.createElement("div");
-    bar.className = "toolbar";
+    const width = clamp(n.w || NODE_WIDTH_DEFAULT, NODE_WIDTH_MIN, NODE_WIDTH_MAX);
+    n.w = width;
+    el.style.left = `${n.x || 0}px`;
+    el.style.top = `${n.y || 0}px`;
+    el.style.width = `${width}px`;
 
-    const title = document.createElement("div");
-    title.className = "title";
+    const header = document.createElement("div");
+    header.className = "node-header";
 
-    // Drag handle
-    const drag = document.createElement("span");
-    drag.className = "drag-handle";
-    title.appendChild(drag);
+    const headerLeft = document.createElement("div");
+    headerLeft.className = "node-header-left";
 
-    const titleText = document.createElement("span");
-    titleText.textContent = n.type === "prompt" ? "Prompt" : (n.type === "response" ? "Response" : "Node");
+    const chip = document.createElement("span");
+    chip.className = "node-chip";
+    const chipLabel = n.meta?.model || (n.type === "prompt" ? (modelGet() || MODEL_DEFAULT) : MODEL_DEFAULT);
+    chip.textContent = chipLabel;
+    headerLeft.appendChild(chip);
 
-    // Collapse chevron
-    const btnChev = document.createElement("button");
-    btnChev.className = "icon-btn chev";
-    btnChev.title = (n.meta?.collapsed ? "Expand" : "Collapse");
-    btnChev.textContent = n.meta?.collapsed ? "▸" : "▾";
-    btnChev.onclick = (e)=>{
+    const titleEl = document.createElement("div");
+    titleEl.className = "node-title";
+    const titleText = (n.title || "").trim() || (n.type === "prompt" ? "Prompt" : "Response");
+    titleEl.textContent = titleText;
+    titleEl.title = titleText;
+    headerLeft.appendChild(titleEl);
+
+    header.appendChild(headerLeft);
+
+    const actions = document.createElement("div");
+    actions.className = "node-header-actions";
+
+    const btnBranch = document.createElement("button");
+    btnBranch.className = "node-icon";
+    btnBranch.type = "button";
+    btnBranch.title = "Branch";
+    btnBranch.textContent = "➜";
+    btnBranch.onclick = (e)=>{ e.stopPropagation(); manualBranch(n.id); };
+    actions.appendChild(btnBranch);
+
+    const btnCollapse = document.createElement("button");
+    btnCollapse.className = "node-icon";
+    btnCollapse.type = "button";
+    btnCollapse.title = n.meta?.collapsed ? "Expand" : "Collapse";
+    btnCollapse.textContent = n.meta?.collapsed ? "›" : "⌄";
+    btnCollapse.onclick = (e)=>{
       e.stopPropagation();
       n.meta = n.meta || {};
       n.meta.collapsed = !n.meta.collapsed;
       saveBoard();
       renderBoard();
     };
-    title.appendChild(btnChev);
-    title.appendChild(titleText);
+    actions.appendChild(btnCollapse);
 
-    const badges = document.createElement("div");
-    badges.className = "badges";
-    if(n.meta?.model) {
-      const b = document.createElement("span");
-      b.className = "badge";
-      b.textContent = n.meta.model;
-      badges.appendChild(b);
-    }
+    const btnMenu = document.createElement("button");
+    btnMenu.className = "node-icon";
+    btnMenu.type = "button";
+    btnMenu.title = "More";
+    btnMenu.textContent = "⋯";
+    btnMenu.setAttribute("aria-haspopup", "true");
+    btnMenu.setAttribute("aria-expanded", "false");
+    actions.appendChild(btnMenu);
 
-    const toolbarRight = document.createElement("div");
-    toolbarRight.className = "row";
-    const spacer = document.createElement("div"); spacer.className = "spacer";
+    header.appendChild(actions);
+    el.appendChild(header);
 
-    // Actions (Run on prompt; Branch on both; Knowledge connector on both)
+    const body = document.createElement("div");
+    body.className = "node-body";
+
     if(n.type === "prompt"){
-      const btnRun = document.createElement("button");
-      btnRun.className = "btn secondary";
-      btnRun.textContent = state.ui.running ? "Running…" : "Run";
-      btnRun.disabled = state.ui.running;
-      btnRun.onclick = (e)=>{ e.stopPropagation(); runPrompt(n.id); };
+      const ta = document.createElement("textarea");
+      ta.className = "node-textarea";
+      ta.placeholder = "Type your prompt…";
+      ta.value = n.content || "";
+      ta.addEventListener("pointerdown", e => e.stopPropagation());
+      ta.addEventListener("focus", e => e.stopPropagation());
+      ta.addEventListener("input", (e) => {
+        n.content = e.target.value;
+        autoSizeTextarea(ta);
+        saveBoard();
+      });
+      autoSizeTextarea(ta);
+      if(n.meta?.autofocus){
+        setTimeout(()=> ta.focus(), 0);
+        n.meta.autofocus = false;
+      }
+      body.appendChild(ta);
+    } else {
+      const contentWrap = document.createElement("div");
+      contentWrap.className = "node-body-content";
+      renderRichContent(contentWrap, n.content || "");
+      body.appendChild(contentWrap);
 
-      const btnBranch = document.createElement("button");
-      btnBranch.className = "btn";
-      btnBranch.textContent = "Branch";
-      btnBranch.title = "Branch (create next step)";
-      btnBranch.onclick = (e)=>{ e.stopPropagation(); manualBranch(n.id); };
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "node-toggle";
+      toggleBtn.textContent = n.meta?.expanded ? "Show less" : "Show more";
+      toggleBtn.onclick = (e)=>{
+        e.stopPropagation();
+        n.meta = n.meta || {};
+        n.meta.expanded = !n.meta.expanded;
+        saveBoard();
+        renderBoard();
+      };
 
-      toolbarRight.append(btnBranch, btnRun);
-    } else if(n.type === "response"){
-      const btnBranch = document.createElement("button");
-      btnBranch.className = "btn";
-      btnBranch.textContent = "Branch";
-      btnBranch.title = "Branch (create next step)";
-      btnBranch.onclick = (e)=>{ e.stopPropagation(); manualBranch(n.id); };
-      toolbarRight.append(btnBranch);
+      handleClamp(n, contentWrap, body, toggleBtn);
     }
 
-    // Knowledge connector (undirected network link)
-    const connector = document.createElement("div");
-    connector.className = "connector";
-    connector.title = "Connect knowledge (drag onto another node)";
-    connector.onpointerdown = (e)=>{
+    el.appendChild(body);
+
+    const menu = document.createElement("div");
+    menu.className = "node-menu hidden";
+
+    if(n.type === "prompt"){
+      const runItem = document.createElement("button");
+      runItem.type = "button";
+      runItem.textContent = state.ui.running ? "Running…" : "Run prompt";
+      runItem.disabled = !!state.ui.running;
+      runItem.onclick = (e)=>{
+        e.stopPropagation();
+        closeActiveNodeMenu();
+        if(!state.ui.running) runPrompt(n.id);
+      };
+      menu.appendChild(runItem);
+    }
+
+    const connectItem = document.createElement("button");
+    connectItem.type = "button";
+    connectItem.textContent = "Connect knowledge";
+    connectItem.onclick = (e)=>{
       e.stopPropagation();
+      closeActiveNodeMenu();
       state.ui.pendingConnect = { srcId: n.id };
       toast("Select another node to connect...");
     };
-    toolbarRight.append(connector);
+    menu.appendChild(connectItem);
 
-    bar.append(title, badges, spacer, toolbarRight);
-    el.appendChild(bar);
+    el.appendChild(menu);
 
-    // Body + Preview (collapsible)
-    const body = document.createElement("div");
-    body.className = "body";
+    btnMenu.onclick = (e)=>{
+      e.stopPropagation();
+      if(activeNodeMenu?.menu === menu){
+        closeActiveNodeMenu();
+      } else {
+        openNodeMenu(btnMenu, menu);
+      }
+    };
 
-    let previewText = "";
-    if(n.type === "prompt"){
-      const ta = document.createElement("textarea");
-      ta.placeholder = "Type your prompt…";
-      ta.value = n.content || "";
-      ta.oninput = (e) => { n.content = e.target.value; saveBoard(); };
-      body.appendChild(ta);
-      previewText = (n.content || "").trim();
-      if(n.meta?.autofocus){ setTimeout(()=> ta.focus(), 0); n.meta.autofocus = false; }
-    } else if(n.type === "response"){
-      const pre = document.createElement("pre");
-      pre.textContent = n.content || "";
-      body.appendChild(pre);
-      previewText = (n.content || "").trim();
-    }
-
-    const preview = document.createElement("div");
-    preview.className = "preview";
-    preview.textContent = previewText || (n.type === "prompt" ? "(empty prompt)" : "(empty response)");
-
-    el.appendChild(body);
-    el.appendChild(preview);
-
-    if(n.meta?.collapsed){ el.classList.add("collapsed"); }
-    else { el.classList.remove("collapsed"); }
-
-    // If releasing on this node while connector active -> make knowledge edge
+    el.addEventListener("pointerdown", () => closeActiveNodeMenu());
     el.addEventListener("pointerup", ()=>{
       const pending = state.ui.pendingConnect;
       if(pending && pending.srcId !== n.id){
@@ -286,10 +336,204 @@ function renderNodes(){
 
     stage.appendChild(el);
 
-    // DRAG - handle-only
-    enableDrag(el, n.id, drag);
+    if(nodeResizeObserver){
+      nodeResizeObserver.observe(el);
+    }
+
+    enableDrag(el, n.id, header);
   }
   renderEdges();
+}
+
+function ensureNodeResizeObserver(){
+  if(typeof ResizeObserver !== "function") return;
+  if(nodeResizeObserver) return;
+  nodeResizeObserver = new ResizeObserver(entries => {
+    for(const entry of entries){
+      const el = entry.target;
+      const id = el.dataset.id;
+      if(!id) continue;
+      const node = state.board.nodes[id];
+      if(!node) continue;
+      const rect = entry.contentRect;
+      const width = clamp(Math.round(rect.width), NODE_WIDTH_MIN, NODE_WIDTH_MAX);
+      const height = Math.max(Math.round(rect.height), NODE_HEIGHT_DEFAULT);
+      node.w = width;
+      node.h = height;
+      updateMinimapNodePosition(id, node.x || 0, node.y || 0, width, height);
+    }
+  });
+}
+
+function autoSizeTextarea(el){
+  if(!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.max(el.scrollHeight, 120)}px`;
+}
+
+function renderRichContent(container, text){
+  if(!container) return;
+  container.innerHTML = "";
+  if(!text){
+    const p = document.createElement("p");
+    p.textContent = "(empty response)";
+    container.appendChild(p);
+    return;
+  }
+
+  const lines = text.split(/\r?\n/);
+  let paragraph = [];
+  let currentList = null;
+  let listTag = null;
+  let inCode = false;
+  let codeBuffer = [];
+
+  const flushParagraph = () => {
+    if(!paragraph.length) return;
+    const p = document.createElement("p");
+    p.textContent = paragraph.join(" ").trim();
+    container.appendChild(p);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if(currentList){
+      container.appendChild(currentList);
+      currentList = null;
+      listTag = null;
+    }
+  };
+
+  const flushCode = () => {
+    const pre = document.createElement("pre");
+    pre.textContent = codeBuffer.join("\n");
+    container.appendChild(pre);
+    codeBuffer = [];
+    inCode = false;
+  };
+
+  for(const line of lines){
+    if(line.trim().startsWith("```")){
+      flushParagraph();
+      flushList();
+      if(inCode){
+        flushCode();
+      } else {
+        inCode = true;
+      }
+      continue;
+    }
+
+    if(inCode){
+      codeBuffer.push(line);
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if(trimmed === ""){
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const bulletMatch = line.match(/^\s*([*+-])\s+(.*)$/);
+    if(bulletMatch){
+      flushParagraph();
+      if(listTag !== "ul"){
+        flushList();
+        currentList = document.createElement("ul");
+        listTag = "ul";
+      }
+      const li = document.createElement("li");
+      li.textContent = bulletMatch[2].trim();
+      currentList.appendChild(li);
+      continue;
+    }
+
+    const orderedMatch = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
+    if(orderedMatch){
+      flushParagraph();
+      if(listTag !== "ol"){
+        flushList();
+        currentList = document.createElement("ol");
+        listTag = "ol";
+      }
+      const li = document.createElement("li");
+      li.textContent = orderedMatch[2].trim();
+      currentList.appendChild(li);
+      continue;
+    }
+
+    const quoteMatch = line.match(/^\s*>+\s?(.*)$/);
+    if(quoteMatch){
+      flushParagraph();
+      flushList();
+      const blockquote = document.createElement("blockquote");
+      blockquote.textContent = quoteMatch[1];
+      container.appendChild(blockquote);
+      continue;
+    }
+
+    paragraph.push(trimmed);
+  }
+
+  if(inCode){
+    flushCode();
+  }
+
+  flushParagraph();
+  flushList();
+
+  if(container.childElementCount === 0){
+    const p = document.createElement("p");
+    p.textContent = text;
+    container.appendChild(p);
+  }
+}
+
+function handleClamp(node, contentEl, bodyEl, toggleBtn){
+  requestAnimationFrame(()=>{
+    if(!contentEl?.isConnected) return;
+    const styles = getComputedStyle(contentEl);
+    const lineHeight = parseFloat(styles.lineHeight) || 22;
+    const clampHeight = lineHeight * NODE_CLAMP_LINES;
+    const expanded = !!node.meta?.expanded;
+    const fullHeight = contentEl.scrollHeight;
+
+    if(expanded){
+      contentEl.style.maxHeight = `${fullHeight}px`;
+      contentEl.classList.remove("is-clamped");
+      toggleBtn.textContent = "Show less";
+      if(toggleBtn.parentElement !== bodyEl) bodyEl.appendChild(toggleBtn);
+    } else if(fullHeight > clampHeight + 2){
+      contentEl.style.maxHeight = `${clampHeight}px`;
+      contentEl.classList.add("is-clamped");
+      toggleBtn.textContent = "Show more";
+      if(toggleBtn.parentElement !== bodyEl) bodyEl.appendChild(toggleBtn);
+    } else {
+      contentEl.style.maxHeight = "";
+      contentEl.classList.remove("is-clamped");
+      if(toggleBtn.parentElement) toggleBtn.remove();
+    }
+  });
+}
+
+function openNodeMenu(button, menu){
+  if(!menu || !button) return;
+  closeActiveNodeMenu();
+  menu.classList.remove("hidden");
+  button.setAttribute("aria-expanded", "true");
+  const card = button.closest(".node");
+  card?.classList.add("menu-open");
+  activeNodeMenu = { button, menu, card };
+}
+
+function closeActiveNodeMenu(){
+  if(!activeNodeMenu) return;
+  activeNodeMenu.menu.classList.add("hidden");
+  activeNodeMenu.button.setAttribute("aria-expanded", "false");
+  activeNodeMenu.card?.classList.remove("menu-open");
+  activeNodeMenu = null;
 }
 
 function renderEdges(){
@@ -304,9 +548,11 @@ function renderEdges(){
     const src = nodes[e.src], dst = nodes[e.dst];
     if(!src || !dst) continue;
 
-    const srcX = (src.x||0) + (src.w||320)/2;
+    const srcWidth = src.w || NODE_WIDTH_DEFAULT;
+    const dstWidth = dst.w || NODE_WIDTH_DEFAULT;
+    const srcX = (src.x||0) + srcWidth/2;
     const srcY = (src.y||0) + 30;
-    const dstX = (dst.x||0) + (dst.w||320)/2;
+    const dstX = (dst.x||0) + dstWidth/2;
     const dstY = (dst.y||0) + 30;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -326,9 +572,11 @@ function renderEdges(){
     const a = nodes[e.src], b = nodes[e.dst];
     if(!a || !b) continue;
 
-    const ax = (a.x||0) + (a.w||320)/2;
+    const aw = a.w || NODE_WIDTH_DEFAULT;
+    const bw = b.w || NODE_WIDTH_DEFAULT;
+    const ax = (a.x||0) + aw/2;
     const ay = (a.y||0) + 30;
-    const bx = (b.x||0) + (b.w||320)/2;
+    const bx = (b.x||0) + bw/2;
     const by = (b.y||0) + 30;
 
     const line = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -371,8 +619,8 @@ function updateAlignmentGuides(nodeId, x, y, w, h){
     if(!other) continue;
     const ox = other.x || 0;
     const oy = other.y || 0;
-    const ow = other.w || 320;
-    const oh = other.h || 140;
+    const ow = other.w || NODE_WIDTH_DEFAULT;
+    const oh = other.h || NODE_HEIGHT_DEFAULT;
     const otherX = [ox, ox + ow / 2, ox + ow];
     const otherY = [oy, oy + oh / 2, oy + oh];
 
@@ -433,8 +681,8 @@ function getBoardBounds(){
     return {
       minX: WORLD_BOUNDS.minX,
       minY: WORLD_BOUNDS.minY,
-      maxX: WORLD_BOUNDS.maxX + 320,
-      maxY: WORLD_BOUNDS.maxY + 320
+      maxX: WORLD_BOUNDS.maxX + NODE_WIDTH_MAX,
+      maxY: WORLD_BOUNDS.maxY + NODE_HEIGHT_DEFAULT
     };
   }
 
@@ -442,8 +690,8 @@ function getBoardBounds(){
   for(const id of ids){
     const node = nodes[id];
     if(!node) continue;
-    const w = node.w || 320;
-    const h = node.h || 140;
+    const w = node.w || NODE_WIDTH_DEFAULT;
+    const h = node.h || NODE_HEIGHT_DEFAULT;
     const x = node.x || 0;
     const y = node.y || 0;
     minX = Math.min(minX, x);
@@ -480,8 +728,8 @@ function renderMinimap(){
     if(!node) continue;
     const nodeEl = document.createElement("div");
     nodeEl.className = `minimap-node${node.type ? ` ${node.type}` : ""}`;
-    const nodeWidth = Math.max((node.w || 320) * minimapScale, 4);
-    const nodeHeight = Math.max((node.h || 140) * minimapScale, 4);
+    const nodeWidth = Math.max((node.w || NODE_WIDTH_DEFAULT) * minimapScale, 4);
+    const nodeHeight = Math.max((node.h || NODE_HEIGHT_DEFAULT) * minimapScale, 4);
     const left = ((node.x || 0) - minimapBounds.minX) * minimapScale;
     const top = ((node.y || 0) - minimapBounds.minY) * minimapScale;
     nodeEl.style.width = `${nodeWidth}px`;
@@ -586,8 +834,8 @@ function focusOnNode(nodeId){
 
   const vp = state.board.viewport;
   const rect = canvas.getBoundingClientRect();
-  const w = node.w || 320;
-  const h = node.h || 140;
+  const w = node.w || NODE_WIDTH_DEFAULT;
+  const h = node.h || NODE_HEIGHT_DEFAULT;
   const z = vp.zoom;
 
   const targetX = rect.width/2  - ((node.x||0) + w/2) * z;
@@ -659,8 +907,8 @@ function enableDrag(el, nodeId, handleEl){
     el.style.left = nx + "px";
     el.style.top  = ny + "px";
     node.x = nx; node.y = ny;
-    const width = node.w || 320;
-    const height = node.h || 140;
+    const width = node.w || NODE_WIDTH_DEFAULT;
+    const height = node.h || NODE_HEIGHT_DEFAULT;
     updateAlignmentGuides(nodeId, nx, ny, width, height);
     updateMinimapNodePosition(nodeId, nx, ny, width, height);
     renderEdges();
@@ -737,8 +985,8 @@ function onWheel(ev){
 function centerPoint(){
   const rect = canvas.getBoundingClientRect();
   const { x, y, zoom } = state.board.viewport;
-  const worldX = (rect.width/2 - x)/zoom - 160;
-  const worldY = (rect.height/2 - y)/zoom - 80;
+  const worldX = (rect.width/2 - x)/zoom - NODE_WIDTH_DEFAULT/2;
+  const worldY = (rect.height/2 - y)/zoom - NODE_HEIGHT_DEFAULT/2;
   return {
     x: clamp(snapToGrid(worldX), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
     y: clamp(snapToGrid(worldY), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY)
@@ -749,7 +997,7 @@ function createPromptNode(pos){
   const id = uid("prompt");
   const px = clamp(snapToGrid(pos?.x ?? 0), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
   const py = clamp(snapToGrid(pos?.y ?? 0), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
-  const p = { id, type:"prompt", title:"Prompt", content:"", x: px, y: py, w:320, h:140, meta:{ autofocus:true } };
+  const p = { id, type:"prompt", title:"Prompt", content:"", x: px, y: py, w: NODE_WIDTH_DEFAULT, h: NODE_HEIGHT_DEFAULT, meta:{ autofocus:true } };
   state.board.nodes[id] = p;
   saveBoard(); renderBoard();
   return id;
@@ -759,8 +1007,8 @@ function createResponseNode(parentId, text, meta={}){
   const parent = state.board.nodes[parentId];
   const id = uid("resp");
   const x = clamp(snapToGrid(parent.x||0), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
-  const y = clamp(snapToGrid((parent.y||0) + 160), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
-  const r = { id, type:"response", title:"Response", content: text, x, y, w:320, h:140, meta };
+  const y = clamp(snapToGrid((parent.y||0) + NODE_VERTICAL_OFFSET), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY);
+  const r = { id, type:"response", title:"Response", content: text, x, y, w: NODE_WIDTH_DEFAULT, h: NODE_HEIGHT_DEFAULT, meta };
   state.board.nodes[id] = r;
   state.board.edges.push({ id: uid("e"), src: parentId, dst: id, kind:"lineage" });
   saveBoard(); renderBoard();
@@ -774,8 +1022,8 @@ function branchFrom(nodeId){
 
   const id = uid("prompt");
   const p = {
-    id, type:"prompt", title:"Prompt", content:"", w:320, h:140,
-    x: clamp(snapToGrid((parent.x||0) + 300), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
+    id, type:"prompt", title:"Prompt", content:"", w: NODE_WIDTH_DEFAULT, h: NODE_HEIGHT_DEFAULT,
+    x: clamp(snapToGrid((parent.x||0) + NODE_HORIZONTAL_OFFSET), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX),
     y: clamp(snapToGrid(parent.y||0), WORLD_BOUNDS.minY, WORLD_BOUNDS.maxY),
     meta:{ autofocus:true }
   };
@@ -1136,7 +1384,7 @@ function centerOnGraph(){
   let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
   for(const id of ids){
     const n = state.board.nodes[id];
-    const x = n.x||0, y = n.y||0, w = n.w||320, h = n.h||140;
+    const x = n.x||0, y = n.y||0, w = n.w||NODE_WIDTH_DEFAULT, h = n.h||NODE_HEIGHT_DEFAULT;
     minX = Math.min(minX, x); minY = Math.min(minY, y);
     maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
   }
@@ -1183,6 +1431,12 @@ function wireEvents(){
   menuOverflow?.addEventListener("click", handleOverflowAction);
   document.addEventListener("click", handleGlobalClick);
   document.addEventListener("keydown", handleGlobalKeydown);
+  document.addEventListener("pointerdown", (ev)=>{
+    if(!activeNodeMenu) return;
+    const { menu, button } = activeNodeMenu;
+    if(menu.contains(ev.target) || button.contains(ev.target)) return;
+    closeActiveNodeMenu();
+  });
 
   const closeSettingsBtn = $("[data-close-settings]");
   closeSettingsBtn?.addEventListener("click", closeSettings);
