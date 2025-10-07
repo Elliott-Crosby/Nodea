@@ -256,7 +256,8 @@ export const deleteBoard = mutation({
 export const updateAccessMetadata = mutation({
   args: { boardId: v.id("boards") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -273,7 +274,7 @@ export const updateAccessMetadata = mutation({
     // Update last accessed metadata
     await ctx.db.patch(args.boardId, {
       lastAccessedAt: Date.now(),
-      lastAccessedBy: identity.subject,
+      lastAccessedBy: userId,
     });
   },
 });
