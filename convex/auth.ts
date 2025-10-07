@@ -1,14 +1,16 @@
 import { query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Simple auth query for compatibility
 export const loggedInUser = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return null;
     }
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_subject", (q) => q.eq("subject", identity.subject))
+      .unique();
     if (!user) {
       return null;
     }
