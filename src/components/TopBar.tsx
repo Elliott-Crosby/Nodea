@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { SignOutButton } from "../SignOutButton";
 import OverflowMenu from "./OverflowMenu";
-import { Search, ExternalLink, Undo2, Redo2 } from "lucide-react";
+import { Search, ExternalLink, Undo2, Redo2 } from "./icons";
 
 interface TopBarProps {
   board: {

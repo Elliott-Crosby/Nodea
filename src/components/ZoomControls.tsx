@@ -1,5 +1,5 @@
 import { useReactFlow } from "reactflow";
-import { Plus, Minus, Home } from "lucide-react";
+import { Plus, Minus, Home } from "./icons";
 
 export default function ZoomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();

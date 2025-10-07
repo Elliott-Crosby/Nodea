@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { Bot, Clock, User, Trash2, StickyNote, GripVertical, GitBranch, ChevronDown, Copy } from "lucide-react";
+import { Bot, Clock, User, Trash2, StickyNote, GripVertical, GitBranch, ChevronDown, Copy } from "./icons";
 
 interface NodeData {
   _id: string;

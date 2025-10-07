@@ -21,7 +21,7 @@ import FABNewPrompt from "./FABNewPrompt";
 import ZoomControls from "./ZoomControls";
 import CustomCurvedEdge from "./CustomCurvedEdge";
 import { useBoardState } from "../state/useBoardState";
-import { Map } from "lucide-react";
+import { Map } from "./icons";
 
 const nodeTypes = {
   nodeCard: NodeCard,

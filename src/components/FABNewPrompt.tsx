@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, StickyNote, Plus, X } from "lucide-react";
+import { MessageCircle, StickyNote, Plus, X } from "./icons";
 
 interface FABNewMessageProps {
   onCreateMessage: (position?: { x: number; y: number }) => void;
