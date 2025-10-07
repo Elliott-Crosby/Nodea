@@ -2,10 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-light: #ffffff;
-  --color-dark: #171717;
+@layer base {
+  :root {
+    --color-primary: #4f46e5;
+    --color-primary-hover: #4338ca;
+    --color-secondary: #6b7280;
+    --color-light: #ffffff;
+    --color-dark: #171717;
+  }
 }
+
+@layer components {
+  .rounded-container {
+    @apply rounded-lg;
+  }
+  
+  .gap-form-field {
+    @apply space-y-4;
+  }
+  
+  .text-primary {
+    color: var(--color-primary);
+  }
+  
+  .text-primary-hover {
+    color: var(--color-primary-hover);
+  }
+  
+  .text-secondary {
+    color: var(--color-secondary);
+  }
+  
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+  
+  .bg-primary-hover {
+    background-color: var(--color-primary-hover);
+  }
+}
+
 
 .accent-text {
   @apply text-slate-600;

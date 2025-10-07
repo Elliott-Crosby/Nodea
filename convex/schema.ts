@@ -3,8 +3,29 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
 const applicationTables = {
+  // User profiles table
+  userProfiles: defineTable({
+    userId: v.string(), // Changed from v.id("users") to v.string() for Clerk compatibility
+    firstName: v.string(),
+    lastName: v.string(),
+    displayName: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    avatar: v.optional(v.string()),
+    preferences: v.optional(v.object({
+      theme: v.optional(v.string()),
+      notifications: v.optional(v.boolean()),
+      marketingOptIn: v.optional(v.boolean()),
+    })),
+    // Security metadata
+    createdBy: v.string(), // Changed from v.id("users") to v.string()
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_created", ["createdBy"]),
+
   boards: defineTable({
-    ownerUserId: v.id("users"),
+    ownerUserId: v.string(), // Changed from v.id("users") to v.string() for Clerk compatibility
     orgId: v.optional(v.id("orgs")),
     title: v.string(),
     description: v.optional(v.string()),
@@ -13,17 +34,17 @@ const applicationTables = {
     isPublic: v.boolean(),
     // ACL fields for least-privilege access
     permissions: v.optional(v.object({
-      canView: v.array(v.id("users")),
-      canEdit: v.array(v.id("users")),
-      canAdmin: v.array(v.id("users")),
+      canView: v.array(v.string()), // Changed from v.id("users") to v.string()
+      canEdit: v.array(v.string()), // Changed from v.id("users") to v.string()
+      canAdmin: v.array(v.string()), // Changed from v.id("users") to v.string()
     })),
-    // Security metadata
-    createdBy: v.id("users"),
-    createdAt: v.number(),
+    // Security metadata (legacy docs may not include these)
+    createdBy: v.optional(v.string()), // Changed from v.id("users") to v.string()
+    createdAt: v.optional(v.number()),
     updatedAt: v.number(),
     // Audit trail
     lastAccessedAt: v.optional(v.number()),
-    lastAccessedBy: v.optional(v.id("users")),
+    lastAccessedBy: v.optional(v.string()), // Changed from v.id("users") to v.string()
   })
     .index("by_owner", ["ownerUserId"])
     .index("by_created", ["createdBy"])
@@ -58,10 +79,10 @@ const applicationTables = {
         at: v.number(),
       }))),
     }),
-    // Security metadata
-    createdBy: v.id("users"),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    // Security metadata (legacy docs may not include these)
+    createdBy: v.optional(v.id("users")),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
     // Audit trail
     lastAccessedAt: v.optional(v.number()),
     lastAccessedBy: v.optional(v.id("users")),
@@ -75,10 +96,10 @@ const applicationTables = {
     dstNodeId: v.id("nodes"),
     kind: v.union(v.literal("lineage"), v.literal("reference")),
     label: v.optional(v.string()),
-    // Security metadata
-    createdBy: v.id("users"),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    // Security metadata (legacy docs may not include these)
+    createdBy: v.optional(v.id("users")),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_board", ["boardId"])
     .index("by_src", ["srcNodeId"])
@@ -120,19 +141,20 @@ const applicationTables = {
     .index("by_created", ["createdBy"]),
 
   apiKeys: defineTable({
-    ownerUserId: v.id("users"),
+    // Clerk uses string user IDs; make this a string for compatibility
+    ownerUserId: v.string(),
     provider: v.union(v.literal("openai"), v.literal("anthropic"), v.literal("google")),
     nickname: v.string(),
     last4: v.string(),
     encryptedKey: v.string(),
     status: v.union(v.literal("active"), v.literal("revoked")),
-    // Security metadata
-    createdBy: v.id("users"),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    // Security metadata (some older docs may not have these fields)
+    createdBy: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
     // Audit trail
     lastUsedAt: v.optional(v.number()),
-    lastUsedBy: v.optional(v.id("users")),
+    lastUsedBy: v.optional(v.string()),
   })
     .index("by_owner", ["ownerUserId"])
     .index("by_created", ["createdBy"])
@@ -148,8 +170,8 @@ const applicationTables = {
     outputTokens: v.number(),
     costEstimate: v.number(),
     status: v.string(),
-    // Security metadata
-    createdAt: v.number(),
+    // Security metadata (legacy docs may not include this)
+    createdAt: v.optional(v.number()),
     sessionId: v.optional(v.string()),
     ipAddress: v.optional(v.string()),
   })

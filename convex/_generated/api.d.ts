@@ -30,6 +30,7 @@ import type * as router from "../router.js";
 import type * as security from "../security.js";
 import type * as shares from "../shares.js";
 import type * as usage from "../usage.js";
+import type * as userProfiles from "../userProfiles.js";
 import type * as validation from "../validation.js";
 
 /**
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   security: typeof security;
   shares: typeof shares;
   usage: typeof usage;
+  userProfiles: typeof userProfiles;
   validation: typeof validation;
 }>;
 export declare const api: FilterApi<
