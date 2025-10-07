@@ -1,19 +1,19 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { validateBoardTitle, validateBoardDescription } from "./validation";
+// Using Clerk via convex/react-clerk; rely on ctx.auth.getUserIdentity()
 
 export const listBoards = query({
-  args: { ownerUserId: v.optional(v.string()) },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const ownerUserId = identity?.subject ?? args.ownerUserId;
-    if (!ownerUserId) {
+    if (!identity) {
       return [];
     }
 
     return await ctx.db
       .query("boards")
-      .withIndex("by_owner", (q) => q.eq("ownerUserId", ownerUserId))
+      .withIndex("by_owner", (q) => q.eq("ownerUserId", identity.subject))
       .order("desc")
       .collect();
   },
@@ -25,28 +25,50 @@ export const createBoard = mutation({
     description: v.optional(v.string()),
     ownerUserId: v.optional(v.string()),
   },
+  returns: v.id("boards"),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    const ownerUserId = identity?.subject ?? args.ownerUserId;
-    if (!ownerUserId) {
-      throw new Error("Not authenticated");
+    const start = Date.now();
+    console.log("[createBoard] start", { at: new Date(start).toISOString(), args });
+    try {
+      console.log("[createBoard] fetching identity");
+      const identity = await ctx.auth.getUserIdentity();
+      console.log("[createBoard] identity", {
+        subject: identity?.subject,
+        issuer: identity?.issuer,
+        tokenIdentifier: identity?.tokenIdentifier,
+      });
+
+      const resolvedOwnerId = args.ownerUserId ?? identity?.subject ?? null;
+      if (!resolvedOwnerId) {
+        console.error("[createBoard] Not authenticated");
+        throw new Error("Not authenticated");
+      }
+
+      console.log("[createBoard] validating inputs");
+      const validatedTitle = validateBoardTitle(args.title);
+      const validatedDescription = args.description ? validateBoardDescription(args.description) : undefined;
+
+      console.log("[createBoard] inserting row", {
+        ownerUserId: resolvedOwnerId,
+        title: validatedTitle,
+        hasDescription: Boolean(validatedDescription),
+      });
+      const boardId = await ctx.db.insert("boards", {
+        ownerUserId: resolvedOwnerId,
+        title: validatedTitle,
+        description: validatedDescription,
+        isPublic: false,
+        createdBy: resolvedOwnerId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      console.log("[createBoard] inserted", { boardId });
+      console.log("[createBoard] done", { durationMs: Date.now() - start });
+      return boardId;
+    } catch (err) {
+      console.error("[createBoard] error", err);
+      throw err;
     }
-
-    // Validate and sanitize inputs
-    const validatedTitle = validateBoardTitle(args.title);
-    const validatedDescription = args.description ? validateBoardDescription(args.description) : undefined;
-
-    const boardId = await ctx.db.insert("boards", {
-      ownerUserId,
-      title: validatedTitle,
-      description: validatedDescription,
-      isPublic: false,
-      createdBy: ownerUserId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    return boardId;
   },
 });
 
@@ -234,8 +256,8 @@ export const deleteBoard = mutation({
 export const updateAccessMetadata = mutation({
   args: { boardId: v.id("boards") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
 
@@ -244,7 +266,7 @@ export const updateAccessMetadata = mutation({
       throw new Error("Board not found");
     }
 
-    if (board.ownerUserId !== identity.subject) {
+    if (board.ownerUserId !== userId) {
       throw new Error("Access denied");
     }
 

@@ -4,27 +4,56 @@ import { useUser, SignOutButton } from "@clerk/clerk-react";
 import { Footer } from "../components/Footer";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
   const boards = useQuery(api.boards.listBoards, user ? {} : "skip");
   const createBoard = useMutation(api.boards.createBoard);
   const [isCreating, setIsCreating] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [newBoardTitle, setNewBoardTitle] = useState("");
   const navigate = useNavigate();
+
+  // Centralized create click instrumentation
+  const handleCreateClick = () => {
+    const timestamp = new Date().toISOString();
+    // Visible toast for quick confirmation
+    toast("Create clicked");
+    // Console marker for debugging
+    // eslint-disable-next-line no-console
+    console.log(`[CREATE] click ${timestamp}`);
+  };
 
   const handleCreateBoard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBoardTitle.trim()) return;
 
     try {
+      setCreating(true);
+      setCreateError(null);
       const boardId = await createBoard({
         title: newBoardTitle.trim(),
         description: "",
+        ownerUserId: user.id,
       });
+      setIsCreating(false);
+      setNewBoardTitle("");
       navigate(`/b/${boardId}`);
     } catch (error) {
       console.error("Failed to create board:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Not authenticated")) {
+        setCreateError("You must be signed in to create a board.");
+      } else if (message.toLowerCase().includes("title")) {
+        setCreateError("Please enter a valid board title.");
+      } else {
+        setCreateError("Could not create board. Please try again.");
+      }
+    }
+    finally {
+      setCreating(false);
     }
   };
 
@@ -116,6 +145,11 @@ export default function Dashboard() {
               <div className="bg-white rounded-lg p-6 w-full max-w-md">
                 <h3 className="text-lg font-semibold mb-4">Create New Board</h3>
                 <form onSubmit={handleCreateBoard}>
+                  {createError && (
+                    <div className="mb-3 text-sm text-red-600">
+                      {createError}
+                    </div>
+                  )}
                   <input
                     type="text"
                     placeholder="Board title..."
@@ -127,19 +161,23 @@ export default function Dashboard() {
                   <div className="flex gap-2 mt-4">
                     <button
                       type="submit"
-                      className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700"
+                      disabled={creating}
+                      data-testid="create-button"
+                      onClick={handleCreateClick}
+                      className={`relative z-50 pointer-events-auto flex-1 text-white py-2 rounded-md ${creating ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                     >
-                      Create
+                      {creating ? 'CREATING…' : 'CREATE'}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setIsCreating(false);
                         setNewBoardTitle("");
+                        setCreateError(null);
                       }}
                       className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-md hover:bg-gray-300"
-                    >
-                      Cancel
+                      >
+                      CANCEL
                     </button>
                   </div>
                 </form>
