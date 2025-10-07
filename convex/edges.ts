@@ -12,7 +12,8 @@ export const createEdge = mutation({
     label: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -49,7 +50,8 @@ export const createEdge = mutation({
 export const deleteEdge = mutation({
   args: { edgeId: v.id("edges") },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -72,7 +74,8 @@ export const deleteEdge = mutation({
 export const listEdgesByBoard = query({
   args: { boardId: v.id("boards") },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
