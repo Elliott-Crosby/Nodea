@@ -3,16 +3,17 @@ import { v } from "convex/values";
 import { validateBoardTitle, validateBoardDescription } from "./validation";
 
 export const listBoards = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { ownerUserId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const ownerUserId = identity?.subject ?? args.ownerUserId;
+    if (!ownerUserId) {
       return [];
     }
 
     return await ctx.db
       .query("boards")
-      .withIndex("by_owner", (q) => q.eq("ownerUserId", identity.subject))
+      .withIndex("by_owner", (q) => q.eq("ownerUserId", ownerUserId))
       .order("desc")
       .collect();
   },
@@ -22,10 +23,12 @@ export const createBoard = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
+    ownerUserId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const ownerUserId = identity?.subject ?? args.ownerUserId;
+    if (!ownerUserId) {
       throw new Error("Not authenticated");
     }
 
@@ -34,11 +37,11 @@ export const createBoard = mutation({
     const validatedDescription = args.description ? validateBoardDescription(args.description) : undefined;
 
     const boardId = await ctx.db.insert("boards", {
-      ownerUserId: identity.subject,
+      ownerUserId,
       title: validatedTitle,
       description: validatedDescription,
       isPublic: false,
-      createdBy: identity.subject,
+      createdBy: ownerUserId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
