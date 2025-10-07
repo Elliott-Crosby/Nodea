@@ -2,7 +2,7 @@ import { ConvexProviderWithClerk } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { useAuth } from "@clerk/clerk-react";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL;
+const convexUrl = import.meta.env.VITE_CONVEX_URL || "https://grateful-minnow-178.convex.cloud";
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 export function ConvexProviderWithClerkWrapper({ children }: { children: React.ReactNode }) {
