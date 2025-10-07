@@ -1,4 +1,4 @@
-import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { ConvexProviderWithClerk } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { useAuth } from "@clerk/clerk-react";
 
