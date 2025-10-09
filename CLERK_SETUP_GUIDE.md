@@ -82,3 +82,6 @@ npx convex deploy
 - **CORS errors**: Ensure your Convex deployment allows your domain
 
 
+
+
+

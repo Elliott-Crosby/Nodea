@@ -165,7 +165,15 @@ export const listShareLinks = query({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     
-    const links = [];
+    const links: Array<{
+      token: string;
+      boardId: Id<"boards">;
+      boardTitle: string;
+      expiresAt: number;
+      accessCount: number;
+      maxAccesses?: number;
+      shareUrl: string;
+    }> = [];
     
     for (const [token, shareData] of shareTokens.entries()) {
       if (shareData.userId !== userId) continue;

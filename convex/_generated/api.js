@@ -1,22 +1,22 @@
-export const api = {
-  queries: {
-    getBoard: "boards:getBoard",
-    listBoards: "boards:listBoards", 
-    getNode: "nodes:getNode",
-    listNodes: "nodes:listNodes",
-    listEdges: "edges:listEdges",
-    getUserProfile: "userProfiles:getUserProfile",
-  },
-  mutations: {
-    createBoard: "boards:createBoard",
-    updateBoardMeta: "boards:updateBoardMeta",
-    deleteBoard: "boards:deleteBoard",
-    createNode: "nodes:createNode",
-    updateNode: "nodes:updateNode",
-    deleteNode: "nodes:deleteNode",
-    createEdge: "edges:createEdge",
-    deleteEdge: "edges:deleteEdge",
-    updateAccessMetadata: "boards:updateAccessMetadata",
-  },
-  actions: {},
-};
+/* eslint-disable */
+/**
+ * Generated `api` utility.
+ *
+ * THIS CODE IS AUTOMATICALLY GENERATED.
+ *
+ * To regenerate, run `npx convex dev`.
+ * @module
+ */
+
+import { anyApi } from "convex/server";
+
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export const api = anyApi;
+export const internal = anyApi;

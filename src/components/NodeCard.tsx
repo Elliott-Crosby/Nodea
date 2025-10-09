@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../convex/_generated/dataModel";
 import { Bot, Clock, User, Trash2, StickyNote, GripVertical, GitBranch, ChevronDown, Copy } from "./icons";
 
 interface NodeData {
@@ -30,14 +30,14 @@ export default function NodeCard({ data, selected }: NodeProps<NodeData>) {
   const [isGenerating, setIsGenerating] = useState(false);
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  const updateNode = useMutation(api.nodes.updateNode);
-  const deleteNode = useMutation(api.nodes.deleteNode);
-  const generateFromMessage = useMutation(api.nodes.generateFromMessage);
-  const generateFromAssistant = useMutation(api.nodes.generateFromAssistant);
-  const generateContinuation = useMutation(api.nodes.generateContinuation);
-  const createNode = useMutation(api.nodes.createNode);
-  const createEdge = useMutation(api.edges.createEdge);
-  const deleteEdge = useMutation(api.edges.deleteEdge);
+  const updateNode = useMutation((api as any).nodes.updateNode);
+  const deleteNode = useMutation((api as any).nodes.deleteNode);
+  const generateFromMessage = useMutation((api as any).nodes.generateFromMessage);
+  const generateFromAssistant = useMutation((api as any).nodes.generateFromAssistant);
+  const generateContinuation = useMutation((api as any).nodes.generateContinuation);
+  const createNode = useMutation((api as any).nodes.createNode);
+  const createEdge = useMutation((api as any).edges.createEdge);
+  const deleteEdge = useMutation((api as any).edges.deleteEdge);
 
   const handleFormSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

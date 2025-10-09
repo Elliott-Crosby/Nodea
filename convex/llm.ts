@@ -66,7 +66,7 @@ export const complete = action({
     const maxTokens = Math.min(args.maxTokens || 400, 600); // Hard ceiling: never exceed 600 tokens
 
     // Find API key (board default -> user key -> system key)
-    let apiKey = null;
+    let apiKey: string | null = null;
     if (args.boardData?.defaultApiKeyId) {
       const key = await ctx.runQuery(internal.keys.getApiKey, { keyId: args.boardData.defaultApiKeyId });
       if (key && key.provider === provider) {
@@ -77,7 +77,10 @@ export const complete = action({
     if (!apiKey) {
       // Try system key from environment
       if (provider === "openai") {
-        apiKey = process.env.CONVEX_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        const envKey = process.env.CONVEX_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        if (envKey) {
+          apiKey = envKey;
+        }
       }
     }
 
@@ -181,7 +184,7 @@ export const completeStream = action({
     const maxTokens = Math.min(args.maxTokens || 400, 600); // Hard ceiling: never exceed 600 tokens
 
     // Find API key (board default -> user key -> system key)
-    let apiKey = null;
+    let apiKey: string | null = null;
     if (args.boardData?.defaultApiKeyId) {
       const key = await ctx.runQuery(internal.keys.getApiKey, { keyId: args.boardData.defaultApiKeyId });
       if (key && key.provider === provider) {
@@ -192,7 +195,10 @@ export const completeStream = action({
     if (!apiKey) {
       // Try system key from environment
       if (provider === "openai") {
-        apiKey = process.env.CONVEX_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        const envKey = process.env.CONVEX_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        if (envKey) {
+          apiKey = envKey;
+        }
       }
     }
 

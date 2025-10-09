@@ -1,15 +1,22 @@
-import { ConvexProviderWithClerk } from "@convex-dev/auth/react";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexReactClient, ConvexProvider } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useAuth } from "@clerk/clerk-react";
+import { clerkConfig, hasValidClerkKey } from "./clerk";
 
-const convexUrl = "https://grateful-minnow-178.convex.cloud";
+const convexUrl = import.meta.env.VITE_CONVEX_URL;
+if (!convexUrl) {
+  throw new Error("Missing VITE_CONVEX_URL env var. Please set it in your .env.local.");
+}
 const convex = new ConvexReactClient(convexUrl);
 
 export function ConvexProviderWithClerkWrapper({ children }: { children: React.ReactNode }) {
-  // If Clerk isn't available (e.g., we rendered without a valid key), fall back to plain Convex provider
-  const hasClerk = typeof window !== "undefined" && !!(window as any).Clerk; // conservative check
-  if (!hasClerk) {
+  if (!hasValidClerkKey(clerkConfig.publishableKey)) {
     return <ConvexProvider client={convex}>{children}</ConvexProvider>;
   }
-  return <ConvexProviderWithClerk client={convex} useAuth={useAuth}>{children}</ConvexProviderWithClerk>;
+
+  return (
+    <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      {children}
+    </ConvexProviderWithClerk>
+  );
 }
