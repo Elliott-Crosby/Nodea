@@ -1,4 +1,4 @@
-import { ClerkProvider } from "@clerk/clerk-react";
+import { ClerkProvider, ClerkLoaded } from "@clerk/clerk-react";
 
 const rawPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
@@ -18,5 +18,9 @@ export function ClerkProviderWrapper({ children }: { children: React.ReactNode }
     return <>{children}</>;
   }
 
-  return <ClerkProvider publishableKey={rawPublishableKey!}>{children}</ClerkProvider>;
+  return (
+    <ClerkProvider publishableKey={rawPublishableKey!}>
+      <ClerkLoaded>{children}</ClerkLoaded>
+    </ClerkProvider>
+  );
 }

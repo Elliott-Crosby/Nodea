@@ -13,11 +13,13 @@ export default function OverflowMenu({ boardId }: OverflowMenuProps) {
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const exportMarkdown = useQuery(api.exports.exportMarkdown, 
-    { boardId: boardId as Id<"boards"> }
+  const exportMarkdown = useQuery(
+    api.exports.exportMarkdown,
+    boardId ? ({ boardId: boardId as Id<"boards"> }) : "skip",
   );
-  const exportJson = useQuery(api.exports.exportJson, 
-    { boardId: boardId as Id<"boards"> }
+  const exportJson = useQuery(
+    api.exports.exportJson,
+    boardId ? ({ boardId: boardId as Id<"boards"> }) : "skip",
   );
   const clearBoard = useMutation(api.exports.clearBoard);
 

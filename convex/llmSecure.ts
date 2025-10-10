@@ -2,7 +2,6 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import { decryptApiKey } from "./keys";
 import { requireAuth, checkRateLimit } from "./security";
@@ -75,7 +74,10 @@ export const complete = action({
     
     // Security: Verify user owns the board
     const board = await ctx.runQuery(api.boards.getBoard, { boardId: args.boardId });
-    if (!board || board.ownerUserId !== authenticatedUserId) {
+    if (!board || "status" in board) {
+      throw new Error("Access denied. You can only access your own boards.");
+    }
+    if (board.ownerUserId !== authenticatedUserId) {
       throw new Error("Access denied. You can only access your own boards.");
     }
     
@@ -203,7 +205,10 @@ export const completeStream = action({
     
     // Security: Verify user owns the board
     const board = await ctx.runQuery(api.boards.getBoard, { boardId: args.boardId });
-    if (!board || board.ownerUserId !== authenticatedUserId) {
+    if (!board || "status" in board) {
+      throw new Error("Access denied. You can only access your own boards.");
+    }
+    if (board.ownerUserId !== authenticatedUserId) {
       throw new Error("Access denied. You can only access your own boards.");
     }
     

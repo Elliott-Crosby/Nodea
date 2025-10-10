@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getOptionalAuthUserId } from "./security";
 
 /**
  * Observability and monitoring system for Nodea MVP 2.1
@@ -230,7 +230,7 @@ export const getRequestMetrics = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -260,7 +260,7 @@ export const getRequestMetrics = query({
 export const getUserActivity = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -296,7 +296,7 @@ export const getUserActivity = query({
 export const getSystemMetrics = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -324,7 +324,7 @@ export const getSystemMetrics = query({
 export const cleanupOldMetrics = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }

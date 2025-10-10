@@ -7,8 +7,9 @@ import TopBar from "../components/TopBar";
 
 export default function BoardCanvas() {
   const { boardId } = useParams<{ boardId: string }>();
-  const board = useQuery(api.boards.getBoard, 
-    boardId ? { boardId: boardId as Id<"boards"> } : "skip"
+  const board = useQuery(
+    api.boards.getBoard,
+    boardId ? { boardId: boardId as Id<"boards"> } : "skip",
   );
 
   if (!boardId) {
@@ -23,7 +24,7 @@ export default function BoardCanvas() {
     );
   }
 
-  if (board === null) {
+  if (board === null || (board && "status" in board)) {
     return <div>Board not found</div>;
   }
 

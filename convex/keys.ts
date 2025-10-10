@@ -1,6 +1,5 @@
 import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireAuth } from "./security";
 import { validateApiKeyNickname, validateProviderName } from "./validation";
 

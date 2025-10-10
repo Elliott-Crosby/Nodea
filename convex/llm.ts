@@ -2,7 +2,6 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import { decryptApiKey } from "./keys";
 import { requireAuth, checkRateLimit } from "./security";

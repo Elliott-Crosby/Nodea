@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getOptionalAuthUserId } from "./security";
 import { Doc, Id } from "./_generated/dataModel";
 
 /**
@@ -17,7 +17,7 @@ export async function checkAccess(
   resourceId: Id<any>,
   requiredLevel: AccessLevel = "read"
 ): Promise<boolean> {
-  const userId = await getAuthUserId(ctx);
+  const userId = await getOptionalAuthUserId(ctx);
   if (!userId) {
     return false;
   }
@@ -178,7 +178,7 @@ export async function getUserAccessLevel(
   resourceType: ResourceType,
   resourceId: Id<any>
 ): Promise<AccessLevel> {
-  const userId = await getAuthUserId(ctx);
+  const userId = await getOptionalAuthUserId(ctx);
   if (!userId) {
     return "none";
   }
@@ -205,7 +205,7 @@ export async function filterByAccess<T extends { _id: Id<any> }>(
   resourceType: ResourceType,
   requiredLevel: AccessLevel = "read"
 ): Promise<T[]> {
-  const userId = await getAuthUserId(ctx);
+  const userId = await getOptionalAuthUserId(ctx);
   if (!userId) {
     return [];
   }
@@ -230,7 +230,7 @@ export async function canPerformAction(
   resourceType: ResourceType,
   resourceId: Id<any>
 ): Promise<boolean> {
-  const userId = await getAuthUserId(ctx);
+  const userId = await getOptionalAuthUserId(ctx);
   if (!userId) {
     return false;
   }

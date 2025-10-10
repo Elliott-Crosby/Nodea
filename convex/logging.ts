@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 
 /**
  * Structured logging utilities for Nodea MVP 2.1

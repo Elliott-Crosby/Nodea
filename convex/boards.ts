@@ -8,7 +8,11 @@ export const listBoards = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return [];
+      return await ctx.db
+        .query("boards")
+        .withIndex("by_public", (q) => q.eq("isPublic", true))
+        .order("desc")
+        .take(20);
     }
 
     return await ctx.db
@@ -23,42 +27,30 @@ export const createBoard = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
-    ownerUserId: v.optional(v.string()),
   },
   returns: v.id("boards"),
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject ?? `guest_${Math.random().toString(36).slice(2, 10)}`;
+    const isGuest = identity === null;
     const start = Date.now();
-    console.log("[createBoard] start", { at: new Date(start).toISOString(), args });
+    console.log("[createBoard] start", { at: new Date(start).toISOString(), userId });
     try {
-      console.log("[createBoard] fetching identity");
-      const identity = await ctx.auth.getUserIdentity();
-      console.log("[createBoard] identity", {
-        subject: identity?.subject,
-        issuer: identity?.issuer,
-        tokenIdentifier: identity?.tokenIdentifier,
-      });
-
-      const resolvedOwnerId = args.ownerUserId ?? identity?.subject ?? null;
-      if (!resolvedOwnerId) {
-        console.error("[createBoard] Not authenticated");
-        throw new Error("Not authenticated");
-      }
-
       console.log("[createBoard] validating inputs");
       const validatedTitle = validateBoardTitle(args.title);
       const validatedDescription = args.description ? validateBoardDescription(args.description) : undefined;
 
       console.log("[createBoard] inserting row", {
-        ownerUserId: resolvedOwnerId,
+        ownerUserId: userId,
         title: validatedTitle,
         hasDescription: Boolean(validatedDescription),
       });
       const boardId = await ctx.db.insert("boards", {
-        ownerUserId: resolvedOwnerId,
+        ownerUserId: userId,
         title: validatedTitle,
         description: validatedDescription,
-        isPublic: false,
-        createdBy: resolvedOwnerId,
+        isPublic: isGuest ? true : false,
+        createdBy: userId,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -75,21 +67,45 @@ export const createBoard = mutation({
 export const getBoard = query({
   args: { boardId: v.id("boards") },
   handler: async (ctx, args) => {
+    console.log("[AUTH] Checking identity for getBoard");
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    console.log("[AUTH] Identity result for getBoard", identity ?? null);
 
     const board = await ctx.db.get(args.boardId);
     if (!board) {
       throw new Error("Board not found");
     }
 
+    if (!identity) {
+      if (board.isPublic) {
+        return board;
+      }
+      console.log("[AUTH] Unauthenticated access denied for private board");
+      return {
+        status: "unauthenticated",
+        board: null,
+      };
+    }
+
     if (board.ownerUserId !== identity.subject) {
+      if (board.isPublic) {
+        return board;
+      }
       throw new Error("Access denied");
     }
 
     return board;
+  },
+});
+
+// Temporary diagnostic query to inspect auth bridge
+export const testAuth = query({
+  args: {},
+  handler: async (ctx) => {
+    console.log("[AUTH] testAuth invoked");
+    const identity = await ctx.auth.getUserIdentity();
+    console.log("[AUTH] testAuth identity", identity ?? null);
+    return identity ?? null;
   },
 });
 

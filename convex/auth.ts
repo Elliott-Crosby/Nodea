@@ -1,10 +1,10 @@
 import { query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getOptionalAuthUserId } from "./security";
 
 // Simple auth query for compatibility
 export const loggedInUser = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       return null;
     }

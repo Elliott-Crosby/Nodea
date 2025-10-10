@@ -1,11 +1,25 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 /**
- * Security helper to ensure all server functions require authentication
+ * Helper to read the authenticated user's identity without throwing.
+ */
+export async function getOptionalAuthIdentity(ctx: any) {
+  return await ctx.auth.getUserIdentity();
+}
+
+/**
+ * Helper to read the authenticated user's id (or null when unauthenticated).
+ */
+export async function getOptionalAuthUserId(ctx: any) {
+  const identity = await getOptionalAuthIdentity(ctx);
+  return identity?.subject ?? null;
+}
+
+/**
+ * Security helper to ensure all server functions require authentication.
  */
 export async function requireAuth(ctx: any) {
-  const userId = await getAuthUserId(ctx);
+  const userId = await getOptionalAuthUserId(ctx);
   if (!userId) {
     throw new Error("Authentication required. Please sign in to access this resource.");
   }
@@ -13,7 +27,7 @@ export async function requireAuth(ctx: any) {
 }
 
 /**
- * Security helper to validate user ownership of resources
+ * Security helper to validate user ownership of resources.
  */
 export async function requireUserOwnership(ctx: any, resourceUserId: string) {
   const userId = await requireAuth(ctx);

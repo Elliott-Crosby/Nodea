@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getOptionalAuthUserId } from "./security";
 import { logSecurityEvent, logWarning } from "./logging";
 
 /**
@@ -181,7 +181,7 @@ function checkAnomalies(userId: string, activity: any): void {
 export const getUserAnomalyMetrics = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -219,7 +219,7 @@ export const getUserAnomalyMetrics = query({
 export const getSystemAnomalyMetrics = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -267,7 +267,7 @@ export const getSystemAnomalyMetrics = query({
 export const resetUserAnomalyMetrics = mutation({
   args: { targetUserId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -306,7 +306,7 @@ export const updateAnomalyThresholds = mutation({
     concurrentSessions: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -348,7 +348,7 @@ export const updateAnomalyThresholds = mutation({
 export const cleanupAnomalyMetrics = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getOptionalAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
