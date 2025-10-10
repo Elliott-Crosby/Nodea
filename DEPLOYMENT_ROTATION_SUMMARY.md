@@ -3,13 +3,13 @@
 ## ✅ Completed Changes
 
 ### 1. README Updates
-- **Removed deployment name**: Changed from `tacit-wombat-905` to generic description
+- **Removed deployment name**: Changed from `grateful-minnow-178` to generic description
 - **Updated authentication section**: Removed Anonymous auth reference, added secure password-based authentication description
 - **Security improvements**: Documentation now reflects current security posture
 
 ### 2. Deployment Rotation
 - **New deployment created**: `befitting-goshawk-719` (preview deployment)
-- **Old deployment**: `tacit-wombat-905` (still active)
+- **Old deployment**: `grateful-minnow-178` (still active)
 - **Environment variables**: Migrated to new deployment
 - **Local configuration**: Updated `.env.local` with new deployment URL
 
@@ -17,7 +17,7 @@
 
 ### README.md Updates
 ```diff
-- This project is connected to the Convex deployment named [`tacit-wombat-905`](https://dashboard.convex.dev/d/tacit-wombat-905).
+- This project is connected to the Convex deployment named [`grateful-minnow-178`](https://dashboard.convex.dev/d/grateful-minnow-178).
 + This project is connected to a Convex deployment for secure backend services.
 
 - Chef apps use [Convex Auth](https://auth.convex.dev/) with Anonymous auth for easy sign in. You may wish to change this before deploying your app.
@@ -49,7 +49,7 @@ SITE_URL=http://localhost:5173
 - **Impact**: Reduces security risk and aligns with current implementation
 
 ### 2. Deployment Name Rotation
-- **Before**: Public deployment name `tacit-wombat-905` exposed in README
+- **Before**: Public deployment name `grateful-minnow-178` exposed in README
 - **After**: Generic description, no specific deployment name exposed
 - **Impact**: Reduces information disclosure and attack surface
 

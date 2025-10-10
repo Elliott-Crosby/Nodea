@@ -8,6 +8,9 @@ const convexUrl = import.meta.env.VITE_CONVEX_URL;
 if (!convexUrl) {
   throw new Error("Missing VITE_CONVEX_URL env var. Please set it in your .env.local.");
 }
+if (typeof window !== "undefined") {
+  console.info(`[Convex] Using base URL: ${convexUrl}`);
+}
 const convex = new ConvexReactClient(convexUrl);
 
 function useAnonymousAuth() {

@@ -11,7 +11,29 @@ The frontend code is in the `app` directory and is built with [Vite](https://vit
   
 The backend code is in the `convex` directory.
   
-`npm run dev` will start the frontend and backend servers.
+## Environment modes
+
+Convex URLs now live in dedicated Vite env files:
+
+- `.env.development` &rightarrow; `https://polished-impala-239.convex.cloud`
+- `.env.production` &rightarrow; `https://posh-setter-840.convex.cloud`
+
+Keep `.env.local` for machine-specific overrides only (for example Clerk keys). Do **not** add Convex URLs or deployment IDs there.
+
+## Running the app
+
+- **Local dev (talking to the dev Convex backend)**  
+  `npm run dev` – starts the Vite dev server using `.env.development`. The backend calls go to `https://polished-impala-239.convex.cloud`.
+
+- **Need a temporary Convex sandbox?**  
+  `npm run dev:backend` – wraps `npx convex dev` and points it at the shared dev deployment. This will still rewrite `.env.local`, so run it only when you genuinely need the sandbox. You can pair it with `npm run dev:full` to launch both servers.
+
+- **Production build / go-live (talking to the production Convex backend)**  
+  `npm run build` (or `npm run preview`) – Vite automatically picks `.env.production`. Convex calls go to `https://posh-setter-840.convex.cloud`.
+
+> ⚠️ Do **not** run `npx convex dev` unless you deliberately want an isolated Convex sandbox. It will provision a fresh deployment and overwrite `.env.local`.
+
+To ship backend changes use `npx convex deploy`, which publishes to the production deployment referenced in `convex.json`.
 
 ## App authentication
 

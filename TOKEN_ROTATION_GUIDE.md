@@ -1,8 +1,8 @@
 # Token Rotation and Deployment Security Guide
 
 ## Current Deployment
-- **Deployment Name**: `tacit-wombat-905`
-- **Dashboard URL**: https://dashboard.convex.dev/d/tacit-wombat-905
+- **Deployment Name**: `grateful-minnow-178`
+- **Dashboard URL**: https://dashboard.convex.dev/d/grateful-minnow-178
 
 ## Security Actions Required
 

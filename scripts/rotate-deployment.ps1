@@ -11,7 +11,7 @@ Write-Host "🚀 Nodea Deployment Rotation Script" -ForegroundColor Green
 Write-Host "====================================" -ForegroundColor Green
 
 # Configuration
-$CURRENT_DEPLOYMENT = "tacit-wombat-905"
+$CURRENT_DEPLOYMENT = "posh-setter-840"
 
 Write-Host "📋 Current deployment: $CURRENT_DEPLOYMENT" -ForegroundColor Yellow
 Write-Host "🆕 New deployment name: $NewDeploymentName" -ForegroundColor Yellow

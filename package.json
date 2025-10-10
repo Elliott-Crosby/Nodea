@@ -7,9 +7,10 @@
     "node": "^20.0.0 || ^22.0.0"
   },
   "scripts": {
-    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev": "vite --open",
     "dev:frontend": "vite --open",
-    "dev:backend": "convex dev",
+    "dev:backend": "node scripts/run-convex-dev.js",
+    "dev:full": "npm-run-all --parallel dev:frontend dev:backend",
     "build": "vite build",
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
   },

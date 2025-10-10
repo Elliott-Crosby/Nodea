@@ -10,7 +10,7 @@ echo "===================================="
 
 # Configuration
 NEW_DEPLOYMENT_NAME="secure-nodea-$(date +%Y%m%d-%H%M%S)"
-CURRENT_DEPLOYMENT="tacit-wombat-905"
+CURRENT_DEPLOYMENT="posh-setter-840"
 
 echo "📋 Current deployment: $CURRENT_DEPLOYMENT"
 echo "🆕 New deployment name: $NEW_DEPLOYMENT_NAME"
