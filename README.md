@@ -19,6 +19,7 @@ Convex URLs now live in dedicated Vite env files:
 - `.env.production` &rightarrow; `https://posh-setter-840.convex.cloud`
 
 Keep `.env.local` for machine-specific overrides only (for example Clerk keys). Do **not** add Convex URLs or deployment IDs there.
+Make sure the hosting environment (e.g. Vercel) defines `VITE_CLERK_PUBLISHABLE_KEY` so Clerk can initialize in production.
 
 ## Running the app
 
