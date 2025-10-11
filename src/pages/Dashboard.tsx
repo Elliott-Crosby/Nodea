@@ -7,7 +7,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function Dashboard() {
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const boards = useQuery(api.boards.listBoards, user ? {} : "skip");
   const createBoard = useMutation(api.boards.createBoard);
   const [isCreating, setIsCreating] = useState(false);
@@ -52,14 +52,6 @@ export default function Dashboard() {
       setCreating(false);
     }
   };
-
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
 
   if (!user) {
     return (
@@ -158,10 +150,10 @@ export default function Dashboard() {
                   <div className="flex gap-2 mt-4">
                     <button
                       type="submit"
-                      disabled={creating || convexAuthLoading}
+                      disabled={creating}
                       data-testid="create-button"
                       onClick={handleCreateClick}
-                      className={`relative z-50 pointer-events-auto flex-1 text-white py-2 rounded-md ${creating || convexAuthLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                      className={`relative z-50 pointer-events-auto flex-1 text-white py-2 rounded-md ${creating ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                     >
                       {creating ? 'CREATING...' : 'CREATE'}
                     </button>

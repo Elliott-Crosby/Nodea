@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ClerkProvider, useAuth } from '@clerk/clerk-react';
+import { ClerkProvider, ClerkLoaded, ClerkLoading, useAuth } from '@clerk/clerk-react';
 import App from './App';
 import './index.css';
 import { ConvexProviderWithClerk, convexClient } from './lib/convex';
@@ -26,9 +26,17 @@ if (!clerkPublishableKey) {
   root.render(
     <StrictMode>
       <ClerkProvider publishableKey={clerkPublishableKey}>
-        <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-          <App />
-        </ConvexProviderWithClerk>
+        <ClerkLoading>
+          <div style={{ padding: 20, fontFamily: 'system-ui' }}>
+            <h1>Starting up…</h1>
+            <p>Connecting to Clerk. Please wait.</p>
+          </div>
+        </ClerkLoading>
+        <ClerkLoaded>
+          <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+            <App />
+          </ConvexProviderWithClerk>
+        </ClerkLoaded>
       </ClerkProvider>
     </StrictMode>,
   );
