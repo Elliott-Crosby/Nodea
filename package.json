@@ -8,11 +8,10 @@
   },
   "scripts": {
     "dev": "vite --open",
-    "dev:frontend": "vite --open",
-    "dev:backend": "node scripts/run-convex-dev.js",
-    "dev:full": "npm-run-all --parallel dev:frontend dev:backend",
     "build": "vite build",
-    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
+    "preview": "vite preview",
+    "deploy": "npx convex deploy",
+    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.51.0",
@@ -41,7 +40,6 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
-    "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
     "prettier": "^3.5.3",
     "tailwindcss": "3.3.3",

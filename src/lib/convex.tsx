@@ -4,13 +4,19 @@ import type { ReactNode } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { clerkConfig, hasValidClerkKey } from "./clerk";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL;
-if (!convexUrl) {
-  throw new Error("Missing VITE_CONVEX_URL env var. Please set it in your .env.local.");
-}
+const PRODUCTION_CONVEX_URL = "https://posh-setter-840.convex.cloud";
+const envConvexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+const convexUrl = envConvexUrl ?? PRODUCTION_CONVEX_URL;
+
 if (typeof window !== "undefined") {
-  console.info(`[Convex] Using base URL: ${convexUrl}`);
+  console.info(`✅ Connected to Convex Production: ${PRODUCTION_CONVEX_URL}`);
+  if (envConvexUrl && envConvexUrl !== PRODUCTION_CONVEX_URL) {
+    console.warn(
+      `[Convex] Overriding production URL with custom value: ${envConvexUrl}. This is not recommended.`,
+    );
+  }
 }
+
 const convex = new ConvexReactClient(convexUrl);
 
 function useAnonymousAuth() {
