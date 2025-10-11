@@ -60,4 +60,8 @@ window.addEventListener('message', async (message) => {
       "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     },
   },
+  build: {
+    // Prevent noisy warnings on Vercel for larger vendor bundles.
+    chunkSizeWarningLimit: 1600,
+  },
 }));
