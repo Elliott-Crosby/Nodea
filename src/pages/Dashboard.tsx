@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser, SignOutButton } from "@clerk/clerk-react";
 import { Footer } from "../components/Footer";
@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
-  const { isAuthenticated: isConvexAuthenticated, isLoading: convexAuthLoading } = useConvexAuth();
   const boards = useQuery(api.boards.listBoards, user ? {} : "skip");
   const createBoard = useMutation(api.boards.createBoard);
   const [isCreating, setIsCreating] = useState(false);
@@ -55,14 +54,6 @@ export default function Dashboard() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  if (convexAuthLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -139,8 +130,8 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => setIsCreating(true)}
-              disabled={convexAuthLoading || !user}
-              className={`px-4 py-2 rounded-lg transition-colors text-white ${convexAuthLoading || !user ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}
+              disabled={!user}
+              className={`px-4 py-2 rounded-lg transition-colors text-white ${!user ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}
             >
               New Board
             </button>
