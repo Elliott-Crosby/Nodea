@@ -1,16 +1,9 @@
-export const PRODUCTION_CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsubm9kZWEuYWkk";
+export const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
-const envPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
-
-export const clerkPublishableKey =
-  typeof envPublishableKey === "string" && envPublishableKey.length > 0
-    ? envPublishableKey
-    : PRODUCTION_CLERK_PUBLISHABLE_KEY;
-
-export const clerkConfig = {
-  publishableKey: clerkPublishableKey,
-};
-
-export function hasValidClerkKey(key: string | undefined = clerkPublishableKey) {
-  return typeof key === "string" && key.startsWith("pk_") && key !== "pk_live_your_key_here";
+export function assertClerkPublishableKey(): asserts clerkPublishableKey is string {
+  if (typeof clerkPublishableKey !== "string" || clerkPublishableKey.length === 0) {
+    throw new Error(
+      "VITE_CLERK_PUBLISHABLE_KEY is not defined. Set it in your environment before starting the app.",
+    );
+  }
 }
