@@ -4,9 +4,7 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import "./index.css";
 import { ConvexProviderWithClerk, convexClient } from "./lib/convex";
-import { clerkPublishableKey, assertClerkPublishableKey } from "./lib/clerk";
-
-assertClerkPublishableKey();
+import { clerkPublishableKey } from "./lib/clerk";
 
 const root = createRoot(document.getElementById("root")!);
 
