@@ -17,6 +17,7 @@ import type * as acl from "../acl.js";
 import type * as anomalyDetection from "../anomalyDetection.js";
 import type * as auth from "../auth.js";
 import type * as boards from "../boards.js";
+import type * as config from "../config.js";
 import type * as edges from "../edges.js";
 import type * as exports from "../exports.js";
 import type * as http from "../http.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   anomalyDetection: typeof anomalyDetection;
   auth: typeof auth;
   boards: typeof boards;
+  config: typeof config;
   edges: typeof edges;
   exports: typeof exports;
   http: typeof http;

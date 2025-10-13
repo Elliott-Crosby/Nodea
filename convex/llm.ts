@@ -6,6 +6,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import { decryptApiKey } from "./keys";
 import { requireAuth, checkRateLimit } from "./security";
+import { serverEnv } from "./config";
 
 // Helper function to determine if web search should be enabled
 function shouldEnableWebSearch(messages: any[]): boolean {
@@ -333,7 +334,7 @@ async function callOpenAI(
     ];
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(serverEnv.openAiChatCompletionsUrl, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -401,7 +402,7 @@ async function* callOpenAIStream(
     ];
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(serverEnv.openAiChatCompletionsUrl, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,

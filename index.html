@@ -17,12 +17,12 @@
     <!-- Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.com https://*.clerk.services https://*.accounts.dev;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.com https://*.clerk.services https://*.accounts.dev https://clerk.nodea.ai;
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: https:;
       font-src 'self' data:;
-      connect-src 'self' https://api.openai.com https://tacit-wombat-905.convex.cloud https://*.convex.cloud https://*.clerk.com https://*.clerk.services https://*.accounts.dev wss:;
-      frame-src https://*.clerk.com https://*.clerk.services https://*.accounts.dev;
+      connect-src 'self' https://api.openai.com %VITE_CONVEX_URL% https://*.convex.cloud https://*.clerk.com https://*.clerk.services https://*.accounts.dev https://clerk.nodea.ai wss:;
+      frame-src https://*.clerk.com https://*.clerk.services https://*.accounts.dev https://clerk.nodea.ai;
       worker-src 'self' blob:;
       frame-ancestors 'none';
       base-uri 'self';

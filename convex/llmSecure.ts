@@ -15,6 +15,7 @@ import {
 } from "./validation";
 import { startRequestTracking, completeRequestTracking } from "./observability";
 import { logFunctionEntry, logFunctionExit, logApiCall, logError } from "./logging";
+import { serverEnv } from "./config";
 
 // Helper function to determine if web search should be enabled
 function shouldEnableWebSearch(messages: any[]): boolean {
@@ -118,7 +119,7 @@ export const complete = action({
     }
 
     // Call OpenAI API
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(serverEnv.openAiChatCompletionsUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -246,7 +247,7 @@ export const completeStream = action({
     }
 
     // Call OpenAI API with streaming
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(serverEnv.openAiChatCompletionsUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

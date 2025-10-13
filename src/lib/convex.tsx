@@ -1,8 +1,9 @@
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { useAuth } from "@clerk/clerk-react";
+import { clientEnv } from "../config/env";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL;
+const convexUrl = clientEnv.convexUrl;
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 export function ConvexProviderWithClerkWrapper({ children }: { children: React.ReactNode }) {

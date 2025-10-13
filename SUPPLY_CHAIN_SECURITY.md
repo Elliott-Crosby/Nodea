@@ -122,7 +122,7 @@ updates:
 #### Access Control
 - **npm tokens**: Rotated regularly
 - **GitHub tokens**: Minimal permissions
-- **CI/CD secrets**: Encrypted and rotated
+- **CI/CD secrets**: Encrypted with limited access
 
 ### 5. Monitoring and Alerting
 

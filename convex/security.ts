@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { serverEnv } from "./config";
 
 /**
  * Security helper to ensure all server functions require authentication
@@ -51,7 +52,7 @@ export function checkRateLimit(identifier: string, maxRequests: number = 100, wi
  * CORS configuration for HTTP routes
  */
 export const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGINS || "http://localhost:5173",
+  "Access-Control-Allow-Origin": serverEnv.allowedOrigins,
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Max-Age": "86400",
@@ -79,7 +80,7 @@ export const cspHeader = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self'",
-    "connect-src 'self' https://api.openai.com wss:",
+    `connect-src 'self' ${serverEnv.openAiBaseUrl} wss:`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

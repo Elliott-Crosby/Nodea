@@ -167,7 +167,7 @@ const DANGEROUS_PATTERNS = [
 - Use `.env.local` for local development
 - Never commit `.env` files
 - Use different API keys for dev/staging/prod
-- Regularly rotate API keys
+- Review API key access periodically
 
 ### 2. Production
 - Store all secrets in Convex environment variables
@@ -184,9 +184,9 @@ const DANGEROUS_PATTERNS = [
 ## Incident Response
 
 ### If Secrets Are Exposed
-1. Immediately rotate affected API keys
+1. Disable affected API keys in provider dashboards
 2. Review logs for unauthorized access
-3. Update environment variables
+3. Update environment variables once new keys are issued
 4. Notify affected users if necessary
 5. Document the incident
 

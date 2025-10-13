@@ -75,11 +75,10 @@ Rate limits are automatically applied:
 
 1. **Never expose API keys** in client-side code
 2. **Use HTTPS** in production
-3. **Regularly rotate** API keys
-4. **Monitor** rate limit violations
-5. **Clean up** expired share tokens
-6. **Validate** all user inputs
-7. **Use** the secure LLM functions (`llm-secure.ts`)
+3. **Monitor** rate limit violations
+4. **Clean up** expired share tokens
+5. **Validate** all user inputs
+6. **Use** the secure LLM functions (`llm-secure.ts`)
 
 ## Monitoring
 

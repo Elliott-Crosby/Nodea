@@ -2,6 +2,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAuth } from "./security";
 import { Id } from "./_generated/dataModel";
+import { buildShareUrl } from "./config";
 
 // Share token storage
 const shareTokens = new Map<string, {
@@ -60,7 +61,7 @@ export const createShareLink = mutation({
     return {
       token,
       expiresAt,
-      shareUrl: `${process.env.CONVEX_SITE_URL}/share/${token}`,
+      shareUrl: buildShareUrl(token),
     };
   },
 });
@@ -182,7 +183,7 @@ export const listShareLinks = query({
         expiresAt: shareData.expiresAt,
         accessCount: shareData.accessCount,
         maxAccesses: shareData.maxAccesses,
-        shareUrl: `${process.env.CONVEX_SITE_URL}/share/${token}`,
+        shareUrl: buildShareUrl(token),
       });
     }
     

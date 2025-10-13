@@ -1,14 +1,15 @@
 import { ClerkProvider } from "@clerk/clerk-react";
+import { clientEnv } from "../config/env";
 
 // Clerk configuration
 export const clerkConfig = {
-  publishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  publishableKey: clientEnv.clerkPublishableKey,
 };
 
 // Clerk provider wrapper
 export function ClerkProviderWrapper({ children }: { children: React.ReactNode }) {
-  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-  const isProduction = import.meta.env.PROD;
+  const publishableKey = clientEnv.clerkPublishableKey;
+  const isProduction = clientEnv.isProduction;
   const isTestKey = typeof publishableKey === "string" && publishableKey.startsWith("pk_test");
   
   // Don't throw error if key is missing, just show a setup message
