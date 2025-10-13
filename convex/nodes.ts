@@ -2,7 +2,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { requireAuth } from "./security";
 import { 
   validateNodeContent, 
@@ -15,8 +15,10 @@ import {
 
 export const listNodesByBoard = query({
   args: { boardId: v.id("boards") },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+  handler: async (ctx: any, args: { boardId: Id<"boards"> }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
+    if (!userId) throw new Error("Not authenticated");
 
     // Check board access
     const board = await ctx.db.get(args.boardId);
@@ -30,7 +32,7 @@ export const listNodesByBoard = query({
 
     return await ctx.db
       .query("nodes")
-      .withIndex("by_board", (q) => q.eq("boardId", args.boardId))
+      .withIndex("by_board", (q: any) => q.eq("boardId", args.boardId))
       .collect();
   },
 });
@@ -235,7 +237,8 @@ export const generateFromMessage = mutation({
     });
 
     // Schedule the secure LLM completion action to run after this mutation
-    await ctx.scheduler.runAfter(0, api.llmSecure.completeStream, {
+    // Cast api to any for local shim to satisfy types
+    await ctx.scheduler.runAfter(0, (api as any).llmSecure.completeStream, {
       boardId: args.boardId,
       nodeId: args.messageNodeId,
       responseNodeId: responseNodeId,
@@ -392,8 +395,8 @@ export const deleteNode = mutation({
 });
 
 async function findDescendants(ctx: any, nodeId: string): Promise<any[]> {
-  const descendants = [];
-  const queue = [nodeId];
+  const descendants: any[] = [];
+  const queue: string[] = [nodeId];
   const visited = new Set<string>();
 
   while (queue.length > 0) {
@@ -410,8 +413,8 @@ async function findDescendants(ctx: any, nodeId: string): Promise<any[]> {
       if (edge.kind === "lineage") {
         const childNode = await ctx.db.get(edge.dstNodeId);
         if (childNode) {
-          descendants.push(childNode);
-          queue.push(edge.dstNodeId);
+          descendants.push(childNode as any);
+          queue.push(edge.dstNodeId as any);
         }
       }
     }

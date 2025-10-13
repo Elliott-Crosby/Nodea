@@ -81,3 +81,7 @@ npx convex deploy
 - **Authentication errors**: Check that your Clerk keys are correct
 - **CORS errors**: Ensure your Convex deployment allows your domain
 
+
+
+
+

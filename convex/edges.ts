@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { requireAuth } from "./security";
+import type { Id } from "./_generated/dataModel";
 
 export const createEdge = mutation({
   args: {
@@ -11,8 +10,18 @@ export const createEdge = mutation({
     kind: v.union(v.literal("lineage"), v.literal("reference")),
     label: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+  handler: async (
+    ctx: any,
+    args: {
+      boardId: Id<"boards">;
+      srcNodeId: Id<"nodes">;
+      dstNodeId: Id<"nodes">;
+      kind: "lineage" | "reference";
+      label?: string;
+    },
+  ) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -48,8 +57,12 @@ export const createEdge = mutation({
 
 export const deleteEdge = mutation({
   args: { edgeId: v.id("edges") },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+  handler: async (
+    ctx: any,
+    args: { edgeId: Id<"edges"> },
+  ) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -71,8 +84,12 @@ export const deleteEdge = mutation({
 
 export const listEdgesByBoard = query({
   args: { boardId: v.id("boards") },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+  handler: async (
+    ctx: any,
+    args: { boardId: Id<"boards"> },
+  ) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject;
     if (!userId) {
       throw new Error("Not authenticated");
     }
@@ -89,7 +106,7 @@ export const listEdgesByBoard = query({
 
     return await ctx.db
       .query("edges")
-      .withIndex("by_board", (q) => q.eq("boardId", args.boardId))
+      .withIndex("by_board", (q: any) => q.eq("boardId", args.boardId))
       .collect();
   },
 });
