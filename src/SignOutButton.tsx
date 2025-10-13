@@ -1,12 +1,11 @@
 "use client";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth } from "convex/react";
+import { useClerk, useUser } from "@clerk/clerk-react";
 
 export function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
+  const { isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
 
-  if (!isAuthenticated) {
+  if (!isLoaded || !isSignedIn) {
     return null;
   }
 
