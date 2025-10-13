@@ -3,12 +3,16 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Build outputs
 dist/
 build/
 .next/
 out/
+dist-ssr/
+.vite/
 
 # Environment variables
 .env
@@ -20,6 +24,8 @@ out/
 # IDE files
 .vscode/
 .idea/
+*.code-workspace
+.cursor/
 *.swp
 *.swo
 *~
@@ -36,6 +42,8 @@ Thumbs.db
 # Logs
 logs
 *.log
+.eslintcache
+.stylelintcache
 
 # Runtime data
 pids
@@ -43,11 +51,21 @@ pids
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage/
+# TypeScript
+*.tsbuildinfo
 
-# nyc test coverage
+# Testing artifacts
+coverage/
 .nyc_output
+.vitest/
+playwright-report/
+test-results/
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# Storybook build
+storybook-static/
 
 # Dependency directories
 jspm_packages/
@@ -74,3 +92,6 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+.tmp/
+*.tmp
+*.bak
