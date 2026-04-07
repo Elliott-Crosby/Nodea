@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const router = useRouter()
   const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,8 +27,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        router.push('/app')
-        router.refresh()
+        window.location.href = '/app'
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -155,6 +152,35 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <button
+            onClick={async () => {
+              setError(null)
+              setLoading(true)
+              const { error } = await supabase.auth.signInAnonymously()
+              if (error) {
+                setError(error.message)
+                setLoading(false)
+              } else {
+                window.location.href = '/app'
+              }
+            }}
+            disabled={loading}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '13px',
+              color: '#444',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              textDecoration: 'underline',
+              textDecorationColor: '#333',
+            }}
+          >
+            Continue as guest
+          </button>
+        </div>
+
       </div>
     </div>
   )

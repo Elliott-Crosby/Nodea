@@ -12,9 +12,14 @@ import {
   type Edge,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useChat } from 'ai/react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
 
 interface DbNode {
   id: string
@@ -63,99 +68,14 @@ export default function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [projectName, setProjectName] = useState('Loading...')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const projectIdRef = useRef<string | null>(null)
   const lastNodeIdRef = useRef<string | null>(null)
-  const pendingUserMsgRef = useRef('')
   const nodeCountRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
-    api: '/api/chat',
-    onFinish: async (assistantMessage) => {
-      const pid = projectIdRef.current
-      const userContent = pendingUserMsgRef.current
-      if (!pid || !userContent) return
-
-      const parentId = lastNodeIdRef.current
-      const userY = nodeCountRef.current * 130 + 20
-      nodeCountRef.current++
-      const assistantY = nodeCountRef.current * 130 + 20
-      nodeCountRef.current++
-
-      const { data: userNode, error: ue } = await supabase
-        .from('nodes')
-        .insert({
-          project_id: pid,
-          parent_id: parentId,
-          role: 'user',
-          content: userContent,
-          position_x: 100,
-          position_y: userY,
-        })
-        .select()
-        .single()
-
-      if (ue || !userNode) {
-        console.error('Failed to save user node', ue)
-        return
-      }
-
-      const { data: assistantNode, error: ae } = await supabase
-        .from('nodes')
-        .insert({
-          project_id: pid,
-          parent_id: userNode.id,
-          role: 'assistant',
-          content: assistantMessage.content,
-          position_x: 300,
-          position_y: assistantY,
-        })
-        .select()
-        .single()
-
-      if (ae || !assistantNode) {
-        console.error('Failed to save assistant node', ae)
-        return
-      }
-
-      lastNodeIdRef.current = assistantNode.id
-
-      const newNodes: Node[] = [
-        {
-          id: userNode.id,
-          position: { x: 100, y: userY },
-          data: { label: truncate(userContent) },
-          style: userNodeStyle,
-        },
-        {
-          id: assistantNode.id,
-          position: { x: 300, y: assistantY },
-          data: { label: truncate(assistantMessage.content) },
-          style: assistantNodeStyle,
-        },
-      ]
-
-      const newEdges: Edge[] = []
-      if (parentId) {
-        newEdges.push({
-          id: `e-${parentId}-${userNode.id}`,
-          source: parentId,
-          target: userNode.id,
-          style: { stroke: '#444' },
-        })
-      }
-      newEdges.push({
-        id: `e-${userNode.id}-${assistantNode.id}`,
-        source: userNode.id,
-        target: assistantNode.id,
-        style: { stroke: '#444' },
-      })
-
-      setNodes((prev) => [...prev, ...newNodes])
-      setEdges((prev) => [...prev, ...newEdges])
-    },
-  })
 
   // Scroll chat to bottom on new messages
   useEffect(() => {
@@ -214,14 +134,145 @@ export default function App() {
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const saveNodePair = useCallback(
+    async (userContent: string, assistantContent: string) => {
+      const pid = projectIdRef.current
+      if (!pid) return
+
+      const parentId = lastNodeIdRef.current
+      const userY = nodeCountRef.current * 120
+      nodeCountRef.current++
+      const assistantY = nodeCountRef.current * 120
+      nodeCountRef.current++
+
+      const { data: userNode, error: ue } = await supabase
+        .from('nodes')
+        .insert({
+          project_id: pid,
+          parent_id: parentId,
+          role: 'user',
+          content: userContent,
+          position_x: 0,
+          position_y: userY,
+        })
+        .select()
+        .single()
+
+      if (ue || !userNode) {
+        console.error('Failed to save user node', ue)
+        return
+      }
+
+      const { data: assistantNode, error: ae } = await supabase
+        .from('nodes')
+        .insert({
+          project_id: pid,
+          parent_id: userNode.id,
+          role: 'assistant',
+          content: assistantContent,
+          position_x: 0,
+          position_y: assistantY,
+        })
+        .select()
+        .single()
+
+      if (ae || !assistantNode) {
+        console.error('Failed to save assistant node', ae)
+        return
+      }
+
+      lastNodeIdRef.current = assistantNode.id
+
+      const newNodes: Node[] = [
+        {
+          id: userNode.id,
+          position: { x: 0, y: userY },
+          data: { label: truncate(userContent) },
+          style: userNodeStyle,
+        },
+        {
+          id: assistantNode.id,
+          position: { x: 0, y: assistantY },
+          data: { label: truncate(assistantContent) },
+          style: assistantNodeStyle,
+        },
+      ]
+
+      const newEdges: Edge[] = []
+      if (parentId) {
+        newEdges.push({
+          id: `e-${parentId}-${userNode.id}`,
+          source: parentId,
+          target: userNode.id,
+          style: { stroke: '#444' },
+        })
+      }
+      newEdges.push({
+        id: `e-${userNode.id}-${assistantNode.id}`,
+        source: userNode.id,
+        target: assistantNode.id,
+        style: { stroke: '#444' },
+      })
+
+      setNodes((prev) => [...prev, ...newNodes])
+      setEdges((prev) => [...prev, ...newEdges])
+    },
+    [supabase]
+  )
+
   const handleSend = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (!input.trim() || isLoading) return
-      pendingUserMsgRef.current = input.trim()
-      handleSubmit(e)
+
+      const userContent = input.trim()
+      const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: userContent }
+      const assistantId = (Date.now() + 1).toString()
+
+      const nextMessages = [...messages, userMsg]
+      setMessages(nextMessages)
+      setInput('')
+      setIsLoading(true)
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: nextMessages }),
+        })
+
+        if (!response.ok) throw new Error('Chat request failed')
+
+        setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+
+        const reader = response.body?.getReader()
+        const decoder = new TextDecoder()
+        let fullContent = ''
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const text = decoder.decode(value, { stream: true })
+            fullContent += text
+            setMessages((prev) => {
+              const updated = [...prev]
+              updated[updated.length - 1] = { id: assistantId, role: 'assistant', content: fullContent }
+              return updated
+            })
+          }
+        }
+
+        await saveNodePair(userContent, fullContent)
+      } catch (err) {
+        console.error('Chat error', err)
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+      } finally {
+        setIsLoading(false)
+      }
     },
-    [input, isLoading, handleSubmit]
+    [input, isLoading, messages, saveNodePair]
   )
 
   const onNodeClick = useCallback(
@@ -229,16 +280,10 @@ export default function App() {
       const pid = projectIdRef.current
       if (!pid) return
 
-      const { data: allNodes } = await supabase
-        .from('nodes')
-        .select('*')
-        .eq('project_id', pid)
-
+      const { data: allNodes } = await supabase.from('nodes').select('*').eq('project_id', pid)
       if (!allNodes) return
 
-      const nodeMap = new Map<string, DbNode>(
-        (allNodes as DbNode[]).map((n) => [n.id, n])
-      )
+      const nodeMap = new Map<string, DbNode>((allNodes as DbNode[]).map((n) => [n.id, n]))
 
       const chain: DbNode[] = []
       let current: DbNode | undefined = nodeMap.get(node.id)
@@ -247,34 +292,25 @@ export default function App() {
         current = current.parent_id ? nodeMap.get(current.parent_id) : undefined
       }
 
-      setMessages(
-        chain.map((n) => ({
-          id: n.id,
-          role: n.role as 'user' | 'assistant',
-          content: n.content,
-        }))
-      )
+      setMessages(chain.map((n) => ({ id: n.id, role: n.role, content: n.content })))
 
       const lastAssistant = [...chain].reverse().find((n) => n.role === 'assistant')
-      if (lastAssistant) {
-        lastNodeIdRef.current = lastAssistant.id
-      }
+      if (lastAssistant) lastNodeIdRef.current = lastAssistant.id
     },
-    [setMessages, supabase]
+    [supabase]
   )
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    window.location.href = '/login'
   }
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a' }}>
-      {/* Chat panel */}
+      {/* Chat panel — 40% */}
       <div
         style={{
-          width: '50%',
+          width: '40%',
           display: 'flex',
           flexDirection: 'column',
           borderRight: '1px solid #222',
@@ -292,18 +328,10 @@ export default function App() {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
-            {projectName}
-          </span>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{projectName}</span>
           <button
             onClick={handleSignOut}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '12px',
-              color: '#666',
-              cursor: 'pointer',
-            }}
+            style={{ background: 'none', border: 'none', fontSize: '12px', color: '#666', cursor: 'pointer' }}
           >
             Sign out
           </button>
@@ -344,10 +372,7 @@ export default function App() {
           {messages.map((message) => (
             <div
               key={message.id}
-              style={{
-                display: 'flex',
-                justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-              }}
+              style={{ display: 'flex', justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start' }}
             >
               <div
                 style={{
@@ -368,7 +393,7 @@ export default function App() {
             </div>
           ))}
 
-          {isLoading && (
+          {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
               <div
                 style={{
@@ -400,7 +425,7 @@ export default function App() {
           <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
             <input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Send a message..."
               disabled={isLoading}
               style={{
@@ -436,8 +461,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Canvas panel */}
-      <div style={{ width: '50%', position: 'relative' }}>
+      {/* Canvas panel — 60% */}
+      <div style={{ width: '60%', position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
