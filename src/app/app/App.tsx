@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   BackgroundVariant,
   type Node,
   type Edge,
@@ -29,6 +31,7 @@ interface DbNode {
   content: string
   position_x: number
   position_y: number
+  created_at: string
 }
 
 function truncate(str: string, max = 120) {
@@ -61,9 +64,61 @@ const assistantNodeStyle: React.CSSProperties = {
   wordBreak: 'break-word',
 }
 
-export default function App() {
+/**
+ * Leaf-counting tree layout (Reingold-Tilford style).
+ * X = leafIndex * 260 for leaves; average of children for internal nodes.
+ * Y = depth * 120.
+ * Pure function — does not write back to Supabase.
+ */
+function computeLayout(dbNodes: DbNode[]): Map<string, { x: number; y: number }> {
+  // Build parent_id → children map, sorted by created_at ascending
+  const childrenMap = new Map<string | null, DbNode[]>()
+  for (const node of dbNodes) {
+    const key = node.parent_id ?? null
+    if (!childrenMap.has(key)) childrenMap.set(key, [])
+    childrenMap.get(key)!.push(node)
+  }
+  for (const children of childrenMap.values()) {
+    children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  }
+
+  const positions = new Map<string, { x: number; y: number }>()
+  let leafCounter = 0
+
+  function walk(nodeId: string, depth: number): number {
+    const children = childrenMap.get(nodeId) ?? []
+    if (children.length === 0) {
+      // Leaf node — assign next slot
+      const x = leafCounter * 260
+      leafCounter++
+      positions.set(nodeId, { x, y: depth * 120 })
+      return x
+    }
+    // Internal node — recurse first, then centre over children
+    const childXs: number[] = []
+    for (const child of children) {
+      childXs.push(walk(child.id, depth + 1))
+    }
+    const x = (childXs[0] + childXs[childXs.length - 1]) / 2
+    positions.set(nodeId, { x, y: depth * 120 })
+    return x
+  }
+
+  // Start from all root nodes (parent_id === null)
+  const roots = childrenMap.get(null) ?? []
+  for (const root of roots) {
+    walk(root.id, 0)
+  }
+
+  return positions
+}
+
+// ─── Inner component — requires ReactFlowProvider ancestor ───────────────────
+
+function AppInner() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
+  const { fitView } = useReactFlow()
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -74,15 +129,15 @@ export default function App() {
 
   const projectIdRef = useRef<string | null>(null)
   const lastNodeIdRef = useRef<string | null>(null)
-  const nodeCountRef = useRef(0)
+  const allDbNodesRef = useRef<DbNode[]>([])  // mirrors full DB node list; drives computeLayout
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Scroll chat to bottom on new messages
+  // Auto-scroll chat to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Load project and existing nodes on mount
+  // Load project + existing nodes on mount
   useEffect(() => {
     async function init() {
       const res = await fetch('/api/projects')
@@ -105,9 +160,12 @@ export default function App() {
 
       if (error || !dbNodes?.length) return
 
+      allDbNodesRef.current = dbNodes as DbNode[]
+      const positions = computeLayout(dbNodes as DbNode[])
+
       const rfNodes: Node[] = (dbNodes as DbNode[]).map((n) => ({
         id: n.id,
-        position: { x: n.position_x, y: n.position_y },
+        position: positions.get(n.id) ?? { x: 0, y: 0 },
         data: { label: truncate(n.content) },
         style: n.role === 'user' ? userNodeStyle : assistantNodeStyle,
       }))
@@ -128,7 +186,8 @@ export default function App() {
       if (assistantNodes.length) {
         lastNodeIdRef.current = assistantNodes[assistantNodes.length - 1].id
       }
-      nodeCountRef.current = dbNodes.length
+
+      setTimeout(() => fitView({ duration: 400, padding: 0.2 }), 50)
     }
 
     init()
@@ -140,10 +199,6 @@ export default function App() {
       if (!pid) return
 
       const parentId = lastNodeIdRef.current
-      const userY = nodeCountRef.current * 120
-      nodeCountRef.current++
-      const assistantY = nodeCountRef.current * 120
-      nodeCountRef.current++
 
       const { data: userNode, error: ue } = await supabase
         .from('nodes')
@@ -153,7 +208,7 @@ export default function App() {
           role: 'user',
           content: userContent,
           position_x: 0,
-          position_y: userY,
+          position_y: 0,
         })
         .select()
         .single()
@@ -171,7 +226,7 @@ export default function App() {
           role: 'assistant',
           content: assistantContent,
           position_x: 0,
-          position_y: assistantY,
+          position_y: 0,
         })
         .select()
         .single()
@@ -183,16 +238,25 @@ export default function App() {
 
       lastNodeIdRef.current = assistantNode.id
 
-      const newNodes: Node[] = [
+      // Update the full DB node mirror and recompute layout over everything
+      const updatedDbNodes: DbNode[] = [
+        ...allDbNodesRef.current,
+        userNode as DbNode,
+        assistantNode as DbNode,
+      ]
+      allDbNodesRef.current = updatedDbNodes
+      const positions = computeLayout(updatedDbNodes)
+
+      const newRfNodes: Node[] = [
         {
           id: userNode.id,
-          position: { x: 0, y: userY },
+          position: positions.get(userNode.id) ?? { x: 0, y: 0 },
           data: { label: truncate(userContent) },
           style: userNodeStyle,
         },
         {
           id: assistantNode.id,
-          position: { x: 0, y: assistantY },
+          position: positions.get(assistantNode.id) ?? { x: 0, y: 0 },
           data: { label: truncate(assistantContent) },
           style: assistantNodeStyle,
         },
@@ -214,11 +278,52 @@ export default function App() {
         style: { stroke: '#444' },
       })
 
-      setNodes((prev) => [...prev, ...newNodes])
+      // Append new nodes then re-apply all positions from the updated layout
+      setNodes((prev) =>
+        [...prev, ...newRfNodes].map((n) => ({
+          ...n,
+          position: positions.get(n.id) ?? n.position,
+        }))
+      )
       setEdges((prev) => [...prev, ...newEdges])
+
+      setTimeout(() => fitView({ duration: 400, padding: 0.2 }), 50)
+    },
+    [supabase, fitView]
+  )
+
+  const onNodeClick = useCallback(
+    async (_event: React.MouseEvent, node: Node) => {
+      const pid = projectIdRef.current
+      if (!pid) return
+
+      const { data: allNodes } = await supabase.from('nodes').select('*').eq('project_id', pid)
+      if (!allNodes) return
+
+      // Fix 2: refresh allDbNodesRef from live data so saveNodePair layout is accurate
+      allDbNodesRef.current = allNodes as DbNode[]
+
+      const nodeMap = new Map<string, DbNode>((allNodes as DbNode[]).map((n) => [n.id, n]))
+
+      const chain: DbNode[] = []
+      let current: DbNode | undefined = nodeMap.get(node.id)
+      while (current) {
+        chain.unshift(current)
+        current = current.parent_id ? nodeMap.get(current.parent_id) : undefined
+      }
+
+      setMessages(chain.map((n) => ({ id: n.id, role: n.role, content: n.content })))
+
+      const lastAssistant = [...chain].reverse().find((n) => n.role === 'assistant')
+      if (lastAssistant) lastNodeIdRef.current = lastAssistant.id
     },
     [supabase]
   )
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   const handleSend = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -253,7 +358,6 @@ export default function App() {
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
-
             const text = decoder.decode(value, { stream: true })
             fullContent += text
             setMessages((prev) => {
@@ -274,36 +378,6 @@ export default function App() {
     },
     [input, isLoading, messages, saveNodePair]
   )
-
-  const onNodeClick = useCallback(
-    async (_event: React.MouseEvent, node: Node) => {
-      const pid = projectIdRef.current
-      if (!pid) return
-
-      const { data: allNodes } = await supabase.from('nodes').select('*').eq('project_id', pid)
-      if (!allNodes) return
-
-      const nodeMap = new Map<string, DbNode>((allNodes as DbNode[]).map((n) => [n.id, n]))
-
-      const chain: DbNode[] = []
-      let current: DbNode | undefined = nodeMap.get(node.id)
-      while (current) {
-        chain.unshift(current)
-        current = current.parent_id ? nodeMap.get(current.parent_id) : undefined
-      }
-
-      setMessages(chain.map((n) => ({ id: n.id, role: n.role, content: n.content })))
-
-      const lastAssistant = [...chain].reverse().find((n) => n.role === 'assistant')
-      if (lastAssistant) lastNodeIdRef.current = lastAssistant.id
-    },
-    [supabase]
-  )
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a' }}>
@@ -495,5 +569,14 @@ export default function App() {
         )}
       </div>
     </div>
+  )
+}
+
+// Wrap with ReactFlowProvider so AppInner can call useReactFlow()
+export default function App() {
+  return (
+    <ReactFlowProvider>
+      <AppInner />
+    </ReactFlowProvider>
   )
 }
