@@ -361,7 +361,7 @@ function Message({ msg }: { msg: { id: string; role: string; content: string; ti
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar() {
-  const { input, setInput, isLoading, handleSend } = useApp()
+  const { input, setInput, isLoading, handleSend, chatInputRef } = useApp()
   const canSend = !isLoading && input.trim().length > 0
 
   return (
@@ -391,6 +391,7 @@ function InputBar() {
         </button>
 
         <input
+          ref={chatInputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask anything, or type /branch"

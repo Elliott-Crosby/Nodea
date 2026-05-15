@@ -60,6 +60,9 @@ export interface AppContextType {
   userEmail: string
   userName: string
   setUserName: (n: string) => void
+  nodeColors: Record<string, string>
+  setNodeColor: (id: string, color: string) => void
+  chatInputRef: React.RefObject<HTMLInputElement | null>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -135,8 +138,14 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [userName, setUserName] = useState('')
+  const [nodeColors, setNodeColors] = useState<Record<string, string>>({})
 
   const lastNodeIdRef = useRef<string | null>(null)
+  const chatInputRef = useRef<HTMLInputElement | null>(null)
+
+  const setNodeColor = useCallback((id: string, color: string) => {
+    setNodeColors((prev) => ({ ...prev, [id]: color }))
+  }, [])
 
   // ── Load conversation from DB into state ──────────────────────────────────
   const loadConversation = useCallback(
@@ -407,6 +416,9 @@ export default function App() {
     userEmail,
     userName,
     setUserName,
+    nodeColors,
+    setNodeColor,
+    chatInputRef,
   }
 
   return (
