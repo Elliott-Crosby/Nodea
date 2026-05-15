@@ -1,14 +1,89 @@
 @import "tailwindcss";
 
-html,
-body {
-  height: 100%;
-  overflow: hidden;
-  background: #0a0a0a;
-  color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Light theme (default) ─────────────────────────────────────── */
+:root {
+  --bg-base:            #ffffff;
+  --bg-subtle:          #f7f7f8;
+  --bg-muted:           #efefef;
+  --border:             #e5e5e7;
+  --border-strong:      #d1d1d6;
+  --text-primary:       #1a1a1a;
+  --text-secondary:     #6b6b6b;
+  --text-muted:         #a0a0a0;
+  --accent:             #7c3aed;
+  --accent-hover:       #6d28d9;
+  --accent-bg:          #f3f0ff;
+  --accent-text:        #7c3aed;
+  --user-bubble-bg:     #f0eeff;
+  --user-bubble-border: #d4c9ff;
+  --ai-card-bg:         #ffffff;
+  --ai-card-border:     #e5e5e7;
+  --input-bg:           #f7f7f8;
+  --sidebar-bg:         #ffffff;
+  --topbar-bg:          #ffffff;
+  --tree-bg:            #f7f7f8;
+  --node-bg:            #ffffff;
+  --node-border:        #e5e5e7;
+  --node-active-border: #7c3aed;
+  --node-active-bg:     #f3f0ff;
+  --modal-bg:           #ffffff;
+  --modal-overlay:      rgba(0,0,0,0.4);
+  --shadow-sm:          0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:          0 4px 12px rgba(0,0,0,0.10);
+  --shadow-lg:          0 8px 32px rgba(0,0,0,0.14);
+  --edge-color:         #c4b5fd;
+  --edge-active:        #7c3aed;
 }
 
-* {
-  box-sizing: border-box;
+/* ── Dark theme ────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:            #0a0a0a;
+  --bg-subtle:          #111111;
+  --bg-muted:           #1a1a1a;
+  --border:             #222222;
+  --border-strong:      #333333;
+  --text-primary:       #f0f0f0;
+  --text-secondary:     #888888;
+  --text-muted:         #555555;
+  --accent:             #8b5cf6;
+  --accent-hover:       #7c3aed;
+  --accent-bg:          #1e1040;
+  --accent-text:        #a78bfa;
+  --user-bubble-bg:     #1a1f2e;
+  --user-bubble-border: #3b3060;
+  --ai-card-bg:         #111111;
+  --ai-card-border:     #222222;
+  --input-bg:           #1a1a1a;
+  --sidebar-bg:         #0f0f0f;
+  --topbar-bg:          #0f0f0f;
+  --tree-bg:            #0d0d0d;
+  --node-bg:            #111111;
+  --node-border:        #2a2a2a;
+  --node-active-border: #8b5cf6;
+  --node-active-bg:     #1e1040;
+  --modal-bg:           #111111;
+  --modal-overlay:      rgba(0,0,0,0.65);
+  --shadow-sm:          0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:          0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:          0 8px 32px rgba(0,0,0,0.7);
+  --edge-color:         #4c3080;
+  --edge-active:        #8b5cf6;
 }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Thin scrollbars */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

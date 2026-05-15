@@ -2,16 +2,22 @@ import { streamText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
+const MODEL_MAP: Record<string, string> = {
+  auto:   'claude-haiku-4-5-20251001',
+  haiku:  'claude-haiku-4-5-20251001',
+  sonnet: 'claude-sonnet-4-5-20251001',
+  opus:   'claude-opus-4-5-20251001',
+}
+
 export async function POST(req: Request) {
-  // Auth guard — reject unauthenticated requests before spending any tokens
+  // Auth guard
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const { messages } = await req.json()
+  const { messages, model = 'auto' } = await req.json()
 
+  const modelId = MODEL_MAP[model] ?? MODEL_MAP.auto
   const modelMessages = messages.map(({ role, content }: { role: string; content: string }) => ({
     role,
     content,
@@ -19,7 +25,7 @@ export async function POST(req: Request) {
 
   const encoder = new TextEncoder()
   const result = streamText({
-    model: anthropic('claude-haiku-4-5-20251001'),
+    model: anthropic(modelId),
     system: 'You are a helpful AI assistant.',
     messages: modelMessages,
   })
