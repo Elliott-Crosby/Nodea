@@ -90,6 +90,20 @@ html, body {
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Dot-grid colour (used in tree panel) */
+:root        { --grid-dot: rgba(0, 0, 0, 0.14); }
+[data-theme="dark"] { --grid-dot: rgba(255, 255, 255, 0.10); }
+
+/* Tree node text — 2-line clamp */
+.tree-node-text {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  text-overflow: ellipsis;
+}
+
 /* Thin scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }

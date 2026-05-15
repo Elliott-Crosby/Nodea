@@ -245,9 +245,6 @@ function SubHeader() {
         <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {convName}
         </h1>
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-          Active conversation · click a tree node to branch
-        </p>
       </div>
 
       <select

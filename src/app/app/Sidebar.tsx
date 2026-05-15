@@ -40,23 +40,10 @@ export default function Sidebar() {
           overflow: 'hidden',
         }}
       >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {/* Node icon */}
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="10" stroke="var(--accent)" strokeWidth="1.6" />
-            <circle cx="11" cy="7"  r="2.2" fill="var(--accent)" />
-            <circle cx="7"  cy="15" r="2.2" fill="var(--accent)" opacity="0.6" />
-            <circle cx="15" cy="15" r="2.2" fill="var(--accent)" opacity="0.6" />
-            <line x1="11" y1="9.2" x2="7"  y2="12.8" stroke="var(--accent)" strokeWidth="1.2" opacity="0.6" />
-            <line x1="11" y1="9.2" x2="15" y2="12.8" stroke="var(--accent)" strokeWidth="1.2" opacity="0.6" />
-          </svg>
-          {!collapsed && (
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.4px', whiteSpace: 'nowrap' }}>
-              Nodea
-            </span>
-          )}
-        </div>
+        {/* Logo — text only */}
+        <span style={{ fontSize: collapsed ? 15 : 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', minWidth: 0 }}>
+          {collapsed ? 'N' : 'Nodea'}
+        </span>
 
         {/* Collapse toggle */}
         <button

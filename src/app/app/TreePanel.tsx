@@ -1,16 +1,16 @@
 'use client'
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
-import { useApp, truncate, type DbNode } from './App'
+import { useApp, type DbNode } from './App'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const PAIR_W    = 178   // card width
-const USER_H    = 50    // user section height
-const AI_H      = 50    // AI section height
-const PAIR_H    = USER_H + 1 + AI_H  // 101 — 1px is the divider
-const H_SPACING = 210
-const V_SPACING = 150   // top-to-top distance between pairs
-const GRID_PX   = 22    // dot grid size
+const PAIR_W    = 182   // card width
+const USER_H    = 58    // user section height  (tall enough for 2 lines)
+const AI_H      = 58    // AI section height
+const PAIR_H    = USER_H + 1 + AI_H  // 117 — 1px is the divider
+const H_SPACING = 214
+const V_SPACING = 162   // top-to-top distance between pairs (PAIR_H + ~45px gap)
+const GRID_PX   = 24    // dot grid size
 
 // ── Colour palette ─────────────────────────────────────────────────────────────
 const PALETTE = [
@@ -103,6 +103,11 @@ export default function TreePanel() {
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging   = useRef(false)
   const dragOrigin   = useRef({ mx: 0, my: 0, px: 0, py: 0 })
+  // Keep latest scale/pan in refs so the non-reactive wheel handler can read them
+  const scaleRef     = useRef(scale)
+  const panRef       = useRef(pan)
+  scaleRef.current   = scale
+  panRef.current     = pan
 
   const pairs         = useMemo(() => buildPairs(allDbNodes), [allDbNodes])
   const pairPositions = useMemo(() => computePairLayout(pairs), [pairs])
@@ -114,7 +119,7 @@ export default function TreePanel() {
     return { canvasW: Math.max(...xs) + PAIR_W + 60, canvasH: Math.max(...ys) + PAIR_H + 80 }
   }, [pairPositions])
 
-  // ── Fit view ─────────────────────────────────────────────────────────────────
+  // ── Fit view — horizontal centre, vertical top-align ────────────────────────
   const fitView = useCallback(() => {
     const el = containerRef.current
     if (!el || pairPositions.size === 0) return
@@ -123,28 +128,56 @@ export default function TreePanel() {
     if (cw === 0 || ch === 0) return
 
     const ps  = Array.from(pairPositions.values())
-    const pad = 48
-    const bx0 = Math.min(...ps.map(p => p.x))
-    const bx1 = Math.max(...ps.map(p => p.x)) + PAIR_W
-    const by0 = Math.min(...ps.map(p => p.y))
-    const by1 = Math.max(...ps.map(p => p.y)) + PAIR_H
-    const bw  = bx1 - bx0 + pad * 2
-    const bh  = by1 - by0 + pad * 2
-    const s   = Math.max(0.3, Math.min(cw / bw, ch / bh, 1.15))
+    const hPad = 40
+    const bx0  = Math.min(...ps.map(p => p.x))
+    const bx1  = Math.max(...ps.map(p => p.x)) + PAIR_W
+    const by0  = Math.min(...ps.map(p => p.y))
+    const by1  = Math.max(...ps.map(p => p.y)) + PAIR_H
+    const bw   = bx1 - bx0 + hPad * 2
+    const bh   = by1 - by0
+
+    // Scale to fit width (so the tree fills the panel), but also shrink if tree is taller than panel
+    const sByW = cw / bw
+    const sByH = (ch - 28) / (bh + 32)   // 28px top margin, 32px bottom padding
+    const s    = Math.max(0.3, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
     setPan({
-      x: (cw - bw * s) / 2 - bx0 * s + pad * s,
-      y: (ch - bh * s) / 2 - by0 * s + pad * s,
+      x: (cw - (bx1 - bx0) * s) / 2 - bx0 * s,  // centred horizontally
+      y: 24 - by0 * s,                              // 24px from top, not vertically centred
     })
   }, [pairPositions])
 
+  // Auto fit on node-count change
   useEffect(() => {
     if (pairs.length > 0) {
       const t = setTimeout(fitView, 80)
       return () => clearTimeout(t)
     }
   }, [pairs.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Scroll-wheel zoom (centred on cursor) ────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function onWheel(e: WheelEvent) {
+      e.preventDefault()
+      const rect = el!.getBoundingClientRect()
+      const mx   = e.clientX - rect.left
+      const my   = e.clientY - rect.top
+      const f    = e.deltaY < 0 ? 1.10 : 0.91   // zoom in / out
+      const cur  = scaleRef.current
+      const next = Math.max(0.25, Math.min(2.5, cur * f))
+      const ratio = next / cur
+      setScale(next)
+      setPan(p => ({
+        x: mx - ratio * (mx - p.x),
+        y: my - ratio * (my - p.y),
+      }))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // close colour menu on outside click
   useEffect(() => {
@@ -259,8 +292,8 @@ export default function TreePanel() {
           overflow: 'hidden',
           position: 'relative',
           cursor: dragging ? 'grabbing' : 'grab',
-          // Dot grid — moves with pan so you can see motion
-          backgroundImage: 'radial-gradient(circle, var(--border-strong) 1.2px, transparent 1.2px)',
+          // Dot grid — 25% opacity, moves with pan
+          backgroundImage: 'radial-gradient(circle, var(--grid-dot) 1.3px, transparent 1.3px)',
           backgroundSize: `${GRID_PX * scale}px ${GRID_PX * scale}px`,
           backgroundPosition: `${((pan.x % (GRID_PX * scale)) + GRID_PX * scale) % (GRID_PX * scale)}px ${((pan.y % (GRID_PX * scale)) + GRID_PX * scale) % (GRID_PX * scale)}px`,
         }}
@@ -327,14 +360,13 @@ export default function TreePanel() {
                   }}
                 >
                   {/* ── User row ── */}
-                  <div style={{ height: USER_H, display: 'flex', alignItems: 'center', gap: 7, padding: '0 6px 0 10px' }}>
-                    {/* user icon */}
-                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0, opacity: 0.7 }}>
+                  <div style={{ height: USER_H, display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 6px 8px 10px' }}>
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0, marginTop: 2, opacity: 0.7 }}>
                       <circle cx="4.5" cy="3" r="1.8" stroke="#3b82f6" strokeWidth="1.1" />
                       <path d="M1 8.5a3.5 3.5 0 0 1 7 0" stroke="#3b82f6" strokeWidth="1.1" strokeLinecap="round" />
                     </svg>
-                    <span style={{ flex: 1, fontSize: 10.5, lineHeight: 1.4, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {truncate(pair.userNode.content, 24)}
+                    <span className="tree-node-text" style={{ flex: 1, fontSize: 10.5, lineHeight: 1.42, color: 'var(--text-primary)' }}>
+                      {pair.userNode.content}
                     </span>
                     {/* colour ⋯ button */}
                     <button
@@ -344,7 +376,7 @@ export default function TreePanel() {
                         const r = e.currentTarget.getBoundingClientRect()
                         setColorMenu({ nodeId: pair.id, x: r.left - 142, y: r.bottom + 6 })
                       }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px 2px', borderRadius: 4, flexShrink: 0, opacity: isHovered ? 1 : 0, transition: 'opacity 0.1s', lineHeight: 0 }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '1px 2px', borderRadius: 4, flexShrink: 0, opacity: isHovered ? 1 : 0, transition: 'opacity 0.1s', lineHeight: 0, marginTop: 1 }}
                       title="Node color"
                     >
                       <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -359,14 +391,13 @@ export default function TreePanel() {
                   {pair.aiNode && (
                     <>
                       <div style={{ height: 1, background: borderCol, opacity: 0.35 }} />
-                      <div style={{ height: AI_H, display: 'flex', alignItems: 'center', gap: 7, padding: '0 10px' }}>
-                        {/* AI icon */}
-                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, opacity: 0.8 }}>
+                      <div style={{ height: AI_H, display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 10px 8px 10px' }}>
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginTop: 2, opacity: 0.8 }}>
                           <circle cx="5" cy="5" r="2" stroke="var(--accent)" strokeWidth="1.1" />
                           <path d="M5 1v1.2M5 7.8V9M1 5h1.2M7.8 5H9" stroke="var(--accent)" strokeWidth="1" strokeLinecap="round" />
                         </svg>
-                        <span style={{ flex: 1, fontSize: 10.5, lineHeight: 1.4, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {truncate(pair.aiNode.content, 24)}
+                        <span className="tree-node-text" style={{ flex: 1, fontSize: 10.5, lineHeight: 1.42, color: 'var(--text-secondary)' }}>
+                          {pair.aiNode.content}
                         </span>
                       </div>
                     </>
