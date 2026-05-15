@@ -7,10 +7,156 @@ function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-// ── Top bar ───────────────────────────────────────────────────────────────────
+// ── Inline markdown renderer ──────────────────────────────────────────────────
+// Handles: **bold**, *italic*, ~~strike~~, `code`
+function renderInline(text: string): React.ReactNode {
+  if (!text) return null
+  // Order matters: *** before **, ~~ before ~, etc.
+  const re = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|~~(.+?)~~|\*(.+?)\*|`([^`\n]+)`)/g
+  const parts: React.ReactNode[] = []
+  let last = 0
+  let ki = 0
+  let m: RegExpExecArray | null
 
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(<span key={ki++}>{text.slice(last, m.index)}</span>)
+
+    const [, , boldItalic, bold, strike, italic, code] = m
+    if (boldItalic !== undefined)
+      parts.push(<strong key={ki++}><em>{boldItalic}</em></strong>)
+    else if (bold !== undefined)
+      parts.push(<strong key={ki++}>{bold}</strong>)
+    else if (strike !== undefined)
+      parts.push(<del key={ki++}>{strike}</del>)
+    else if (italic !== undefined)
+      parts.push(<em key={ki++}>{italic}</em>)
+    else if (code !== undefined)
+      parts.push(<code key={ki++}>{code}</code>)
+
+    last = m.index + m[0].length
+  }
+
+  if (last < text.length) parts.push(<span key={ki++}>{text.slice(last)}</span>)
+  if (parts.length === 0) return text
+  return parts.length === 1 ? parts[0] : <>{parts}</>
+}
+
+// ── Block markdown renderer ───────────────────────────────────────────────────
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split('\n')
+  const nodes: React.ReactNode[] = []
+  let i = 0
+  let k = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // ── Fenced code block ──────────────────────────────────────────
+    if (line.trimStart().startsWith('```')) {
+      const lang = line.trimStart().slice(3).trim()
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
+        codeLines.push(lines[i])
+        i++
+      }
+      nodes.push(
+        <pre key={k++}>
+          {lang && <div className="code-block-header">{lang}</div>}
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      )
+      i++ // skip closing ```
+      continue
+    }
+
+    // ── Headings ───────────────────────────────────────────────────
+    if (line.startsWith('#### ')) { nodes.push(<h4 key={k++}>{renderInline(line.slice(5))}</h4>); i++; continue }
+    if (line.startsWith('### '))  { nodes.push(<h3 key={k++}>{renderInline(line.slice(4))}</h3>); i++; continue }
+    if (line.startsWith('## '))   { nodes.push(<h2 key={k++}>{renderInline(line.slice(3))}</h2>); i++; continue }
+    if (line.startsWith('# '))    { nodes.push(<h1 key={k++}>{renderInline(line.slice(2))}</h1>); i++; continue }
+
+    // ── Blockquote ─────────────────────────────────────────────────
+    if (line.startsWith('> ')) {
+      const qLines = [line.slice(2)]
+      while (i + 1 < lines.length && lines[i + 1].startsWith('> ')) { i++; qLines.push(lines[i].slice(2)) }
+      nodes.push(
+        <blockquote key={k++}>
+          {qLines.map((ql, qi) => <p key={qi}>{renderInline(ql)}</p>)}
+        </blockquote>
+      )
+      i++; continue
+    }
+
+    // ── Horizontal rule ────────────────────────────────────────────
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
+      nodes.push(<hr key={k++} />); i++; continue
+    }
+
+    // ── Unordered list ─────────────────────────────────────────────
+    if (/^[-*+] /.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^[-*+] /.test(lines[i])) { items.push(lines[i].slice(2)); i++ }
+      nodes.push(
+        <ul key={k++}>
+          {items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}
+        </ul>
+      )
+      continue
+    }
+
+    // ── Ordered list ───────────────────────────────────────────────
+    if (/^\d+\. /.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\. /, ''))
+        i++
+      }
+      nodes.push(
+        <ol key={k++}>
+          {items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}
+        </ol>
+      )
+      continue
+    }
+
+    // ── Empty line ─────────────────────────────────────────────────
+    if (line.trim() === '') { i++; continue }
+
+    // ── Paragraph ─────────────────────────────────────────────────
+    const pLines: string[] = []
+    while (
+      i < lines.length &&
+      lines[i].trim() !== '' &&
+      !lines[i].trimStart().startsWith('```') &&
+      !/^#{1,6} /.test(lines[i]) &&
+      !/^[-*+] /.test(lines[i]) &&
+      !/^\d+\. /.test(lines[i]) &&
+      !lines[i].startsWith('> ') &&
+      !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim())
+    ) {
+      pLines.push(lines[i])
+      i++
+    }
+
+    if (pLines.length > 0) {
+      nodes.push(
+        <p key={k++}>
+          {pLines.flatMap((pl, pi) => {
+            const node = renderInline(pl)
+            return pi < pLines.length - 1 ? [node, <br key={`br-${pi}`} />] : [node]
+          })}
+        </p>
+      )
+    }
+  }
+
+  return <div className="md-content">{nodes}</div>
+}
+
+// ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen, setIsSettingsOpen } = useApp()
+  const { convName, setIsSearchOpen } = useApp()
 
   return (
     <div
@@ -25,44 +171,28 @@ function TopBar() {
         gap: 8,
       }}
     >
-      {/* Breadcrumb */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Conversations</span>
         <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ flexShrink: 0 }}>
           <path d="M2 1.5l3 2.5-3 2.5" stroke="var(--text-muted)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {convName}
         </span>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        {/* Search */}
-        <IconBtn title="Search" onClick={() => setIsSearchOpen(true)}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
             <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </IconBtn>
-
-        {/* Share (placeholder) */}
         <IconBtn title="Share (coming soon)" onClick={() => {}}>
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <path d="M10 2l3 3-3 3M13 5H6a3 3 0 0 0-3 3v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </IconBtn>
-
-        {/* More (placeholder) */}
         <IconBtn title="More options" onClick={() => {}}>
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="3" cy="7.5" r="1.2" fill="currentColor" />
@@ -75,187 +205,150 @@ function TopBar() {
   )
 }
 
-function IconBtn({
-  children,
-  title,
-  onClick,
-}: {
-  children: React.ReactNode
-  title: string
-  onClick: () => void
-}) {
+function IconBtn({ children, title, onClick }: { children: React.ReactNode; title: string; onClick: () => void }) {
   return (
     <button
       title={title}
       onClick={onClick}
       style={{
-        width: 32,
-        height: 32,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'transparent',
-        border: 'none',
-        borderRadius: 7,
-        cursor: 'pointer',
-        color: 'var(--text-secondary)',
+        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'transparent', border: 'none', borderRadius: 7,
+        cursor: 'pointer', color: 'var(--text-secondary)',
+        transition: 'background 0.1s, color 0.1s',
       }}
-      onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)')}
-      onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
     >
       {children}
     </button>
   )
 }
 
-// ── Sub-header (title + model selector) ──────────────────────────────────────
-
+// ── Sub-header ────────────────────────────────────────────────────────────────
 function SubHeader() {
   const { convName, model, setModel } = useApp()
 
   return (
     <div
       style={{
-        padding: '14px 20px 12px',
+        padding: '14px 20px 13px',
         borderBottom: '1px solid var(--border)',
         flexShrink: 0,
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'space-between',
         gap: 12,
         background: 'var(--bg-base)',
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <h1
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {convName}
         </h1>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
           Active conversation · click a tree node to branch
         </p>
       </div>
 
-      {/* Model selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          style={{
-            padding: '5px 10px',
-            borderRadius: 8,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-subtle)',
-            color: 'var(--text-primary)',
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: 'pointer',
-            outline: 'none',
-          }}
-        >
-          {MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              Model: {m.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <select
+        value={model}
+        onChange={(e) => setModel(e.target.value)}
+        style={{
+          padding: '5px 10px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          background: 'var(--bg-subtle)',
+          color: 'var(--text-primary)',
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: 'pointer',
+          outline: 'none',
+          flexShrink: 0,
+        }}
+      >
+        {MODELS.map((m) => (
+          <option key={m.id} value={m.id}>Model: {m.label}</option>
+        ))}
+      </select>
     </div>
   )
 }
 
-// ── Message bubbles ───────────────────────────────────────────────────────────
-
+// ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg }: { msg: { id: string; role: string; content: string; timestamp: number } }) {
+  const { model } = useApp()
   const isUser = msg.role === 'user'
+  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
 
   return (
     <div
       style={{
         display: 'flex',
-        gap: 12,
+        gap: 10,
         alignItems: 'flex-start',
-        padding: isUser ? '0 0 0 48px' : '0',
+        paddingLeft: isUser ? 48 : 0,
       }}
     >
-      {/* Timestamp (left) */}
-      <div
-        style={{
-          width: 48,
-          flexShrink: 0,
-          textAlign: 'right',
-          paddingTop: 10,
-          fontSize: 10,
-          color: 'var(--text-muted)',
-          display: isUser ? 'none' : 'block',
-        }}
-      >
-        {msg.timestamp ? formatTime(msg.timestamp) : ''}
-      </div>
+      {/* Left timestamp (AI only) */}
+      {!isUser && (
+        <div style={{ width: 40, flexShrink: 0, textAlign: 'right', paddingTop: 9, fontSize: 10, color: 'var(--text-muted)' }}>
+          {msg.timestamp ? formatTime(msg.timestamp) : ''}
+        </div>
+      )}
 
       {/* AI avatar */}
       {!isUser && (
         <div
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
+            width: 28, height: 28, borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            marginTop: 6,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, marginTop: 5,
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="3" stroke="white" strokeWidth="1.4" />
-            <path d="M7 1v2M7 11v2M1 7h2M11 7h2" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="2.8" stroke="white" strokeWidth="1.4" />
+            <path d="M7 1v1.8M7 11.2V13M1 7h1.8M11.2 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
         </div>
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Role label */}
+        {/* AI label */}
         {!isUser && (
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 4 }}>
-            Claude · {MODELS.find(() => true)?.label ?? 'AI'}
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
+            Claude · {modelLabel}
           </div>
         )}
 
-        {/* Bubble / card */}
+        {/* Bubble */}
         <div
           style={{
-            maxWidth: isUser ? '75%' : '100%',
+            maxWidth: isUser ? '76%' : '100%',
             marginLeft: isUser ? 'auto' : 0,
-            padding: isUser ? '9px 14px' : '12px 16px',
+            padding: isUser ? '9px 14px' : '12px 15px',
             borderRadius: isUser ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
             background: isUser ? 'var(--user-bubble-bg)' : 'var(--ai-card-bg)',
-            border: isUser
-              ? '1px solid var(--user-bubble-border)'
-              : '1px solid var(--ai-card-border)',
+            border: isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
             fontSize: 13,
-            lineHeight: 1.6,
+            lineHeight: 1.65,
             color: 'var(--text-primary)',
-            whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             boxShadow: isUser ? 'none' : 'var(--shadow-sm)',
           }}
         >
-          {msg.content || (
-            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking…</span>
+          {isUser ? (
+            <span style={{ whiteSpace: 'pre-wrap' }}>
+              {msg.content || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking…</span>}
+            </span>
+          ) : (
+            msg.content
+              ? <MarkdownContent content={msg.content} />
+              : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking…</span>
           )}
         </div>
 
-        {/* User timestamp (right) */}
+        {/* User timestamp */}
         {isUser && msg.timestamp && (
           <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 3 }}>
             {formatTime(msg.timestamp)}
@@ -267,53 +360,33 @@ function Message({ msg }: { msg: { id: string; role: string; content: string; ti
 }
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
-
 function InputBar() {
   const { input, setInput, isLoading, handleSend } = useApp()
+  const canSend = !isLoading && input.trim().length > 0
 
   return (
-    <div
-      style={{
-        padding: '12px 20px 16px',
-        borderTop: '1px solid var(--border)',
-        background: 'var(--bg-base)',
-        flexShrink: 0,
-      }}
-    >
+    <div style={{ padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }}>
       <form
         onSubmit={handleSend}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
+          display: 'flex', alignItems: 'center', gap: 10,
           background: 'var(--input-bg)',
           border: '1px solid var(--border)',
-          borderRadius: 12,
+          borderRadius: 13,
           padding: '8px 8px 8px 14px',
+          boxShadow: 'var(--shadow-sm)',
+          transition: 'border-color 0.15s',
         }}
+        onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+        onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
       >
-        {/* Attachment placeholder */}
         <button
           type="button"
           title="Attach file (coming soon)"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'not-allowed',
-            color: 'var(--text-muted)',
-            padding: 0,
-            flexShrink: 0,
-            opacity: 0.5,
-          }}
+          style={{ background: 'none', border: 'none', cursor: 'not-allowed', color: 'var(--text-muted)', padding: 0, flexShrink: 0, opacity: 0.4 }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M14 8.5l-6.5 6.5A4 4 0 0 1 1.9 9.4l7.1-7.1a2.5 2.5 0 0 1 3.5 3.5L5.4 12.9a1 1 0 0 1-1.4-1.4L10.5 5"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d="M14 8.5l-6.5 6.5A4 4 0 0 1 1.9 9.4l7.1-7.1a2.5 2.5 0 0 1 3.5 3.5L5.4 12.9a1 1 0 0 1-1.4-1.4L10.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
 
@@ -323,40 +396,25 @@ function InputBar() {
           placeholder="Ask anything, or type /branch"
           disabled={isLoading}
           style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            fontSize: 13,
-            color: 'var(--text-primary)',
+            flex: 1, background: 'transparent', border: 'none', outline: 'none',
+            fontSize: 13, color: 'var(--text-primary)',
           }}
         />
 
-        {/* Send button */}
         <button
           type="submit"
-          disabled={isLoading || !input.trim()}
+          disabled={!canSend}
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            background: isLoading || !input.trim() ? 'var(--text-muted)' : 'var(--accent)',
+            width: 34, height: 34, borderRadius: 9,
+            background: canSend ? 'var(--accent)' : 'var(--bg-muted)',
             border: 'none',
-            cursor: isLoading || !input.trim() ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
+            cursor: canSend ? 'pointer' : 'not-allowed',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             transition: 'background 0.15s',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M13 1L1 5.5l5 1.5 1.5 5L13 1z"
-              stroke="white"
-              strokeWidth="1.3"
-              strokeLinejoin="round"
-            />
+            <path d="M13 1L1 5.5l5 1.5 1.5 5L13 1z" stroke={canSend ? 'white' : 'var(--text-muted)'} strokeWidth="1.3" strokeLinejoin="round" />
           </svg>
         </button>
       </form>
@@ -364,8 +422,7 @@ function InputBar() {
   )
 }
 
-// ── Chat panel (assembled) ────────────────────────────────────────────────────
-
+// ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
   const { messages, isLoading } = useApp()
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -375,76 +432,69 @@ export default function ChatPanel() {
   }, [messages])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <TopBar />
       <SubHeader />
 
-      {/* Messages */}
       <div
         style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '20px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 18,
+          flex: 1, overflowY: 'auto', padding: '24px 24px',
+          display: 'flex', flexDirection: 'column', gap: 20,
         }}
       >
         {messages.length === 0 ? (
           <div
             style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-              textAlign: 'center',
-              gap: 8,
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', gap: 10,
               minHeight: 200,
             }}
           >
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ opacity: 0.3 }}>
-              <path
-                d="M4 4h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H10l-6 4V6a2 2 0 0 1 2-2z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>Start a conversation</span>
-            <span style={{ fontSize: 12 }}>Click a tree node to branch from that point</span>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 3 }}>Start a conversation</div>
+              <div style={{ fontSize: 12 }}>Click a tree node to branch from that point</div>
+            </div>
           </div>
         ) : (
           messages.map((msg) => <Message key={msg.id} msg={msg} />)
         )}
 
         {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ width: 48, flexShrink: 0 }} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ width: 40, flexShrink: 0 }} />
             <div
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
+                width: 28, height: 28, borderRadius: '50%',
                 background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-                flexShrink: 0,
-                marginTop: 6,
-                animation: 'pulse 1.4s ease-in-out infinite',
+                flexShrink: 0, marginTop: 5, opacity: 0.7,
               }}
             />
             <div
               style={{
-                padding: '10px 14px',
-                borderRadius: '4px 14px 14px 14px',
-                background: 'var(--ai-card-bg)',
-                border: '1px solid var(--ai-card-border)',
-                fontSize: 13,
-                color: 'var(--text-muted)',
+                padding: '10px 15px', borderRadius: '4px 14px 14px 14px',
+                background: 'var(--ai-card-bg)', border: '1px solid var(--ai-card-border)',
+                fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8,
               }}
             >
-              Thinking…
+              <span style={{ display: 'inline-flex', gap: 3 }}>
+                {[0, 1, 2].map((n) => (
+                  <span
+                    key={n}
+                    style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: 'var(--text-muted)',
+                      animation: `bounce 1.2s ease-in-out ${n * 0.15}s infinite`,
+                      display: 'inline-block',
+                    }}
+                  />
+                ))}
+              </span>
             </div>
           </div>
         )}
@@ -453,6 +503,13 @@ export default function ChatPanel() {
       </div>
 
       <InputBar />
+
+      <style>{`
+        @keyframes bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+          30% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }

@@ -85,6 +85,8 @@ export default function SettingsModal() {
         position: 'fixed',
         inset: 0,
         background: 'var(--modal-overlay)',
+        backdropFilter: 'blur(3px)',
+        WebkitBackdropFilter: 'blur(3px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -98,9 +100,9 @@ export default function SettingsModal() {
           maxWidth: 'calc(100vw - 40px)',
           maxHeight: '80vh',
           background: 'var(--modal-bg)',
-          border: '1px solid var(--border)',
+          border: '1px solid var(--border-strong)',
           borderRadius: 16,
-          boxShadow: 'var(--shadow-lg)',
+          boxShadow: 'var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.04)',
           display: 'flex',
           overflow: 'hidden',
         }}
@@ -109,7 +111,7 @@ export default function SettingsModal() {
         {/* Sidebar nav */}
         <div
           style={{
-            width: 180,
+            width: 185,
             flexShrink: 0,
             borderRight: '1px solid var(--border)',
             background: 'var(--bg-subtle)',
