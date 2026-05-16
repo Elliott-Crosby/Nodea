@@ -20,6 +20,7 @@ export default function SearchModal() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function SearchModal() {
   async function doConceptSearch(q: string) {
     if (!q.trim() || !activeConvId) { setResults([]); setHasSearched(false); return }
     setIsSearching(true)
+    setSearchError(null)
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -58,6 +60,7 @@ export default function SearchModal() {
     } catch (e) {
       console.error('Concept search error', e)
       setResults([])
+      setSearchError('Concept search failed. Check your connection and try again.')
     } finally {
       setIsSearching(false)
       setHasSearched(true)
@@ -176,6 +179,7 @@ export default function SearchModal() {
                 setMode(m)
                 setResults([])
                 setHasSearched(false)
+                setSearchError(null)
               }}
               style={{
                 padding: '4px 12px',
@@ -207,9 +211,28 @@ export default function SearchModal() {
             </div>
           )}
 
-          {hasSearched && results.length === 0 && !isSearching && (
+          {searchError && !isSearching && (
+            <div
+              style={{
+                padding: '14px 16px',
+                background: 'var(--color-error-bg)',
+                borderBottom: '1px solid var(--color-error-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--color-error)' }}>{searchError}</span>
+              <button
+                onClick={() => setSearchError(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: 11, flexShrink: 0 }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {hasSearched && results.length === 0 && !isSearching && !searchError && (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              No results found for "{query}"
+              No results found for &ldquo;{query}&rdquo;
             </div>
           )}
 

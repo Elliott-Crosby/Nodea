@@ -1,16 +1,56 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useApp } from './App'
 
 export default function Sidebar() {
   const {
     conversations, activeConvId, switchConversation, createConversation,
     setIsSettingsOpen, signOut, userEmail, userName,
+    renameConversation, deleteConversation,
   } = useApp()
 
   const [collapsed, setCollapsed] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const editInputRef = useRef<HTMLInputElement>(null)
+
   const initial = (userName || userEmail || 'U').charAt(0).toUpperCase()
+
+  function startEdit(id: string, name: string) {
+    setEditingId(id)
+    setEditingName(name)
+    setConfirmDeleteId(null)
+    setTimeout(() => editInputRef.current?.select(), 0)
+  }
+
+  function commitEdit(id: string) {
+    const trimmed = editingName.trim()
+    if (trimmed && trimmed !== conversations.find(c => c.id === id)?.name) {
+      renameConversation(id, trimmed)
+    }
+    setEditingId(null)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+  }
+
+  function confirmDelete(id: string) {
+    setConfirmDeleteId(id)
+    setEditingId(null)
+  }
+
+  function cancelDelete() {
+    setConfirmDeleteId(null)
+  }
+
+  async function doDelete(id: string) {
+    setConfirmDeleteId(null)
+    await deleteConversation(id)
+  }
 
   return (
     <div
@@ -40,12 +80,10 @@ export default function Sidebar() {
           overflow: 'hidden',
         }}
       >
-        {/* Logo — text only */}
         <span style={{ fontSize: collapsed ? 15 : 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', minWidth: 0 }}>
           {collapsed ? 'N' : 'Nodea'}
         </span>
 
-        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -76,7 +114,7 @@ export default function Sidebar() {
       </div>
 
       {/* ── New conversation button ── */}
-      <div style={{ padding: collapsed ? '8px 10px' : '8px 10px', flexShrink: 0 }}>
+      <div style={{ padding: '8px 10px', flexShrink: 0 }}>
         <button
           onClick={createConversation}
           title="New Conversation"
@@ -102,43 +140,152 @@ export default function Sidebar() {
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '2px 0' }}>
         {conversations.map((conv) => {
           const active = conv.id === activeConvId
+          const isEditing = editingId === conv.id
+          const isConfirmingDelete = confirmDeleteId === conv.id
+          const isHovered = hoveredId === conv.id
+
           return (
-            <button
+            <div
               key={conv.id}
-              onClick={() => switchConversation(conv.id)}
-              title={conv.name}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-                gap: 9, width: '100%',
-                padding: collapsed ? '10px 0' : '8px 14px',
-                background: active ? 'var(--accent-bg)' : 'transparent',
-                border: 'none',
-                borderLeft: !collapsed ? (active ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
-                cursor: 'pointer', textAlign: 'left',
-                color: active ? 'var(--accent-text)' : 'var(--text-secondary)',
-                fontSize: 13, fontWeight: active ? 500 : 400,
-                overflow: 'hidden',
-                transition: 'background 0.1s, color 0.1s',
-              }}
-              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)' }}
-              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+              onMouseEnter={() => setHoveredId(conv.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              style={{ position: 'relative' }}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }}>
-                <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5l-3 2V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-              {!collapsed && (
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                  {conv.name}
-                </span>
+              {isEditing && !collapsed ? (
+                /* ── Inline rename input ── */
+                <div style={{ padding: '4px 10px' }}>
+                  <input
+                    ref={editInputRef}
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={() => commitEdit(conv.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); commitEdit(conv.id) }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      border: '1.5px solid var(--accent)',
+                      background: 'var(--input-bg)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              ) : isConfirmingDelete && !collapsed ? (
+                /* ── Inline delete confirmation ── */
+                <div
+                  style={{
+                    padding: '6px 10px',
+                    background: 'var(--bg-subtle)',
+                    borderLeft: '2.5px solid var(--color-error)',
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Delete &ldquo;{conv.name}&rdquo;?
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => doDelete(conv.id)}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 5,
+                        border: 'none',
+                        background: 'var(--color-error)',
+                        color: '#fff',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={cancelDelete}
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 5,
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Normal conversation row ── */
+                <button
+                  onClick={() => {
+                    if (!isEditing && !isConfirmingDelete) switchConversation(conv.id)
+                  }}
+                  onDoubleClick={() => !collapsed && startEdit(conv.id, conv.name)}
+                  title={collapsed ? conv.name : undefined}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+                    gap: 9, width: '100%',
+                    padding: collapsed ? '10px 0' : '8px 14px',
+                    background: active ? 'var(--accent-bg)' : 'transparent',
+                    border: 'none',
+                    borderLeft: !collapsed ? (active ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
+                    cursor: 'pointer', textAlign: 'left',
+                    color: active ? 'var(--accent-text)' : 'var(--text-secondary)',
+                    fontSize: 13, fontWeight: active ? 500 : 400,
+                    overflow: 'hidden',
+                    transition: 'background 0.1s, color 0.1s',
+                    paddingRight: (!collapsed && isHovered) ? '6px' : (!collapsed ? '14px' : '0'),
+                  }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)' }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }}>
+                    <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5l-3 2V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                  </svg>
+                  {!collapsed && (
+                    <>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                        {conv.name}
+                      </span>
+                      {isHovered && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); confirmDelete(conv.id) }}
+                          title="Delete conversation"
+                          style={{
+                            flexShrink: 0,
+                            width: 22, height: 22,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            padding: 0,
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-error)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error-bg)' }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                            <path d="M1 2.5h9M4 2.5V1.5h3v1M2 2.5l.5 7h6l.5-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           )
         })}
       </div>
 
       {/* ── Bottom: settings + user ── */}
       <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-        {/* Settings */}
         <button
           onClick={() => setIsSettingsOpen(true)}
           title="Settings"
@@ -161,7 +308,6 @@ export default function Sidebar() {
           {!collapsed && 'Settings'}
         </button>
 
-        {/* User */}
         <div
           style={{
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',

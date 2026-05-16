@@ -41,6 +41,7 @@ export interface DbNode {
   position_x: number
   position_y: number
   created_at: string
+  color?: string | null
 }
 
 export interface AppContextType {
@@ -63,17 +64,23 @@ export interface AppContextType {
   handleNodeClick: (nodeId: string) => Promise<void>
   switchConversation: (id: string) => Promise<void>
   createConversation: () => Promise<void>
+  renameConversation: (id: string, name: string) => Promise<void>
+  deleteConversation: (id: string) => Promise<void>
   signOut: () => void
   userEmail: string
   userName: string
   setUserName: (n: string) => void
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
-  chatInputRef: React.RefObject<HTMLInputElement | null>
+  chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   pendingAttachments: AttachmentItem[]
   addAttachment: (a: AttachmentItem) => void
   removeAttachment: (name: string) => void
   lastSavedPairId: string | null
+  chatError: string | null
+  clearChatError: () => void
+  saveError: boolean
+  clearSaveError: () => void
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -136,29 +143,30 @@ export default function App() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [activeConvId, setActiveConvId] = useState<string | null>(null)
-  const [convName, setConvName] = useState('Loading…')
-  const [allDbNodes, setAllDbNodes] = useState<DbNode[]>([])
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [model, setModel] = useState('auto')
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
-  const [userName, setUserName] = useState('')
-  const [nodeColors, setNodeColors] = useState<Record<string, string>>({})
+  const [conversations, setConversations]   = useState<Conversation[]>([])
+  const [activeConvId,  setActiveConvId]    = useState<string | null>(null)
+  const [convName,      setConvName]        = useState('Loading…')
+  const [allDbNodes,    setAllDbNodes]      = useState<DbNode[]>([])
+  const [messages,      setMessages]        = useState<ChatMessage[]>([])
+  const [selectedNodeId,setSelectedNodeId]  = useState<string | null>(null)
+  const [input,         setInput]           = useState('')
+  const [isLoading,     setIsLoading]       = useState(false)
+  const [model,         setModel]           = useState('auto')
+  const [isSearchOpen,  setIsSearchOpen]    = useState(false)
+  const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
+  const [userEmail,     setUserEmail]       = useState('')
+  const [userName,      setUserName]        = useState('')
+  const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
+  const [chatError,     setChatError]       = useState<string | null>(null)
+  const [saveError,     setSaveError]       = useState(false)
 
   const lastNodeIdRef = useRef<string | null>(null)
-  const chatInputRef = useRef<HTMLInputElement | null>(null)
+  const chatInputRef  = useRef<HTMLTextAreaElement | null>(null)
 
-  const setNodeColor = useCallback((id: string, color: string) => {
-    setNodeColors((prev) => ({ ...prev, [id]: color }))
-  }, [])
+  const clearChatError  = useCallback(() => setChatError(null), [])
+  const clearSaveError  = useCallback(() => setSaveError(false), [])
 
   const addAttachment = useCallback((a: AttachmentItem) => {
     setPendingAttachments((prev) => [...prev, a])
@@ -168,6 +176,16 @@ export default function App() {
     setPendingAttachments((prev) => prev.filter((a) => a.name !== name))
   }, [])
 
+  // ── Node color — persist to DB (Task 1) ───────────────────────────────────
+  const setNodeColor = useCallback((id: string, color: string) => {
+    setNodeColors((prev) => ({ ...prev, [id]: color }))
+    supabase
+      .from('nodes')
+      .update({ color: color || null })
+      .eq('id', id)
+      .then(({ error }) => { if (error) console.error('Color save failed', error) })
+  }, [supabase])
+
   // ── Load conversation from DB into state ──────────────────────────────────
   const loadConversation = useCallback(
     async (convId: string, name: string) => {
@@ -175,6 +193,7 @@ export default function App() {
       setConvName(name)
       setMessages([])
       setSelectedNodeId(null)
+      setNodeColors({})
       lastNodeIdRef.current = null
 
       const { data: dbNodes, error } = await supabase
@@ -189,6 +208,13 @@ export default function App() {
       }
 
       setAllDbNodes(dbNodes as DbNode[])
+
+      // Restore persisted node colors (Task 1)
+      const colorMap: Record<string, string> = {}
+      for (const n of dbNodes as DbNode[]) {
+        if (n.color) colorMap[n.id] = n.color
+      }
+      setNodeColors(colorMap)
 
       const assistantNodes = (dbNodes as DbNode[]).filter((n) => n.role === 'assistant')
       if (assistantNodes.length) {
@@ -219,28 +245,41 @@ export default function App() {
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      // Apply saved font size (Task 8)
+      const savedSize = localStorage.getItem('nodea-font-size') || 'medium'
+      const sizeMap: Record<string, string> = { small: '13px', medium: '15px', large: '17px' }
+      document.documentElement.style.setProperty('--font-size-base', sizeMap[savedSize] ?? '15px')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/login'); return }
       setUserEmail(user.email ?? '')
       setUserName(user.user_metadata?.display_name || user.email?.split('@')[0] || 'User')
 
       const res = await fetch('/api/projects')
-      if (!res.ok) {
-        router.push('/login')
+      if (!res.ok) { router.push('/login'); return }
+      const { projects } = await res.json()
+      if (!projects?.length) {
+        setConvName('')
         return
       }
-      const { projects } = await res.json()
-      if (!projects?.length) return
 
       setConversations(projects as Conversation[])
       await loadConversation(projects[0].id, projects[0].name)
     }
     init()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Cmd/Ctrl+K — open search (Task 2) ────────────────────────────────────
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        if (chatInputRef.current && document.activeElement === chatInputRef.current) return
+        e.preventDefault()
+        setIsSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Switch conversation ───────────────────────────────────────────────────
@@ -255,17 +294,50 @@ export default function App() {
 
   // ── Create new conversation ───────────────────────────────────────────────
   const createConversation = useCallback(async () => {
-    const name = `New Conversation`
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name: 'New Conversation' }),
     })
     if (!res.ok) return
     const { project } = await res.json()
     setConversations((prev) => [...prev, project])
     await loadConversation(project.id, project.name)
   }, [loadConversation])
+
+  // ── Rename conversation (Task 3) ──────────────────────────────────────────
+  const renameConversation = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const { error } = await supabase.from('projects').update({ name: trimmed }).eq('id', id)
+    if (error) { console.error('Rename failed', error); return }
+    setConversations((prev) => prev.map((c) => c.id === id ? { ...c, name: trimmed } : c))
+    if (id === activeConvId) setConvName(trimmed)
+  }, [supabase, activeConvId])
+
+  // ── Delete conversation (Task 4) ──────────────────────────────────────────
+  const deleteConversation = useCallback(async (id: string) => {
+    await supabase.from('nodes').delete().eq('project_id', id)
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) { console.error('Delete failed', error); return }
+
+    const remaining = conversations.filter((c) => c.id !== id)
+    setConversations(remaining)
+
+    if (id === activeConvId) {
+      if (remaining.length > 0) {
+        await loadConversation(remaining[0].id, remaining[0].name)
+      } else {
+        setActiveConvId(null)
+        setConvName('')
+        setMessages([])
+        setAllDbNodes([])
+        setSelectedNodeId(null)
+        setNodeColors({})
+        lastNodeIdRef.current = null
+      }
+    }
+  }, [supabase, activeConvId, conversations, loadConversation])
 
   // ── Save a user+assistant node pair after a response ─────────────────────
   const saveNodePair = useCallback(
@@ -277,31 +349,17 @@ export default function App() {
 
       const { data: userNode, error: ue } = await supabase
         .from('nodes')
-        .insert({
-          project_id: pid,
-          parent_id: parentId,
-          role: 'user',
-          content: userContent,
-          position_x: 0,
-          position_y: 0,
-        })
+        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0 })
         .select()
         .single()
-      if (ue || !userNode) { console.error('user node save failed', ue); return }
+      if (ue || !userNode) { console.error('user node save failed', ue); setSaveError(true); return }
 
       const { data: asst, error: ae } = await supabase
         .from('nodes')
-        .insert({
-          project_id: pid,
-          parent_id: userNode.id,
-          role: 'assistant',
-          content: assistantContent,
-          position_x: 0,
-          position_y: 0,
-        })
+        .insert({ project_id: pid, parent_id: userNode.id, role: 'assistant', content: assistantContent, position_x: 0, position_y: 0 })
         .select()
         .single()
-      if (ae || !asst) { console.error('assistant node save failed', ae); return }
+      if (ae || !asst) { console.error('assistant node save failed', ae); setSaveError(true); return }
 
       lastNodeIdRef.current = asst.id
       setSelectedNodeId(asst.id)
@@ -319,15 +377,15 @@ export default function App() {
       const hasAttachments = pendingAttachments.length > 0
       if ((!hasText && !hasAttachments) || isLoading) return
 
-      const userContent = input.trim()
+      setChatError(null)
+      setSaveError(false)
+
+      const userContent        = input.trim()
       const attachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
-      const now = Date.now()
+      const now                 = Date.now()
       const userMsg: ChatMessage = {
-        id: now.toString(),
-        role: 'user',
-        content: userContent,
-        timestamp: now,
-        attachments: attachmentsSnapshot,
+        id: now.toString(), role: 'user', content: userContent,
+        timestamp: now, attachments: attachmentsSnapshot,
       }
       const assistantId = (now + 1).toString()
 
@@ -350,9 +408,9 @@ export default function App() {
           { id: assistantId, role: 'assistant', content: '', timestamp: Date.now() },
         ])
 
-        const reader = response.body?.getReader()
+        const reader  = response.body?.getReader()
         const decoder = new TextDecoder()
-        let full = ''
+        let full      = ''
         if (reader) {
           while (true) {
             const { done, value } = await reader.read()
@@ -360,12 +418,7 @@ export default function App() {
             full += decoder.decode(value, { stream: true })
             setMessages((prev) => {
               const updated = [...prev]
-              updated[updated.length - 1] = {
-                id: assistantId,
-                role: 'assistant',
-                content: full,
-                timestamp: Date.now(),
-              }
+              updated[updated.length - 1] = { id: assistantId, role: 'assistant', content: full, timestamp: Date.now() }
               return updated
             })
           }
@@ -373,7 +426,11 @@ export default function App() {
         await saveNodePair(userContent, full)
       } catch (err) {
         console.error('Chat error', err)
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+        // Restore the user's message to input so they can retry (Task 7)
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
+        setInput(userContent)
+        if (attachmentsSnapshot) setPendingAttachments(attachmentsSnapshot)
+        setChatError('Failed to get a response. Check your connection and try again.')
       } finally {
         setIsLoading(false)
       }
@@ -403,9 +460,7 @@ export default function App() {
 
       setMessages(
         chain.map((n) => ({
-          id: n.id,
-          role: n.role,
-          content: n.content,
+          id: n.id, role: n.role, content: n.content,
           timestamp: new Date(n.created_at).getTime(),
         }))
       )
@@ -424,56 +479,28 @@ export default function App() {
 
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
-    conversations,
-    activeConvId,
-    convName,
-    allDbNodes,
-    messages,
-    selectedNodeId,
-    input,
-    setInput,
-    isLoading,
-    model,
-    setModel,
-    isSearchOpen,
-    setIsSearchOpen,
-    isSettingsOpen,
-    setIsSettingsOpen,
-    handleSend,
-    handleNodeClick,
-    switchConversation,
-    createConversation,
-    signOut,
-    userEmail,
-    userName,
-    setUserName,
-    nodeColors,
-    setNodeColor,
-    chatInputRef,
-    pendingAttachments,
-    addAttachment,
-    removeAttachment,
+    conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
+    input, setInput, isLoading, model, setModel,
+    isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
+    handleSend, handleNodeClick, switchConversation, createConversation,
+    renameConversation, deleteConversation, signOut,
+    userEmail, userName, setUserName,
+    nodeColors, setNodeColor, chatInputRef,
+    pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
+    chatError, clearChatError, saveError, clearSaveError,
   }
 
   return (
     <AppContext.Provider value={ctx}>
-      <div
-        style={{
-          display: 'flex',
-          height: '100vh',
-          overflow: 'hidden',
-          background: 'var(--bg-base)',
-          color: 'var(--text-primary)',
-        }}
-      >
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <Sidebar />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           <ChatPanel />
         </div>
         <TreePanel />
       </div>
-      {isSearchOpen && <SearchModal />}
+      {isSearchOpen  && <SearchModal />}
       {isSettingsOpen && <SettingsModal />}
     </AppContext.Provider>
   )

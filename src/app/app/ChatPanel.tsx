@@ -374,7 +374,6 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
           </div>
         )}
 
-        {/* Image attachments for user messages */}
         {isUser && images.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', marginBottom: 6 }}>
             {images.map((img) => (
@@ -391,14 +390,12 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
           </div>
         )}
 
-        {/* File chips for user messages */}
         {isUser && files.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', marginBottom: 6 }}>
             {files.map((f) => <AttachmentChip key={f.name} attachment={f} />)}
           </div>
         )}
 
-        {/* Bubble — only render if there's text content, or it's an AI message */}
         {(!isUser || msg.content) && (
           <div
             style={{
@@ -458,9 +455,13 @@ function InputBar() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [addAttachment])
 
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }
+
   return (
     <div style={{ padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }}>
-      {/* Pending attachments row */}
       {pendingAttachments.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           {pendingAttachments.map((a) => (
@@ -472,7 +473,7 @@ function InputBar() {
       <form
         onSubmit={handleSend}
         style={{
-          display: 'flex', alignItems: 'center', gap: 10,
+          display: 'flex', alignItems: 'flex-end', gap: 10,
           background: 'var(--input-bg)', border: '1px solid var(--border)',
           borderRadius: 13, padding: '8px 8px 8px 14px',
           boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.15s',
@@ -480,7 +481,6 @@ function InputBar() {
         onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
         onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
       >
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -490,7 +490,6 @@ function InputBar() {
           onChange={(e) => handleFiles(e.target.files)}
         />
 
-        {/* Attach button */}
         <button
           type="button"
           title="Attach file (images, PDF, text)"
@@ -500,7 +499,7 @@ function InputBar() {
             background: 'none', border: 'none',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             color: pendingAttachments.length > 0 ? 'var(--accent)' : 'var(--text-muted)',
-            padding: 0, flexShrink: 0,
+            padding: '0 0 2px', flexShrink: 0,
             opacity: isLoading ? 0.4 : 1,
             transition: 'color 0.15s',
           }}
@@ -510,15 +509,30 @@ function InputBar() {
           </svg>
         </button>
 
-        <input
+        <textarea
           ref={chatInputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Message Claude…"
+          rows={1}
+          onChange={(e) => {
+            setInput(e.target.value)
+            autoResize(e.target)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              if (canSend) {
+                const form = e.currentTarget.closest('form')
+                form?.requestSubmit()
+              }
+            }
+          }}
+          placeholder="Message Claude… (Enter to send, Shift+Enter for newline)"
           disabled={isLoading}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            fontSize: 13, color: 'var(--text-primary)',
+            fontSize: 13, color: 'var(--text-primary)', resize: 'none',
+            lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
+            fontFamily: 'inherit',
           }}
         />
 
@@ -544,7 +558,7 @@ function InputBar() {
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError } = useApp()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -558,28 +572,105 @@ export default function ChatPanel() {
       <TopBar />
       <SubHeader />
 
+      {/* Save error banner */}
+      {saveError && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 20px',
+            background: 'var(--color-error-bg)',
+            borderBottom: '1px solid var(--color-error-border)',
+            fontSize: 12, color: 'var(--color-error)',
+            flexShrink: 0,
+          }}
+        >
+          <span>Message sent but could not be saved to history.</span>
+          <button
+            onClick={clearSaveError}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div
         style={{
           flex: 1, overflowY: 'auto', padding: '24px 24px',
           display: 'flex', flexDirection: 'column', gap: 20,
         }}
       >
-        {messages.length === 0 ? (
+        {/* ── Empty state: no conversation selected ── */}
+        {!activeConvId ? (
           <div
             style={{
               flex: 1, display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', gap: 10, minHeight: 200,
+              gap: 16, minHeight: 300, textAlign: 'center',
             }}
           >
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}>
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            <div
+              style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'var(--accent-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="var(--accent)" strokeWidth="1.5" strokeLinejoin="round" />
               </svg>
             </div>
             <div>
-              <div style={{ fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 3 }}>Start a conversation</div>
-              <div style={{ fontSize: 12 }}>Hover a tree node and click "Branch here" to fork from any point</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+                No conversation selected
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+                Start a new conversation to begin chatting with Claude.
+              </div>
+              <button
+                onClick={createConversation}
+                style={{
+                  padding: '9px 22px',
+                  borderRadius: 10,
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                New Conversation
+              </button>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          /* ── Empty state: conversation exists but no messages ── */
+          <div
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 12, minHeight: 300, textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--bg-subtle)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}>
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                Send your first message
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Or hover a tree node and click &ldquo;Branch here&rdquo; to fork from any point.
+              </div>
             </div>
           </div>
         ) : (
@@ -589,6 +680,32 @@ export default function ChatPanel() {
         )}
 
         {showThinkingBubble && <ThinkingBubble />}
+
+        {/* Chat error banner */}
+        {chatError && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error-border)',
+              borderRadius: 10,
+              fontSize: 12, color: 'var(--color-error)',
+            }}
+          >
+            <span>{chatError}</span>
+            <button
+              onClick={clearChatError}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--color-error)', padding: '0 0 0 12px',
+                fontSize: 12, fontWeight: 500, flexShrink: 0,
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <div ref={bottomRef} />
       </div>

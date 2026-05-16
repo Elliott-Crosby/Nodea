@@ -6,19 +6,55 @@ import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 
 type Section = 'appearance' | 'account'
+type FontSize = 'small' | 'medium' | 'large'
+
+const FONT_SIZE_MAP: Record<FontSize, string> = {
+  small: '13px',
+  medium: '15px',
+  large: '17px',
+}
+
+function applyFontSize(size: FontSize) {
+  document.documentElement.style.setProperty('--font-size-base', FONT_SIZE_MAP[size])
+  localStorage.setItem('nodea-font-size', size)
+}
 
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>('appearance')
+
+  // Font size
+  const savedSize = (typeof window !== 'undefined' ? localStorage.getItem('nodea-font-size') : null) ?? 'medium'
+  const [fontSize, setFontSize] = useState<FontSize>(savedSize as FontSize)
 
   // Account form state
   const [displayName, setDisplayName] = useState(userName)
   const [newEmail, setNewEmail] = useState(userEmail)
-  const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
+  function handleFontSizeChange(size: FontSize) {
+    setFontSize(size)
+    applyFontSize(size)
+  }
+
+  function handleExportMarkdown() {
+    const lines: string[] = [`# ${convName || 'Conversation'}`, '']
+    for (const msg of messages) {
+      lines.push(`**${msg.role === 'user' ? 'You' : 'Claude'}:**`)
+      lines.push(msg.content)
+      lines.push('')
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(convName || 'conversation').replace(/[^a-z0-9]/gi, '_')}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function handleSaveAccount(e: React.FormEvent) {
     e.preventDefault()
@@ -47,7 +83,6 @@ export default function SettingsModal() {
           ? 'Saved! Check your new email address to confirm the change.'
           : 'Saved successfully.',
       })
-      setCurrentPw('')
       setNewPw('')
     } catch (err: unknown) {
       setSaveMsg({ type: 'err', text: err instanceof Error ? err.message : 'Something went wrong.' })
@@ -146,25 +181,6 @@ export default function SettingsModal() {
               {item.label}
             </button>
           ))}
-
-          {/* Future placeholders */}
-          <div style={{ padding: '12px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Coming Soon
-          </div>
-          {['Integrations', 'Notifications', 'Keyboard Shortcuts', 'Export'].map((name) => (
-            <div
-              key={name}
-              style={{
-                padding: '8px 16px',
-                fontSize: 13,
-                color: 'var(--text-muted)',
-                opacity: 0.5,
-                cursor: 'not-allowed',
-              }}
-            >
-              {name}
-            </div>
-          ))}
         </div>
 
         {/* Content */}
@@ -193,10 +209,7 @@ export default function SettingsModal() {
               <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Appearance</h2>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 24 }}>Customize how Nodea looks.</p>
 
-              <SettingRow
-                label="Theme"
-                description="Switch between light and dark mode"
-              >
+              <SettingRow label="Theme" description="Switch between light and dark mode">
                 <div style={{ display: 'flex', gap: 8 }}>
                   {(['light', 'dark'] as const).map((t) => (
                     <button
@@ -222,16 +235,50 @@ export default function SettingsModal() {
 
               <Divider />
 
-              {/* Future appearance settings */}
-              {[
-                ['Font Size', 'Adjust the text size in the chat panel', 'Medium (default)'],
-                ['Compact Mode', 'Reduce spacing between messages', 'Off'],
-                ['Animations', 'Enable transition animations', 'On'],
-              ].map(([label, desc, val]) => (
-                <SettingRow key={label} label={label} description={desc}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 0' }}>{val} · Coming soon</span>
-                </SettingRow>
-              ))}
+              <SettingRow label="Font Size" description="Adjust the text size in the chat panel">
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['small', 'medium', 'large'] as FontSize[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleFontSizeChange(s)}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: 7,
+                        border: `1.5px solid ${fontSize === s ? 'var(--accent)' : 'var(--border)'}`,
+                        background: fontSize === s ? 'var(--accent-bg)' : 'var(--bg-subtle)',
+                        color: fontSize === s ? 'var(--accent-text)' : 'var(--text-secondary)',
+                        fontSize: 12,
+                        fontWeight: fontSize === s ? 600 : 400,
+                        cursor: 'pointer',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </SettingRow>
+
+              <Divider />
+
+              <SettingRow label="Export Conversation" description="Download the current conversation as a Markdown file">
+                <button
+                  onClick={handleExportMarkdown}
+                  disabled={messages.length === 0}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-subtle)',
+                    color: messages.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                    fontSize: 12,
+                    cursor: messages.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: messages.length === 0 ? 0.5 : 1,
+                  }}
+                >
+                  Export as Markdown
+                </button>
+              </SettingRow>
             </div>
           )}
 

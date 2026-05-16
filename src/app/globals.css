@@ -37,6 +37,9 @@
   --code-text:          #1a1d23;
   --code-border:        #d8dade;
   --blockquote-border:  #c4b5fd;
+  --color-error:        #ef4444;
+  --color-error-bg:     #fef2f2;
+  --color-error-border: #fecaca;
 }
 
 /* ── Dark theme ────────────────────────────────────────────────── */
@@ -76,6 +79,9 @@
   --code-text:          #cdd9e5;
   --code-border:        #3d4149;
   --blockquote-border:  #4a3d7a;
+  --color-error:        #f87171;
+  --color-error-bg:     #2d1a1a;
+  --color-error-border: #7f1d1d;
 }
 
 html, body {
