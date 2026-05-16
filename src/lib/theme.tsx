@@ -11,16 +11,16 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'dark',
+  theme: 'light',
   setTheme: () => {},
   toggleTheme: () => {},
 })
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark')
+  const [theme, setThemeState] = useState<Theme>('light')
 
   useEffect(() => {
-    const saved = (localStorage.getItem('nodea-theme') as Theme) || 'dark'
+    const saved = (localStorage.getItem('nodea-theme') as Theme) || 'light'
     applyTheme(saved)
     setThemeState(saved)
   }, [])

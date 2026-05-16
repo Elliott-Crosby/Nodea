@@ -9,19 +9,40 @@ const MODEL_MAP: Record<string, string> = {
   opus:   'claude-opus-4-5-20251001',
 }
 
+interface Attachment {
+  name: string
+  type: string
+  dataUrl: string
+}
+
+interface IncomingMessage {
+  role: 'user' | 'assistant'
+  content: string
+  attachments?: Attachment[]
+}
+
 export async function POST(req: Request) {
-  // Auth guard
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const { messages, model = 'auto' } = await req.json()
+  const { messages, model = 'auto' } = await req.json() as { messages: IncomingMessage[]; model: string }
 
   const modelId = MODEL_MAP[model] ?? MODEL_MAP.auto
-  const modelMessages = messages.map(({ role, content }: { role: string; content: string }) => ({
-    role,
-    content,
-  }))
+
+  const modelMessages = messages.map((msg) => {
+    const images = (msg.attachments ?? []).filter(a => a.type.startsWith('image/'))
+    if (!images.length || msg.role !== 'user') {
+      return { role: msg.role as 'user' | 'assistant', content: msg.content ?? '' }
+    }
+    return {
+      role: 'user' as const,
+      content: [
+        ...images.map(a => ({ type: 'image' as const, image: a.dataUrl })),
+        { type: 'text' as const, text: msg.content ?? '' },
+      ],
+    }
+  })
 
   const encoder = new TextEncoder()
   const result = streamText({

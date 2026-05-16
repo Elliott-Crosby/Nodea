@@ -18,11 +18,18 @@ export interface Conversation {
   created_at: string
 }
 
+export interface AttachmentItem {
+  name: string
+  type: string
+  dataUrl: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  attachments?: AttachmentItem[]
 }
 
 export interface DbNode {
@@ -63,6 +70,10 @@ export interface AppContextType {
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
   chatInputRef: React.RefObject<HTMLInputElement | null>
+  pendingAttachments: AttachmentItem[]
+  addAttachment: (a: AttachmentItem) => void
+  removeAttachment: (name: string) => void
+  lastSavedPairId: string | null
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -139,12 +150,22 @@ export default function App() {
   const [userEmail, setUserEmail] = useState('')
   const [userName, setUserName] = useState('')
   const [nodeColors, setNodeColors] = useState<Record<string, string>>({})
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
+  const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
 
   const lastNodeIdRef = useRef<string | null>(null)
   const chatInputRef = useRef<HTMLInputElement | null>(null)
 
   const setNodeColor = useCallback((id: string, color: string) => {
     setNodeColors((prev) => ({ ...prev, [id]: color }))
+  }, [])
+
+  const addAttachment = useCallback((a: AttachmentItem) => {
+    setPendingAttachments((prev) => [...prev, a])
+  }, [])
+
+  const removeAttachment = useCallback((name: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.name !== name))
   }, [])
 
   // ── Load conversation from DB into state ──────────────────────────────────
@@ -169,7 +190,6 @@ export default function App() {
 
       setAllDbNodes(dbNodes as DbNode[])
 
-      // Auto-load the most recent branch as the active chat
       const assistantNodes = (dbNodes as DbNode[]).filter((n) => n.role === 'assistant')
       if (assistantNodes.length) {
         const lastAsst = assistantNodes[assistantNodes.length - 1]
@@ -285,6 +305,7 @@ export default function App() {
 
       lastNodeIdRef.current = asst.id
       setSelectedNodeId(asst.id)
+      setLastSavedPairId(asst.id)
       setAllDbNodes((prev) => [...prev, userNode as DbNode, asst as DbNode])
     },
     [supabase, activeConvId]
@@ -294,16 +315,26 @@ export default function App() {
   const handleSend = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      if (!input.trim() || isLoading) return
+      const hasText = input.trim().length > 0
+      const hasAttachments = pendingAttachments.length > 0
+      if ((!hasText && !hasAttachments) || isLoading) return
 
       const userContent = input.trim()
+      const attachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
       const now = Date.now()
-      const userMsg: ChatMessage = { id: now.toString(), role: 'user', content: userContent, timestamp: now }
+      const userMsg: ChatMessage = {
+        id: now.toString(),
+        role: 'user',
+        content: userContent,
+        timestamp: now,
+        attachments: attachmentsSnapshot,
+      }
       const assistantId = (now + 1).toString()
 
       const nextMessages = [...messages, userMsg]
       setMessages(nextMessages)
       setInput('')
+      setPendingAttachments([])
       setIsLoading(true)
 
       try {
@@ -347,7 +378,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, model, saveNodePair]
+    [input, isLoading, messages, model, saveNodePair, pendingAttachments]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
@@ -419,6 +450,10 @@ export default function App() {
     nodeColors,
     setNodeColor,
     chatInputRef,
+    pendingAttachments,
+    addAttachment,
+    removeAttachment,
+    lastSavedPairId,
   }
 
   return (

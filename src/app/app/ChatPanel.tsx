@@ -1,17 +1,15 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { useApp, MODELS } from './App'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { useApp, MODELS, type AttachmentItem, type ChatMessage } from './App'
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 // ── Inline markdown renderer ──────────────────────────────────────────────────
-// Handles: **bold**, *italic*, ~~strike~~, `code`
 function renderInline(text: string): React.ReactNode {
   if (!text) return null
-  // Order matters: *** before **, ~~ before ~, etc.
   const re = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|~~(.+?)~~|\*(.+?)\*|`([^`\n]+)`)/g
   const parts: React.ReactNode[] = []
   let last = 0
@@ -20,19 +18,12 @@ function renderInline(text: string): React.ReactNode {
 
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(<span key={ki++}>{text.slice(last, m.index)}</span>)
-
     const [, , boldItalic, bold, strike, italic, code] = m
-    if (boldItalic !== undefined)
-      parts.push(<strong key={ki++}><em>{boldItalic}</em></strong>)
-    else if (bold !== undefined)
-      parts.push(<strong key={ki++}>{bold}</strong>)
-    else if (strike !== undefined)
-      parts.push(<del key={ki++}>{strike}</del>)
-    else if (italic !== undefined)
-      parts.push(<em key={ki++}>{italic}</em>)
-    else if (code !== undefined)
-      parts.push(<code key={ki++}>{code}</code>)
-
+    if (boldItalic !== undefined) parts.push(<strong key={ki++}><em>{boldItalic}</em></strong>)
+    else if (bold !== undefined) parts.push(<strong key={ki++}>{bold}</strong>)
+    else if (strike !== undefined) parts.push(<del key={ki++}>{strike}</del>)
+    else if (italic !== undefined) parts.push(<em key={ki++}>{italic}</em>)
+    else if (code !== undefined) parts.push(<code key={ki++}>{code}</code>)
     last = m.index + m[0].length
   }
 
@@ -51,79 +42,50 @@ function MarkdownContent({ content }: { content: string }) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // ── Fenced code block ──────────────────────────────────────────
     if (line.trimStart().startsWith('```')) {
       const lang = line.trimStart().slice(3).trim()
       const codeLines: string[] = []
       i++
-      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
-        codeLines.push(lines[i])
-        i++
-      }
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) { codeLines.push(lines[i]); i++ }
       nodes.push(
         <pre key={k++}>
           {lang && <div className="code-block-header">{lang}</div>}
           <code>{codeLines.join('\n')}</code>
         </pre>
       )
-      i++ // skip closing ```
-      continue
+      i++; continue
     }
 
-    // ── Headings ───────────────────────────────────────────────────
     if (line.startsWith('#### ')) { nodes.push(<h4 key={k++}>{renderInline(line.slice(5))}</h4>); i++; continue }
     if (line.startsWith('### '))  { nodes.push(<h3 key={k++}>{renderInline(line.slice(4))}</h3>); i++; continue }
     if (line.startsWith('## '))   { nodes.push(<h2 key={k++}>{renderInline(line.slice(3))}</h2>); i++; continue }
     if (line.startsWith('# '))    { nodes.push(<h1 key={k++}>{renderInline(line.slice(2))}</h1>); i++; continue }
 
-    // ── Blockquote ─────────────────────────────────────────────────
     if (line.startsWith('> ')) {
       const qLines = [line.slice(2)]
       while (i + 1 < lines.length && lines[i + 1].startsWith('> ')) { i++; qLines.push(lines[i].slice(2)) }
-      nodes.push(
-        <blockquote key={k++}>
-          {qLines.map((ql, qi) => <p key={qi}>{renderInline(ql)}</p>)}
-        </blockquote>
-      )
+      nodes.push(<blockquote key={k++}>{qLines.map((ql, qi) => <p key={qi}>{renderInline(ql)}</p>)}</blockquote>)
       i++; continue
     }
 
-    // ── Horizontal rule ────────────────────────────────────────────
-    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
-      nodes.push(<hr key={k++} />); i++; continue
-    }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) { nodes.push(<hr key={k++} />); i++; continue }
 
-    // ── Unordered list ─────────────────────────────────────────────
     if (/^[-*+] /.test(line)) {
       const items: string[] = []
       while (i < lines.length && /^[-*+] /.test(lines[i])) { items.push(lines[i].slice(2)); i++ }
-      nodes.push(
-        <ul key={k++}>
-          {items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}
-        </ul>
-      )
+      nodes.push(<ul key={k++}>{items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}</ul>)
       continue
     }
 
-    // ── Ordered list ───────────────────────────────────────────────
     if (/^\d+\. /.test(line)) {
       const items: string[] = []
-      while (i < lines.length && /^\d+\. /.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\. /, ''))
-        i++
-      }
-      nodes.push(
-        <ol key={k++}>
-          {items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}
-        </ol>
-      )
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++ }
+      nodes.push(<ol key={k++}>{items.map((item, ii) => <li key={ii}>{renderInline(item)}</li>)}</ol>)
       continue
     }
 
-    // ── Empty line ─────────────────────────────────────────────────
     if (line.trim() === '') { i++; continue }
 
-    // ── Paragraph ─────────────────────────────────────────────────
     const pLines: string[] = []
     while (
       i < lines.length &&
@@ -134,17 +96,15 @@ function MarkdownContent({ content }: { content: string }) {
       !/^\d+\. /.test(lines[i]) &&
       !lines[i].startsWith('> ') &&
       !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim())
-    ) {
-      pLines.push(lines[i])
-      i++
-    }
+    ) { pLines.push(lines[i]); i++ }
 
     if (pLines.length > 0) {
       nodes.push(
         <p key={k++}>
           {pLines.flatMap((pl, pi) => {
             const node = renderInline(pl)
-            return pi < pLines.length - 1 ? [node, <br key={`br-${pi}`} />] : [node]
+            const frag = <React.Fragment key={`pl-${pi}`}>{node}</React.Fragment>
+            return pi < pLines.length - 1 ? [frag, <br key={`br-${pi}`} />] : [frag]
           })}
         </p>
       )
@@ -154,6 +114,70 @@ function MarkdownContent({ content }: { content: string }) {
   return <div className="md-content">{nodes}</div>
 }
 
+// ── Thinking bubble with elapsed time ────────────────────────────────────────
+function ThinkingBubble() {
+  const { model } = useApp()
+  const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef(Date.now())
+
+  useEffect(() => {
+    startRef.current = Date.now()
+    setElapsed(0)
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 500)
+    return () => clearInterval(id)
+  }, [])
+
+  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
+  const status = elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : elapsed < 25 ? 'Analyzing' : 'Working on it'
+
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ width: 40, flexShrink: 0 }} />
+      <div
+        style={{
+          width: 28, height: 28, borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
+          flexShrink: 0, marginTop: 5, opacity: 0.85,
+        }}
+      />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
+          Claude · {modelLabel}
+          {elapsed > 0 && (
+            <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
+              {status} · {elapsed}s
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            padding: '10px 15px', borderRadius: '4px 14px 14px 14px',
+            background: 'var(--ai-card-bg)', border: '1px solid var(--ai-card-border)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}
+        >
+          <span style={{ display: 'inline-flex', gap: 3 }}>
+            {[0, 1, 2].map((n) => (
+              <span
+                key={n}
+                style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: 'var(--accent)',
+                  animation: `bounce 1.2s ease-in-out ${n * 0.15}s infinite`,
+                  display: 'inline-block',
+                }}
+              />
+            ))}
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{status}…</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
   const { convName, setIsSearchOpen } = useApp()
@@ -161,14 +185,9 @@ function TopBar() {
   return (
     <div
       style={{
-        height: 52,
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 20px',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--topbar-bg)',
-        gap: 8,
+        height: 52, flexShrink: 0, display: 'flex', alignItems: 'center',
+        padding: '0 20px', borderBottom: '1px solid var(--border)',
+        background: 'var(--topbar-bg)', gap: 8,
       }}
     >
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -180,7 +199,6 @@ function TopBar() {
           {convName}
         </span>
       </div>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -213,8 +231,7 @@ function IconBtn({ children, title, onClick }: { children: React.ReactNode; titl
       style={{
         width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'transparent', border: 'none', borderRadius: 7,
-        cursor: 'pointer', color: 'var(--text-secondary)',
-        transition: 'background 0.1s, color 0.1s',
+        cursor: 'pointer', color: 'var(--text-secondary)', transition: 'background 0.1s, color 0.1s',
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
@@ -231,14 +248,9 @@ function SubHeader() {
   return (
     <div
       style={{
-        padding: '14px 20px 13px',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        background: 'var(--bg-base)',
+        padding: '14px 20px 13px', borderBottom: '1px solid var(--border)',
+        flexShrink: 0, display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', gap: 12, background: 'var(--bg-base)',
       }}
     >
       <div style={{ minWidth: 0 }}>
@@ -246,21 +258,13 @@ function SubHeader() {
           {convName}
         </h1>
       </div>
-
       <select
         value={model}
         onChange={(e) => setModel(e.target.value)}
         style={{
-          padding: '5px 10px',
-          borderRadius: 8,
-          border: '1px solid var(--border)',
-          background: 'var(--bg-subtle)',
-          color: 'var(--text-primary)',
-          fontSize: 12,
-          fontWeight: 500,
-          cursor: 'pointer',
-          outline: 'none',
-          flexShrink: 0,
+          padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)',
+          background: 'var(--bg-subtle)', color: 'var(--text-primary)',
+          fontSize: 12, fontWeight: 500, cursor: 'pointer', outline: 'none', flexShrink: 0,
         }}
       >
         {MODELS.map((m) => (
@@ -271,29 +275,77 @@ function SubHeader() {
   )
 }
 
-// ── Message ───────────────────────────────────────────────────────────────────
-function Message({ msg }: { msg: { id: string; role: string; content: string; timestamp: number } }) {
-  const { model } = useApp()
-  const isUser = msg.role === 'user'
-  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
-
+// ── Attachment thumbnail chip ─────────────────────────────────────────────────
+function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; onRemove?: () => void }) {
+  const isImage = attachment.type.startsWith('image/')
   return (
     <div
       style={{
-        display: 'flex',
-        gap: 10,
-        alignItems: 'flex-start',
-        paddingLeft: isUser ? 48 : 0,
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: onRemove ? '3px 6px 3px 3px' : '3px 8px',
+        background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+        borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)',
+        flexShrink: 0, maxWidth: 140,
       }}
     >
-      {/* Left timestamp (AI only) */}
+      {isImage ? (
+        <img
+          src={attachment.dataUrl}
+          alt={attachment.name}
+          style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M7 1H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4L7 1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+            <path d="M7 1v3h3" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+          </svg>
+        </div>
+      )}
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        {attachment.name}
+      </span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, lineHeight: 0, flexShrink: 0 }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Message ───────────────────────────────────────────────────────────────────
+function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
+  const { model, isLoading } = useApp()
+  const isUser = msg.role === 'user'
+  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
+  const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!isEmptyStreaming) { setElapsed(0); return }
+    const start = Date.now()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500)
+    return () => clearInterval(id)
+  }, [isEmptyStreaming])
+
+  const images = (msg.attachments ?? []).filter((a) => a.type.startsWith('image/'))
+  const files  = (msg.attachments ?? []).filter((a) => !a.type.startsWith('image/'))
+
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}>
       {!isUser && (
         <div style={{ width: 40, flexShrink: 0, textAlign: 'right', paddingTop: 9, fontSize: 10, color: 'var(--text-muted)' }}>
           {msg.timestamp ? formatTime(msg.timestamp) : ''}
         </div>
       )}
 
-      {/* AI avatar */}
       {!isUser && (
         <div
           style={{
@@ -311,41 +363,70 @@ function Message({ msg }: { msg: { id: string; role: string; content: string; ti
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* AI label */}
         {!isUser && (
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
-            Claude · {modelLabel}
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Claude · {modelLabel}</span>
+            {isEmptyStreaming && elapsed > 0 && (
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
+                {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s
+              </span>
+            )}
           </div>
         )}
 
-        {/* Bubble */}
-        <div
-          style={{
-            maxWidth: isUser ? '76%' : '100%',
-            marginLeft: isUser ? 'auto' : 0,
-            padding: isUser ? '9px 14px' : '12px 15px',
-            borderRadius: isUser ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-            background: isUser ? 'var(--user-bubble-bg)' : 'var(--ai-card-bg)',
-            border: isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
-            fontSize: 13,
-            lineHeight: 1.65,
-            color: 'var(--text-primary)',
-            wordBreak: 'break-word',
-            boxShadow: isUser ? 'none' : 'var(--shadow-sm)',
-          }}
-        >
-          {isUser ? (
-            <span style={{ whiteSpace: 'pre-wrap' }}>
-              {msg.content || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking…</span>}
-            </span>
-          ) : (
-            msg.content
-              ? <MarkdownContent content={msg.content} />
-              : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Thinking…</span>
-          )}
-        </div>
+        {/* Image attachments for user messages */}
+        {isUser && images.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', marginBottom: 6 }}>
+            {images.map((img) => (
+              <img
+                key={img.name}
+                src={img.dataUrl}
+                alt={img.name}
+                style={{
+                  maxWidth: 220, maxHeight: 180, borderRadius: 10,
+                  objectFit: 'cover', border: '1px solid var(--border)',
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* User timestamp */}
+        {/* File chips for user messages */}
+        {isUser && files.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', marginBottom: 6 }}>
+            {files.map((f) => <AttachmentChip key={f.name} attachment={f} />)}
+          </div>
+        )}
+
+        {/* Bubble — only render if there's text content, or it's an AI message */}
+        {(!isUser || msg.content) && (
+          <div
+            style={{
+              maxWidth: isUser ? '76%' : '100%',
+              marginLeft: isUser ? 'auto' : 0,
+              padding: isUser ? '9px 14px' : '12px 15px',
+              borderRadius: isUser ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
+              background: isUser ? 'var(--user-bubble-bg)' : 'var(--ai-card-bg)',
+              border: isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
+              fontSize: 13, lineHeight: 1.65,
+              color: 'var(--text-primary)', wordBreak: 'break-word',
+              boxShadow: isUser ? 'none' : 'var(--shadow-sm)',
+            }}
+          >
+            {isUser ? (
+              <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+            ) : (
+              msg.content
+                ? <MarkdownContent content={msg.content} />
+                : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    {isEmptyStreaming && elapsed > 1
+                      ? `${elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'}… ${elapsed}s`
+                      : 'Thinking…'}
+                  </span>
+            )}
+          </div>
+        )}
+
         {isUser && msg.timestamp && (
           <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 3 }}>
             {formatTime(msg.timestamp)}
@@ -358,29 +439,71 @@ function Message({ msg }: { msg: { id: string; role: string; content: string; ti
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar() {
-  const { input, setInput, isLoading, handleSend, chatInputRef } = useApp()
-  const canSend = !isLoading && input.trim().length > 0
+  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment } = useApp()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
+
+  const handleFiles = useCallback(async (files: FileList | null) => {
+    if (!files) return
+    for (const file of Array.from(files)) {
+      await new Promise<void>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          addAttachment({ name: file.name, type: file.type, dataUrl: reader.result as string })
+          resolve()
+        }
+        reader.readAsDataURL(file)
+      })
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [addAttachment])
 
   return (
     <div style={{ padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }}>
+      {/* Pending attachments row */}
+      {pendingAttachments.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {pendingAttachments.map((a) => (
+            <AttachmentChip key={a.name} attachment={a} onRemove={() => removeAttachment(a.name)} />
+          ))}
+        </div>
+      )}
+
       <form
         onSubmit={handleSend}
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          background: 'var(--input-bg)',
-          border: '1px solid var(--border)',
-          borderRadius: 13,
-          padding: '8px 8px 8px 14px',
-          boxShadow: 'var(--shadow-sm)',
-          transition: 'border-color 0.15s',
+          background: 'var(--input-bg)', border: '1px solid var(--border)',
+          borderRadius: 13, padding: '8px 8px 8px 14px',
+          boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.15s',
         }}
         onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
         onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
       >
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf,.txt,.md"
+          multiple
+          style={{ display: 'none' }}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+
+        {/* Attach button */}
         <button
           type="button"
-          title="Attach file (coming soon)"
-          style={{ background: 'none', border: 'none', cursor: 'not-allowed', color: 'var(--text-muted)', padding: 0, flexShrink: 0, opacity: 0.4 }}
+          title="Attach file (images, PDF, text)"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+          style={{
+            background: 'none', border: 'none',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            color: pendingAttachments.length > 0 ? 'var(--accent)' : 'var(--text-muted)',
+            padding: 0, flexShrink: 0,
+            opacity: isLoading ? 0.4 : 1,
+            transition: 'color 0.15s',
+          }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M14 8.5l-6.5 6.5A4 4 0 0 1 1.9 9.4l7.1-7.1a2.5 2.5 0 0 1 3.5 3.5L5.4 12.9a1 1 0 0 1-1.4-1.4L10.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -391,7 +514,7 @@ function InputBar() {
           ref={chatInputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything, or type /branch"
+          placeholder="Message Claude…"
           disabled={isLoading}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -405,8 +528,7 @@ function InputBar() {
           style={{
             width: 34, height: 34, borderRadius: 9,
             background: canSend ? 'var(--accent)' : 'var(--bg-muted)',
-            border: 'none',
-            cursor: canSend ? 'pointer' : 'not-allowed',
+            border: 'none', cursor: canSend ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             transition: 'background 0.15s',
           }}
@@ -429,6 +551,8 @@ export default function ChatPanel() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <TopBar />
@@ -445,8 +569,7 @@ export default function ChatPanel() {
             style={{
               flex: 1, display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', gap: 10,
-              minHeight: 200,
+              color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', gap: 10, minHeight: 200,
             }}
           >
             <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -456,46 +579,16 @@ export default function ChatPanel() {
             </div>
             <div>
               <div style={{ fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 3 }}>Start a conversation</div>
-              <div style={{ fontSize: 12 }}>Click a tree node to branch from that point</div>
+              <div style={{ fontSize: 12 }}>Hover a tree node and click "Branch here" to fork from any point</div>
             </div>
           </div>
         ) : (
-          messages.map((msg) => <Message key={msg.id} msg={msg} />)
+          messages.map((msg, i) => (
+            <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} />
+          ))
         )}
 
-        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <div style={{ width: 40, flexShrink: 0 }} />
-            <div
-              style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-                flexShrink: 0, marginTop: 5, opacity: 0.7,
-              }}
-            />
-            <div
-              style={{
-                padding: '10px 15px', borderRadius: '4px 14px 14px 14px',
-                background: 'var(--ai-card-bg)', border: '1px solid var(--ai-card-border)',
-                fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8,
-              }}
-            >
-              <span style={{ display: 'inline-flex', gap: 3 }}>
-                {[0, 1, 2].map((n) => (
-                  <span
-                    key={n}
-                    style={{
-                      width: 5, height: 5, borderRadius: '50%',
-                      background: 'var(--text-muted)',
-                      animation: `bounce 1.2s ease-in-out ${n * 0.15}s infinite`,
-                      display: 'inline-block',
-                    }}
-                  />
-                ))}
-              </span>
-            </div>
-          </div>
-        )}
+        {showThinkingBubble && <ThinkingBubble />}
 
         <div ref={bottomRef} />
       </div>
@@ -505,7 +598,7 @@ export default function ChatPanel() {
       <style>{`
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-          30% { transform: translateY(-4px); opacity: 1; }
+          30% { transform: translateY(-5px); opacity: 1; }
         }
       `}</style>
     </div>
