@@ -43,28 +43,31 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0a0a0a',
+        background: 'var(--bg-base)',
       }}
     >
       <div style={{ width: '100%', maxWidth: '360px', padding: '0 16px' }}>
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#fff', margin: 0 }}>Nodea</h1>
-          <p style={{ fontSize: '13px', color: '#666', marginTop: '6px' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--accent)', margin: 0, letterSpacing: '-0.5px' }}>
+            Nodea
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </p>
         </div>
 
         <div
           style={{
-            background: '#111',
-            border: '1px solid #222',
+            background: 'var(--modal-bg)',
+            border: '1px solid var(--border)',
             borderRadius: '12px',
             padding: '24px',
+            boxShadow: 'var(--shadow-md)',
           }}
         >
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', color: '#ccc' }}>Email</label>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Email</label>
               <input
                 type="email"
                 value={email}
@@ -72,20 +75,23 @@ export default function LoginPage() {
                 required
                 placeholder="you@example.com"
                 style={{
-                  background: '#1a1a1a',
-                  border: '1px solid #333',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   padding: '8px 12px',
                   fontSize: '13px',
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                   outline: 'none',
                   width: '100%',
+                  boxSizing: 'border-box',
                 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', color: '#ccc' }}>Password</label>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Password</label>
               <input
                 type="password"
                 value={password}
@@ -93,58 +99,80 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 style={{
-                  background: '#1a1a1a',
-                  border: '1px solid #333',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   padding: '8px 12px',
                   fontSize: '13px',
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                   outline: 'none',
                   width: '100%',
+                  boxSizing: 'border-box',
                 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
             </div>
 
             {error && (
-              <p style={{ fontSize: '13px', color: '#ef4444', margin: 0 }}>{error}</p>
+              <div
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  background: 'var(--color-error-bg)',
+                  border: '1px solid var(--color-error-border)',
+                  fontSize: '13px',
+                  color: 'var(--color-error)',
+                }}
+              >
+                {error}
+              </div>
             )}
 
             {message && (
-              <p style={{ fontSize: '13px', color: '#22c55e', margin: 0 }}>{message}</p>
+              <div
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  fontSize: '13px',
+                  color: '#15803d',
+                }}
+              >
+                {message}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
               style={{
-                background: '#fff',
-                color: '#000',
+                background: 'var(--accent)',
+                color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
                 padding: '10px',
                 fontSize: '13px',
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading ? 0.6 : 1,
                 width: '100%',
+                transition: 'opacity 0.15s',
               }}
             >
-              {loading ? 'Loading...' : isSignUp ? 'Create account' : 'Sign in'}
+              {loading ? 'Loading…' : isSignUp ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
             <button
-              onClick={() => {
-                setIsSignUp(!isSignUp)
-                setError(null)
-                setMessage(null)
-              }}
+              onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null) }}
               style={{
                 background: 'none',
                 border: 'none',
                 fontSize: '13px',
-                color: '#666',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
               }}
             >
@@ -171,16 +199,15 @@ export default function LoginPage() {
               background: 'none',
               border: 'none',
               fontSize: '13px',
-              color: '#444',
+              color: 'var(--text-muted)',
               cursor: loading ? 'not-allowed' : 'pointer',
               textDecoration: 'underline',
-              textDecorationColor: '#333',
+              textDecorationColor: 'var(--border)',
             }}
           >
             Continue as guest
           </button>
         </div>
-
       </div>
     </div>
   )
