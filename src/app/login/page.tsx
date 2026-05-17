@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
+type Mode = 'signin' | 'signup' | 'forgot'
+
 export default function LoginPage() {
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -13,6 +15,12 @@ export default function LoginPage() {
 
   const supabase = createClient()
 
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError(null)
+    setMessage(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -20,10 +28,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      if (isSignUp) {
+      if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         setMessage('Check your email to confirm your account.')
+      } else if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/login/update-password`,
+        })
+        if (error) throw error
+        setMessage('Password reset link sent — check your email.')
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -35,6 +49,17 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  const subtitle =
+    mode === 'signup' ? 'Create your account' :
+    mode === 'forgot' ? 'Reset your password' :
+    'Sign in to your account'
+
+  const submitLabel =
+    loading ? 'Loading…' :
+    mode === 'signup' ? 'Create account' :
+    mode === 'forgot' ? 'Send reset link' :
+    'Sign in'
 
   return (
     <div
@@ -52,7 +77,7 @@ export default function LoginPage() {
             Nodea
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            {subtitle}
           </p>
         </div>
 
@@ -66,6 +91,7 @@ export default function LoginPage() {
           }}
         >
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Email */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Email</label>
               <input
@@ -74,72 +100,50 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                style={{
-                  background: 'var(--input-bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
+                style={inputStyle}
                 onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
                 onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                style={{
-                  background: 'var(--input-bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-              />
-            </div>
+            {/* Password — hidden in forgot mode */}
+            {mode !== 'forgot' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Password</label>
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      style={{ background: 'none', border: 'none', fontSize: '12px', color: 'var(--accent-text)', cursor: 'pointer', padding: 0 }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  style={inputStyle}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+                />
+              </div>
+            )}
 
+            {/* Error */}
             {error && (
-              <div
-                style={{
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  background: 'var(--color-error-bg)',
-                  border: '1px solid var(--color-error-border)',
-                  fontSize: '13px',
-                  color: 'var(--color-error)',
-                }}
-              >
+              <div style={{ padding: '9px 12px', borderRadius: '8px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-border)', fontSize: '13px', color: 'var(--color-error)' }}>
                 {error}
               </div>
             )}
 
+            {/* Success */}
             {message && (
-              <div
-                style={{
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  fontSize: '13px',
-                  color: '#15803d',
-                }}
-              >
+              <div style={{ padding: '9px 12px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '13px', color: '#15803d' }}>
                 {message}
               </div>
             )}
@@ -148,67 +152,69 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               style={{
-                background: 'var(--accent)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '10px',
-                fontSize: '13px',
-                fontWeight: 600,
+                background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px',
+                padding: '10px', fontSize: '13px', fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-                width: '100%',
-                transition: 'opacity 0.15s',
+                opacity: loading ? 0.6 : 1, width: '100%', transition: 'opacity 0.15s',
               }}
             >
-              {loading ? 'Loading…' : isSignUp ? 'Create account' : 'Sign in'}
+              {submitLabel}
             </button>
           </form>
 
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <button
-              onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null) }}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '13px',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
+          {/* Bottom links */}
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            {mode === 'forgot' ? (
+              <button onClick={() => switchMode('signin')} style={linkStyle}>
+                Back to sign in
+              </button>
+            ) : (
+              <button onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')} style={linkStyle}>
+                {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              </button>
+            )}
           </div>
         </div>
 
-        <div style={{ marginTop: '16px', textAlign: 'center' }}>
-          <button
-            onClick={async () => {
-              setError(null)
-              setLoading(true)
-              const { error } = await supabase.auth.signInAnonymously()
-              if (error) {
-                setError(error.message)
-                setLoading(false)
-              } else {
-                window.location.href = '/app'
-              }
-            }}
-            disabled={loading}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '13px',
-              color: 'var(--text-muted)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              textDecoration: 'underline',
-              textDecorationColor: 'var(--border)',
-            }}
-          >
-            Continue as guest
-          </button>
-        </div>
+        {/* Guest */}
+        {mode !== 'forgot' && (
+          <div style={{ marginTop: '16px', textAlign: 'center' }}>
+            <button
+              onClick={async () => {
+                setError(null)
+                setLoading(true)
+                const { error } = await supabase.auth.signInAnonymously()
+                if (error) { setError(error.message); setLoading(false) }
+                else window.location.href = '/app'
+              }}
+              disabled={loading}
+              style={{ background: 'none', border: 'none', fontSize: '13px', color: 'var(--text-muted)', cursor: loading ? 'not-allowed' : 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--border)' }}
+            >
+              Continue as guest
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
+}
+
+const inputStyle: React.CSSProperties = {
+  background: 'var(--input-bg)',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  padding: '8px 12px',
+  fontSize: '13px',
+  color: 'var(--text-primary)',
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+}
+
+const linkStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  fontSize: '13px',
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
 }
