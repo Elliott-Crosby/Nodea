@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { useApp, MODELS, type AttachmentItem, type ChatMessage } from './App'
+import { useApp, type AttachmentItem, type ChatMessage } from './App'
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -116,7 +116,6 @@ function MarkdownContent({ content }: { content: string }) {
 
 // ── Thinking bubble with elapsed time ────────────────────────────────────────
 function ThinkingBubble() {
-  const { model } = useApp()
   const [elapsed, setElapsed] = useState(0)
   const startRef = useRef(Date.now())
 
@@ -129,7 +128,6 @@ function ThinkingBubble() {
     return () => clearInterval(id)
   }, [])
 
-  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
   const status = elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : elapsed < 25 ? 'Analyzing' : 'Working on it'
 
   return (
@@ -144,7 +142,7 @@ function ThinkingBubble() {
       />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
-          Claude · {modelLabel}
+          Claude · Sonnet
           {elapsed > 0 && (
             <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
               {status} · {elapsed}s
@@ -206,18 +204,6 @@ function TopBar() {
             <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </IconBtn>
-        <IconBtn title="Share (coming soon)" onClick={() => {}}>
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <path d="M10 2l3 3-3 3M13 5H6a3 3 0 0 0-3 3v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </IconBtn>
-        <IconBtn title="More options" onClick={() => {}}>
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <circle cx="3" cy="7.5" r="1.2" fill="currentColor" />
-            <circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" />
-            <circle cx="12" cy="7.5" r="1.2" fill="currentColor" />
-          </svg>
-        </IconBtn>
       </div>
     </div>
   )
@@ -243,34 +229,18 @@ function IconBtn({ children, title, onClick }: { children: React.ReactNode; titl
 
 // ── Sub-header ────────────────────────────────────────────────────────────────
 function SubHeader() {
-  const { convName, model, setModel } = useApp()
+  const { convName } = useApp()
 
   return (
     <div
       style={{
         padding: '14px 20px 13px', borderBottom: '1px solid var(--border)',
-        flexShrink: 0, display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', gap: 12, background: 'var(--bg-base)',
+        flexShrink: 0, background: 'var(--bg-base)',
       }}
     >
-      <div style={{ minWidth: 0 }}>
-        <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {convName}
-        </h1>
-      </div>
-      <select
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        style={{
-          padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)',
-          background: 'var(--bg-subtle)', color: 'var(--text-primary)',
-          fontSize: 12, fontWeight: 500, cursor: 'pointer', outline: 'none', flexShrink: 0,
-        }}
-      >
-        {MODELS.map((m) => (
-          <option key={m.id} value={m.id}>Model: {m.label}</option>
-        ))}
-      </select>
+      <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {convName}
+      </h1>
     </div>
   )
 }
@@ -322,9 +292,8 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
 
 // ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
-  const { model, isLoading } = useApp()
+  const { isLoading } = useApp()
   const isUser = msg.role === 'user'
-  const modelLabel = MODELS.find((m) => m.id === model)?.label ?? 'AI'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
   const [elapsed, setElapsed] = useState(0)
 
@@ -365,7 +334,7 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>Claude · {modelLabel}</span>
+            <span>Claude · Sonnet</span>
             {isEmptyStreaming && elapsed > 0 && (
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
                 {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s
@@ -484,7 +453,7 @@ function InputBar() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf,.txt,.md"
+          accept="image/*"
           multiple
           style={{ display: 'none' }}
           onChange={(e) => handleFiles(e.target.files)}

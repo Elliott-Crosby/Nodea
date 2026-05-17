@@ -6,27 +6,11 @@ import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 
 type Section = 'appearance' | 'account'
-type FontSize = 'small' | 'medium' | 'large'
-
-const FONT_SIZE_MAP: Record<FontSize, string> = {
-  small: '13px',
-  medium: '15px',
-  large: '17px',
-}
-
-function applyFontSize(size: FontSize) {
-  document.documentElement.style.setProperty('--font-size-base', FONT_SIZE_MAP[size])
-  localStorage.setItem('nodea-font-size', size)
-}
 
 export default function SettingsModal() {
   const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>('appearance')
-
-  // Font size
-  const savedSize = (typeof window !== 'undefined' ? localStorage.getItem('nodea-font-size') : null) ?? 'medium'
-  const [fontSize, setFontSize] = useState<FontSize>(savedSize as FontSize)
 
   // Account form state
   const [displayName, setDisplayName] = useState(userName)
@@ -34,11 +18,6 @@ export default function SettingsModal() {
   const [newPw, setNewPw] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-
-  function handleFontSizeChange(size: FontSize) {
-    setFontSize(size)
-    applyFontSize(size)
-  }
 
   function handleExportMarkdown() {
     const lines: string[] = [`# ${convName || 'Conversation'}`, '']
@@ -228,32 +207,6 @@ export default function SettingsModal() {
                       }}
                     >
                       {t === 'light' ? '☀️ Light' : '🌙 Dark'}
-                    </button>
-                  ))}
-                </div>
-              </SettingRow>
-
-              <Divider />
-
-              <SettingRow label="Font Size" description="Adjust the text size in the chat panel">
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {(['small', 'medium', 'large'] as FontSize[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleFontSizeChange(s)}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: 7,
-                        border: `1.5px solid ${fontSize === s ? 'var(--accent)' : 'var(--border)'}`,
-                        background: fontSize === s ? 'var(--accent-bg)' : 'var(--bg-subtle)',
-                        color: fontSize === s ? 'var(--accent-text)' : 'var(--text-secondary)',
-                        fontSize: 12,
-                        fontWeight: fontSize === s ? 600 : 400,
-                        cursor: 'pointer',
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {s}
                     </button>
                   ))}
                 </div>

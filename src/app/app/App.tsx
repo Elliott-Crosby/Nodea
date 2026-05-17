@@ -54,8 +54,6 @@ export interface AppContextType {
   input: string
   setInput: (s: string) => void
   isLoading: boolean
-  model: string
-  setModel: (m: string) => void
   isSearchOpen: boolean
   setIsSearchOpen: (b: boolean) => void
   isSettingsOpen: boolean
@@ -130,13 +128,6 @@ export function truncate(str: string, max = 65) {
 
 // ─── Model map ───────────────────────────────────────────────────────────────
 
-export const MODELS = [
-  { id: 'auto',   label: 'Auto',   apiId: 'claude-haiku-4-5-20251001' },
-  { id: 'haiku',  label: 'Haiku',  apiId: 'claude-haiku-4-5-20251001' },
-  { id: 'sonnet', label: 'Sonnet', apiId: 'claude-sonnet-4-5-20251001' },
-  { id: 'opus',   label: 'Opus',   apiId: 'claude-opus-4-5-20251001' },
-]
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function App() {
@@ -151,7 +142,6 @@ export default function App() {
   const [selectedNodeId,setSelectedNodeId]  = useState<string | null>(null)
   const [input,         setInput]           = useState('')
   const [isLoading,     setIsLoading]       = useState(false)
-  const [model,         setModel]           = useState('auto')
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
   const [userEmail,     setUserEmail]       = useState('')
@@ -245,11 +235,6 @@ export default function App() {
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
-      // Apply saved font size (Task 8)
-      const savedSize = localStorage.getItem('nodea-font-size') || 'medium'
-      const sizeMap: Record<string, string> = { small: '13px', medium: '15px', large: '17px' }
-      document.documentElement.style.setProperty('--font-size-base', sizeMap[savedSize] ?? '15px')
-
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUserEmail(user.email ?? '')
@@ -399,7 +384,7 @@ export default function App() {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: nextMessages, model }),
+          body: JSON.stringify({ messages: nextMessages }),
         })
         if (!response.ok) throw new Error('Chat request failed')
 
@@ -435,7 +420,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, model, saveNodePair, pendingAttachments]
+    [input, isLoading, messages, saveNodePair, pendingAttachments]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
@@ -480,7 +465,7 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
-    input, setInput, isLoading, model, setModel,
+    input, setInput, isLoading,
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
