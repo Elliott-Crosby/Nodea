@@ -52,3 +52,5 @@ next-env.d.ts
 # windows
 Thumbs.db
 desktop.ini
+
+.vercel
