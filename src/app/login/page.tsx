@@ -50,10 +50,7 @@ export default function LoginPage() {
     }
   }
 
-  const subtitle =
-    mode === 'signup' ? 'Create your account' :
-    mode === 'forgot' ? 'Reset your password' :
-    'Sign in to your account'
+  const subtitle = 'Think in branches.'
 
   const submitLabel =
     loading ? 'Loading…' :
@@ -69,31 +66,38 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'var(--bg-base)',
+        padding: '36px 24px',
       }}
     >
-      <div style={{ width: '100%', maxWidth: '360px', padding: '0 16px' }}>
-        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--accent)', margin: 0, letterSpacing: '-0.5px' }}>
+      <div style={{ width: '100%', maxWidth: '460px' }}>
+
+        {/* Heading */}
+        <div style={{ marginBottom: '48px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: '68px', fontWeight: 500, color: 'var(--accent)', margin: '0 0 12px', letterSpacing: '-2px', fontFamily: 'var(--font-dm-sans), sans-serif' }}>
             Nodea
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
+          <p style={{ fontSize: '22px', color: 'var(--text-muted)', margin: 0 }}>
             {subtitle}
           </p>
         </div>
 
+        {/* Card */}
         <div
           style={{
             background: 'var(--modal-bg)',
             border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '24px',
+            borderRadius: '20px',
+            padding: '36px',
             boxShadow: 'var(--shadow-md)',
           }}
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
             {/* Email */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Email</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                Email
+              </label>
               <input
                 type="email"
                 value={email}
@@ -106,16 +110,18 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password — hidden in forgot mode */}
+            {/* Password */}
             {mode !== 'forgot' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Password</label>
+                  <label style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    Password
+                  </label>
                   {mode === 'signin' && (
                     <button
                       type="button"
                       onClick={() => switchMode('forgot')}
-                      style={{ background: 'none', border: 'none', fontSize: '12px', color: 'var(--accent-text)', cursor: 'pointer', padding: 0 }}
+                      style={{ background: 'none', border: 'none', fontSize: '14px', color: 'var(--accent-text)', cursor: 'pointer', padding: 0 }}
                     >
                       Forgot password?
                     </button>
@@ -136,14 +142,14 @@ export default function LoginPage() {
 
             {/* Error */}
             {error && (
-              <div style={{ padding: '9px 12px', borderRadius: '8px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-border)', fontSize: '13px', color: 'var(--color-error)' }}>
+              <div style={{ padding: '14px 18px', borderRadius: '12px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-border)', fontSize: '15px', color: 'var(--color-error)' }}>
                 {error}
               </div>
             )}
 
             {/* Success */}
             {message && (
-              <div style={{ padding: '9px 12px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '13px', color: '#15803d' }}>
+              <div style={{ padding: '14px 18px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '15px', color: '#15803d' }}>
                 {message}
               </div>
             )}
@@ -152,18 +158,26 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               style={{
-                background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px',
-                padding: '10px', fontSize: '13px', fontWeight: 600,
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px',
+                fontSize: '16px',
+                fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1, width: '100%', transition: 'opacity 0.15s',
+                opacity: loading ? 0.6 : 1,
+                width: '100%',
+                transition: 'opacity 0.15s',
+                marginTop: '2px',
               }}
             >
               {submitLabel}
             </button>
           </form>
 
-          {/* Bottom links */}
-          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          {/* Bottom link */}
+          <div style={{ marginTop: '28px', textAlign: 'center' }}>
             {mode === 'forgot' ? (
               <button onClick={() => switchMode('signin')} style={linkStyle}>
                 Back to sign in
@@ -183,19 +197,20 @@ export default function LoginPage() {
 const inputStyle: React.CSSProperties = {
   background: 'var(--input-bg)',
   border: '1px solid var(--border)',
-  borderRadius: '8px',
-  padding: '8px 12px',
-  fontSize: '13px',
+  borderRadius: '12px',
+  padding: '14px 18px',
+  fontSize: '16px',
   color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
   boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
 }
 
 const linkStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
-  fontSize: '13px',
+  fontSize: '15px',
   color: 'var(--text-muted)',
   cursor: 'pointer',
 }

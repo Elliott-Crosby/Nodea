@@ -6,9 +6,13 @@ CREATE TABLE public.user_token_usage (
   user_id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   daily_tokens     INTEGER NOT NULL DEFAULT 0,
   monthly_tokens   INTEGER NOT NULL DEFAULT 0,
+  total_tokens     BIGINT  NOT NULL DEFAULT 0,
   daily_reset_at   TIMESTAMPTZ NOT NULL,
   monthly_reset_at TIMESTAMPTZ NOT NULL
 );
+
+-- Enable real-time so the settings modal can subscribe and update live
+ALTER publication supabase_realtime ADD TABLE public.user_token_usage;
 
 ALTER TABLE public.user_token_usage ENABLE ROW LEVEL SECURITY;
 

@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 
 const MODEL_ID = 'claude-sonnet-4-6'
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
   const inputText        = validMessages.map(m => m.content ?? '').join(' ')
   const estimatedInput   = estimateTokens(inputText)
 
-  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase)
+  const adminSupabase = getSupabaseAdmin()
+  const limitCheck = await checkTokenLimits(user.id, estimatedInput, adminSupabase)
   if (!limitCheck.allowed) {
     return Response.json(
       {
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
           }
           // Record actual token counts returned by the API
           const usage = await result.usage
-          recordTokenUsage(userId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, supabase)
+          recordTokenUsage(userId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, adminSupabase)
             .catch(err => console.error('[token-limits] Failed to record usage:', err))
           controller.close()
         } catch (streamErr) {

@@ -342,6 +342,7 @@ export default function SettingsModal() {
 interface UsageRecord {
   daily_tokens: number
   monthly_tokens: number
+  total_tokens: number
   daily_reset_at: string
   monthly_reset_at: string
 }
@@ -352,18 +353,38 @@ function UsageTab() {
 
   useEffect(() => {
     const supabase = createClient()
+
     void (async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_token_usage')
-          .select('daily_tokens,monthly_tokens,daily_reset_at,monthly_reset_at')
+          .select('daily_tokens,monthly_tokens,total_tokens,daily_reset_at,monthly_reset_at')
           .maybeSingle()
-        // Errors (e.g. table not yet created) mean 0 usage — treat as null.
-        setUsage(data as UsageRecord | null)
+        if (error) {
+          console.warn('[UsageTab]', error.code, error.message, error.details)
+        } else {
+          setUsage(data as UsageRecord | null)
+        }
       } finally {
         setLoading(false)
       }
     })()
+
+    const channel = supabase
+      .channel('usage-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'user_token_usage' },
+        (payload) => { setUsage(payload.new as UsageRecord) },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_token_usage' },
+        (payload) => { setUsage(payload.new as UsageRecord) },
+      )
+      .subscribe()
+
+    return () => { void supabase.removeChannel(channel) }
   }, [])
 
   if (loading) {
@@ -377,6 +398,7 @@ function UsageTab() {
   const now            = new Date()
   const dailyUsed      = !usage || now >= new Date(usage.daily_reset_at)   ? 0 : usage.daily_tokens
   const monthlyUsed    = !usage || now >= new Date(usage.monthly_reset_at) ? 0 : usage.monthly_tokens
+  const totalUsed      = usage?.total_tokens ?? 0
   const dailyResetAt   = usage ? new Date(usage.daily_reset_at)   : null
   const monthlyResetAt = usage ? new Date(usage.monthly_reset_at) : null
 
@@ -400,7 +422,7 @@ function UsageTab() {
     <div>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Usage</h2>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}>
-        Your token usage for the current day and month.
+        Your token usage — updates after each message.
       </p>
 
       <UsageBar
@@ -423,12 +445,9 @@ function UsageTab() {
         resetLabel={monthlyResetAt ? `Resets on ${fmtDate(monthlyResetAt)}` : ''}
       />
 
-      <div style={{ marginTop: 32, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Limits</div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-          <span>Daily: <strong style={{ color: 'var(--text-primary)' }}>10,000 tokens</strong> (~7 exchanges)</span><br />
-          <span>Monthly: <strong style={{ color: 'var(--text-primary)' }}>125,000 tokens</strong> (~96 exchanges)</span>
-        </div>
+      <div style={{ marginTop: 28, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All-time tokens used</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{totalUsed.toLocaleString()}</span>
       </div>
     </div>
   )

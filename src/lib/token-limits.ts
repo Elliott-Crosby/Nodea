@@ -18,6 +18,7 @@ interface UsageRecord {
   user_id: string
   daily_tokens: number
   monthly_tokens: number
+  total_tokens: number
   daily_reset_at: string
   monthly_reset_at: string
 }
@@ -45,6 +46,7 @@ async function getOrCreateUsageRecord(userId: string, supabase: SupabaseClient):
     user_id:          userId,
     daily_tokens:     0,
     monthly_tokens:   0,
+    total_tokens:     0,
     daily_reset_at:   nextMidnightUTC().toISOString(),
     monthly_reset_at: nextMonthUTC().toISOString(),
   }
@@ -167,6 +169,7 @@ export async function recordTokenUsage(
     .update({
       daily_tokens:     newDaily,
       monthly_tokens:   newMonthly,
+      total_tokens:     record.total_tokens + total,
       daily_reset_at:   newDailyResetAt,
       monthly_reset_at: newMonthlyResetAt,
     })
