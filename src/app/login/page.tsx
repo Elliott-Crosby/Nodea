@@ -175,25 +175,6 @@ export default function LoginPage() {
             )}
           </div>
         </div>
-
-        {/* Guest */}
-        {mode !== 'forgot' && (
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <button
-              onClick={async () => {
-                setError(null)
-                setLoading(true)
-                const { error } = await supabase.auth.signInAnonymously()
-                if (error) { setError(error.message); setLoading(false) }
-                else window.location.href = '/app'
-              }}
-              disabled={loading}
-              style={{ background: 'none', border: 'none', fontSize: '13px', color: 'var(--text-muted)', cursor: loading ? 'not-allowed' : 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--border)' }}
-            >
-              Continue as guest
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )

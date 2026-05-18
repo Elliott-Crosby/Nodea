@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from '@/lib/theme'
 import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 
-type Section = 'appearance' | 'account'
+type Section = 'appearance' | 'account' | 'usage'
+
+const DAILY_LIMIT   = 10_000
+const MONTHLY_LIMIT = 125_000
 
 export default function SettingsModal() {
   const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName } = useApp()
@@ -88,6 +91,17 @@ export default function SettingsModal() {
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
           <path d="M1.5 12.5a5.5 5.5 0 0 1 11 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: 'usage',
+      label: 'Usage',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="9" width="2.5" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.3" />
+          <rect x="5.75" y="5.5" width="2.5" height="7.5" rx="0.5" stroke="currentColor" strokeWidth="1.3" />
+          <rect x="10.5" y="1" width="2.5" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.3" />
         </svg>
       ),
     },
@@ -235,6 +249,9 @@ export default function SettingsModal() {
             </div>
           )}
 
+          {/* ── Usage ── */}
+          {section === 'usage' && <UsageTab />}
+
           {/* ── Account ── */}
           {section === 'account' && (
             <div>
@@ -315,6 +332,134 @@ export default function SettingsModal() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Usage tab ────────────────────────────────────────────────────────────────
+
+interface UsageRecord {
+  daily_tokens: number
+  monthly_tokens: number
+  daily_reset_at: string
+  monthly_reset_at: string
+}
+
+function UsageTab() {
+  const [usage, setUsage]     = useState<UsageRecord | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('user_token_usage')
+      .select('daily_tokens,monthly_tokens,daily_reset_at,monthly_reset_at')
+      .maybeSingle()
+      .then(({ data }) => {
+        // Errors (e.g. table not yet created) mean 0 usage — treat as null.
+        setUsage(data as UsageRecord | null)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>
+        Loading…
+      </div>
+    )
+  }
+
+  const now            = new Date()
+  const dailyUsed      = !usage || now >= new Date(usage.daily_reset_at)   ? 0 : usage.daily_tokens
+  const monthlyUsed    = !usage || now >= new Date(usage.monthly_reset_at) ? 0 : usage.monthly_tokens
+  const dailyResetAt   = usage ? new Date(usage.daily_reset_at)   : null
+  const monthlyResetAt = usage ? new Date(usage.monthly_reset_at) : null
+
+  const dailyPct   = Math.min(100, (dailyUsed   / DAILY_LIMIT)   * 100)
+  const monthlyPct = Math.min(100, (monthlyUsed / MONTHLY_LIMIT) * 100)
+
+  function barColor(pct: number) {
+    if (pct >= 90) return '#ef4444'
+    if (pct >= 70) return '#f59e0b'
+    return 'var(--accent)'
+  }
+
+  function fmtTime(d: Date) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  }
+  function fmtDate(d: Date) {
+    return d.toLocaleDateString([], { month: 'long', day: 'numeric' })
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Usage</h2>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}>
+        Your token usage for the current day and month.
+      </p>
+
+      <UsageBar
+        label="Daily"
+        used={dailyUsed}
+        limit={DAILY_LIMIT}
+        pct={dailyPct}
+        color={barColor(dailyPct)}
+        resetLabel={dailyResetAt ? `Resets at ${fmtTime(dailyResetAt)}` : ''}
+      />
+
+      <div style={{ marginBottom: 28 }} />
+
+      <UsageBar
+        label="Monthly"
+        used={monthlyUsed}
+        limit={MONTHLY_LIMIT}
+        pct={monthlyPct}
+        color={barColor(monthlyPct)}
+        resetLabel={monthlyResetAt ? `Resets on ${fmtDate(monthlyResetAt)}` : ''}
+      />
+
+      <div style={{ marginTop: 32, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Limits</div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          <span>Daily: <strong style={{ color: 'var(--text-primary)' }}>10,000 tokens</strong> (~7 exchanges)</span><br />
+          <span>Monthly: <strong style={{ color: 'var(--text-primary)' }}>125,000 tokens</strong> (~96 exchanges)</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UsageBar({
+  label, used, limit, pct, color, resetLabel,
+}: {
+  label: string; used: number; limit: number; pct: number; color: string; resetLabel: string
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{label}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {used.toLocaleString()} / {limit.toLocaleString()} tokens
+        </span>
+      </div>
+      <div style={{ height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            borderRadius: 99,
+            background: color,
+            transition: 'width 0.4s ease',
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+        <span style={{ fontSize: 11, color: pct >= 90 ? '#ef4444' : 'var(--text-muted)' }}>
+          {pct.toFixed(0)}% used
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{resetLabel}</span>
       </div>
     </div>
   )

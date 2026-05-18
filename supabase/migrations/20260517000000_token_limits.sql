@@ -1,0 +1,28 @@
+-- Token usage tracking for per-user rate limiting.
+-- Daily limit: 10,000 tokens  (~7 exchanges, resets midnight UTC)
+-- Monthly limit: 125,000 tokens (~96 exchanges, resets 1st of month UTC)
+
+CREATE TABLE public.user_token_usage (
+  user_id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  daily_tokens     INTEGER NOT NULL DEFAULT 0,
+  monthly_tokens   INTEGER NOT NULL DEFAULT 0,
+  daily_reset_at   TIMESTAMPTZ NOT NULL,
+  monthly_reset_at TIMESTAMPTZ NOT NULL
+);
+
+ALTER TABLE public.user_token_usage ENABLE ROW LEVEL SECURITY;
+
+-- Read own row
+CREATE POLICY "users_select_own_usage"
+  ON public.user_token_usage FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Server-side route handler creates the row on first message
+CREATE POLICY "users_insert_own_usage"
+  ON public.user_token_usage FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Server-side route handler increments counters after each response
+CREATE POLICY "users_update_own_usage"
+  ON public.user_token_usage FOR UPDATE
+  USING (auth.uid() = user_id);

@@ -79,10 +79,31 @@ export interface AppContextType {
   clearChatError: () => void
   saveError: boolean
   clearSaveError: () => void
+  highlightedMessageId: string | null
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
 export const useApp = () => useContext(AppContext)
+
+class RateLimitError extends Error {
+  readonly isRateLimit = true
+}
+
+function formatRateLimitMessage(data: { limit_type?: string; resets_at?: string }): string {
+  if (data.limit_type === 'daily') {
+    const t = data.resets_at
+      ? new Date(data.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'midnight'
+    return `You've reached your daily usage limit. Your limit resets at ${t}. Upgrade for more.`
+  }
+  if (data.limit_type === 'monthly') {
+    const d = data.resets_at
+      ? new Date(data.resets_at).toLocaleDateString([], { month: 'long', day: 'numeric' })
+      : 'next month'
+    return `You've reached your monthly usage limit. It resets on ${d}. Upgrade for more.`
+  }
+  return 'Your message is too long. Please shorten it and try again.'
+}
 
 // ─── Tree layout (leaf-counting, Reingold-Tilford style) ─────────────────────
 
@@ -151,6 +172,7 @@ export default function App() {
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
   const [chatError,     setChatError]       = useState<string | null>(null)
   const [saveError,     setSaveError]       = useState(false)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
 
   const lastNodeIdRef = useRef<string | null>(null)
   const chatInputRef  = useRef<HTMLTextAreaElement | null>(null)
@@ -180,10 +202,12 @@ export default function App() {
   const loadConversation = useCallback(
     async (convId: string, name: string) => {
       setActiveConvId(convId)
+      localStorage.setItem('lastConvId', convId)
       setConvName(name)
       setMessages([])
       setSelectedNodeId(null)
       setNodeColors({})
+      setHighlightedMessageId(null)
       lastNodeIdRef.current = null
 
       const { data: dbNodes, error } = await supabase
@@ -206,19 +230,22 @@ export default function App() {
       }
       setNodeColors(colorMap)
 
+      const nodeMap = new Map((dbNodes as DbNode[]).map((n) => [n.id, n]))
+      const savedNodeId = localStorage.getItem(`lastNodeId_${convId}`)
+      const savedNode = savedNodeId ? nodeMap.get(savedNodeId) : undefined
       const assistantNodes = (dbNodes as DbNode[]).filter((n) => n.role === 'assistant')
-      if (assistantNodes.length) {
-        const lastAsst = assistantNodes[assistantNodes.length - 1]
-        lastNodeIdRef.current = lastAsst.id
-        setSelectedNodeId(lastAsst.id)
+      const targetNode = savedNode ?? (assistantNodes.length ? assistantNodes[assistantNodes.length - 1] : undefined)
+      if (targetNode) {
+        setSelectedNodeId(targetNode.id)
 
-        const nodeMap = new Map((dbNodes as DbNode[]).map((n) => [n.id, n]))
         const chain: DbNode[] = []
-        let cur: DbNode | undefined = lastAsst
+        let cur: DbNode | undefined = targetNode
         while (cur) {
           chain.unshift(cur)
           cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
         }
+        const lastAsst = [...chain].reverse().find((n) => n.role === 'assistant')
+        if (lastAsst) lastNodeIdRef.current = lastAsst.id
         setMessages(
           chain.map((n) => ({
             id: n.id,
@@ -249,7 +276,9 @@ export default function App() {
       }
 
       setConversations(projects as Conversation[])
-      await loadConversation(projects[0].id, projects[0].name)
+      const lastId = localStorage.getItem('lastConvId')
+      const initial = (projects as Conversation[]).find((p) => p.id === lastId) ?? projects[0]
+      await loadConversation(initial.id, initial.name)
     }
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -348,6 +377,7 @@ export default function App() {
 
       lastNodeIdRef.current = asst.id
       setSelectedNodeId(asst.id)
+      localStorage.setItem(`lastNodeId_${pid}`, asst.id)
       setLastSavedPairId(asst.id)
       setAllDbNodes((prev) => [...prev, userNode as DbNode, asst as DbNode])
     },
@@ -364,6 +394,7 @@ export default function App() {
 
       setChatError(null)
       setSaveError(false)
+      setHighlightedMessageId(null)
 
       const userContent        = input.trim()
       const attachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
@@ -386,6 +417,10 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: nextMessages }),
         })
+        if (response.status === 429) {
+          const data = await response.json().catch(() => ({}))
+          throw new RateLimitError(formatRateLimitMessage(data))
+        }
         if (!response.ok) throw new Error('Chat request failed')
 
         setMessages((prev) => [
@@ -408,14 +443,21 @@ export default function App() {
             })
           }
         }
-        await saveNodePair(userContent, full)
+        if (full.trim()) await saveNodePair(userContent, full)
       } catch (err) {
         console.error('Chat error', err)
-        // Restore the user's message to input so they can retry (Task 7)
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
-        setInput(userContent)
-        if (attachmentsSnapshot) setPendingAttachments(attachmentsSnapshot)
-        setChatError('Failed to get a response. Check your connection and try again.')
+        const isRateLimit = err instanceof RateLimitError
+        if (!isRateLimit) {
+          // Restore the user's message to input so they can retry
+          setInput(userContent)
+          if (attachmentsSnapshot) setPendingAttachments(attachmentsSnapshot)
+        }
+        setChatError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to get a response. Check your connection and try again.',
+        )
       } finally {
         setIsLoading(false)
       }
@@ -436,22 +478,58 @@ export default function App() {
       setAllDbNodes(allNodes as DbNode[])
       const nodeMap = new Map((allNodes as DbNode[]).map((n) => [n.id, n]))
 
-      const chain: DbNode[] = []
+      // Walk UP: ancestors from root to clicked node
+      const ancestors: DbNode[] = []
       let cur: DbNode | undefined = nodeMap.get(nodeId)
       while (cur) {
-        chain.unshift(cur)
+        ancestors.unshift(cur)
         cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
       }
 
+      // Build children map and sort by created_at for oldest-branch selection
+      const childrenMap = new Map<string, DbNode[]>()
+      for (const node of allNodes as DbNode[]) {
+        if (node.parent_id) {
+          if (!childrenMap.has(node.parent_id)) childrenMap.set(node.parent_id, [])
+          childrenMap.get(node.parent_id)!.push(node)
+        }
+      }
+      for (const children of childrenMap.values()) {
+        children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      }
+
+      // Walk DOWN from clicked node following oldest branch at each fork
+      const descendants: DbNode[] = []
+      let tipId = nodeId
+      while (true) {
+        const children = childrenMap.get(tipId) ?? []
+        if (children.length === 0) break
+        descendants.push(children[0])
+        tipId = children[0].id
+      }
+
+      // The user prompt to highlight is the user node of the clicked pair
+      const clickedNode = nodeMap.get(nodeId)
+      let highlightId: string | null = null
+      if (clickedNode?.role === 'assistant') {
+        const userParent = clickedNode.parent_id ? nodeMap.get(clickedNode.parent_id) : null
+        highlightId = userParent?.id ?? null
+      } else {
+        highlightId = nodeId
+      }
+
       setMessages(
-        chain.map((n) => ({
+        [...ancestors, ...descendants].map((n) => ({
           id: n.id, role: n.role, content: n.content,
           timestamp: new Date(n.created_at).getTime(),
         }))
       )
       setSelectedNodeId(nodeId)
+      setHighlightedMessageId(highlightId)
+      if (activeConvId) localStorage.setItem(`lastNodeId_${activeConvId}`, nodeId)
 
-      const lastAsst = [...chain].reverse().find((n) => n.role === 'assistant')
+      // Keep lastNodeIdRef at the selected pair's assistant so branching works from this node
+      const lastAsst = [...ancestors].reverse().find((n) => n.role === 'assistant')
       if (lastAsst) lastNodeIdRef.current = lastAsst.id
     },
     [supabase, activeConvId]
@@ -474,6 +552,7 @@ export default function App() {
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
+    highlightedMessageId,
   }
 
   return (

@@ -225,16 +225,18 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
 export default function TreePanel() {
   const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, chatInputRef, lastSavedPairId } = useApp()
 
-  const [collapsed,  setCollapsed]  = useState(false)
-  const [viewMode,   setViewMode]   = useState<'tree' | 'outline'>('tree')
-  const [autoZoom,   setAutoZoom]   = useState(true)
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH)
-  const [hoveredId,  setHoveredId]  = useState<string | null>(null)
-  const [hoverPos,   setHoverPos]   = useState<{ x: number; y: number } | null>(null)
-  const [colorMenu,  setColorMenu]  = useState<{ nodeId: string; x: number; y: number } | null>(null)
-  const [scale,      setScale]      = useState(1)
-  const [pan,        setPan]        = useState({ x: 0, y: 0 })
-  const [dragging,   setDragging]   = useState(false)
+  const [collapsed,       setCollapsed]       = useState(false)
+  const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
+  const [autoZoom,        setAutoZoom]        = useState(true)
+  const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
+  const [hoveredId,       setHoveredId]       = useState<string | null>(null)
+  const [hoverPos,        setHoverPos]        = useState<{ x: number; y: number } | null>(null)
+  const [colorMenu,       setColorMenu]       = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  const [scale,           setScale]           = useState(1)
+  const [pan,             setPan]             = useState({ x: 0, y: 0 })
+  const [dragging,        setDragging]        = useState(false)
+  const [scrollbarHover,  setScrollbarHover]  = useState(false)
+  const [containerSize,   setContainerSize]   = useState({ w: 0, h: 0 })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging   = useRef(false)
@@ -362,14 +364,17 @@ export default function TreePanel() {
     return () => clearTimeout(t)
   }, [lastSavedPairId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Scroll-wheel zoom ─────────────────────────────────────────────────────────
+  // ── Scroll-wheel: plain = zoom, Ctrl = pan ────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     function onWheel(e: WheelEvent) {
       e.preventDefault()
       if (e.ctrlKey) {
-        // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse)
+        // Ctrl+scroll → pan up/down (and left/right if deltaX present)
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
+      } else {
+        // Plain scroll → zoom centred on cursor
         const rect  = el!.getBoundingClientRect()
         const mx    = e.clientX - rect.left
         const my    = e.clientY - rect.top
@@ -379,14 +384,23 @@ export default function TreePanel() {
         const ratio = next / cur
         setScale(next)
         setPan(p => ({ x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) }))
-      } else {
-        // Two-finger scroll (trackpad) or plain scroll (mouse)
-        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
       }
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Track container size for scrollbar ───────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setContainerSize({ w: el.clientWidth, h: el.clientHeight })
+    })
+    ro.observe(el)
+    setContainerSize({ w: el.clientWidth, h: el.clientHeight })
+    return () => ro.disconnect()
+  }, [viewMode])
 
   // ── Close colour menu on outside click ────────────────────────────────────────
   useEffect(() => {
@@ -727,6 +741,76 @@ export default function TreePanel() {
               })}
             </div>
           )}
+
+          {/* ── Vertical scrollbar ── */}
+          {(() => {
+            const ch       = containerSize.h
+            const totalH   = canvasH * scale + 80
+            if (ch <= 0 || totalH <= ch) return null
+
+            const maxScroll = totalH - ch
+            const scrollY   = Math.max(0, Math.min(-pan.y, maxScroll))
+            const trackH    = ch - 16
+            const thumbH    = Math.max(28, (ch / totalH) * trackH)
+            const thumbTop  = 8 + (scrollY / maxScroll) * (trackH - thumbH)
+            const visible   = scrollbarHover || dragging
+
+            return (
+              <div
+                style={{
+                  position: 'absolute', right: 3, top: 0, bottom: 0,
+                  width: 8, display: 'flex', alignItems: 'flex-start',
+                  pointerEvents: 'auto', zIndex: 15,
+                }}
+                onMouseEnter={() => setScrollbarHover(true)}
+                onMouseLeave={() => setScrollbarHover(false)}
+              >
+                {/* track */}
+                <div style={{
+                  position: 'absolute', top: 6, bottom: 6, left: 2, right: 2,
+                  borderRadius: 4,
+                  background: visible ? 'var(--border)' : 'transparent',
+                  transition: 'background 0.15s',
+                }} />
+                {/* thumb */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: thumbTop,
+                    left: 2, right: 2,
+                    height: thumbH,
+                    borderRadius: 4,
+                    background: visible ? 'var(--text-muted)' : 'transparent',
+                    opacity: visible ? 0.7 : 0,
+                    transition: 'background 0.15s, opacity 0.15s',
+                    cursor: 'ns-resize',
+                  }}
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const startY    = e.clientY
+                    const startPanY = pan.y
+                    const ch2       = containerSize.h
+                    const totalH2   = canvasH * scaleRef.current + 80
+                    const maxScroll2 = Math.max(0, totalH2 - ch2)
+                    const trackH2   = ch2 - 16
+                    const thumbH2   = Math.max(28, (ch2 / totalH2) * trackH2)
+                    const scrollPerPx = maxScroll2 / Math.max(1, trackH2 - thumbH2)
+                    function onMove(ev: MouseEvent) {
+                      const dy = ev.clientY - startY
+                      setPan(p => ({ ...p, y: Math.min(0, Math.max(-maxScroll2, startPanY - dy * scrollPerPx)) }))
+                    }
+                    function onUp() {
+                      window.removeEventListener('mousemove', onMove)
+                      window.removeEventListener('mouseup', onUp)
+                    }
+                    window.addEventListener('mousemove', onMove)
+                    window.addEventListener('mouseup', onUp)
+                  }}
+                />
+              </div>
+            )
+          })()}
         </div>
       )}
 

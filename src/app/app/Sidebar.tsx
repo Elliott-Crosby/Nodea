@@ -221,18 +221,25 @@ export default function Sidebar() {
                 </div>
               ) : (
                 /* ── Normal conversation row ── */
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (!isEditing && !isConfirmingDelete) switchConversation(conv.id)
                   }}
                   onDoubleClick={() => !collapsed && startEdit(conv.id, conv.name)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      if (!isEditing && !isConfirmingDelete) switchConversation(conv.id)
+                    }
+                  }}
                   title={collapsed ? conv.name : undefined}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
                     gap: 9, width: '100%',
                     padding: collapsed ? '10px 0' : '8px 14px',
                     background: active ? 'var(--accent-bg)' : 'transparent',
-                    border: 'none',
                     borderLeft: !collapsed ? (active ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
                     cursor: 'pointer', textAlign: 'left',
                     color: active ? 'var(--accent-text)' : 'var(--text-secondary)',
@@ -240,9 +247,11 @@ export default function Sidebar() {
                     overflow: 'hidden',
                     transition: 'background 0.1s, color 0.1s',
                     paddingRight: (!collapsed && isHovered) ? '6px' : (!collapsed ? '14px' : '0'),
+                    boxSizing: 'border-box',
+                    userSelect: 'none',
                   }}
-                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)' }}
-                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-subtle)' }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLDivElement).style.background = active ? 'var(--accent-bg)' : 'transparent' }}
                 >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }}>
                     <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5l-3 2V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -277,7 +286,7 @@ export default function Sidebar() {
                       )}
                     </>
                   )}
-                </button>
+                </div>
               )}
             </div>
           )

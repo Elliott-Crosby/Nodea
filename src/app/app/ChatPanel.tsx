@@ -291,7 +291,7 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
 }
 
 // ── Message ───────────────────────────────────────────────────────────────────
-function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
+function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
   const { isLoading } = useApp()
   const isUser = msg.role === 'user'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
@@ -308,7 +308,10 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
   const files  = (msg.attachments ?? []).filter((a) => !a.type.startsWith('image/'))
 
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}>
+    <div
+      data-highlighted-msg={isHighlighted ? 'true' : undefined}
+      style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}
+    >
       {!isUser && (
         <div style={{ width: 40, flexShrink: 0, textAlign: 'right', paddingTop: 9, fontSize: 10, color: 'var(--text-muted)' }}>
           {msg.timestamp ? formatTime(msg.timestamp) : ''}
@@ -373,10 +376,15 @@ function Message({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
               padding: isUser ? '9px 14px' : '12px 15px',
               borderRadius: isUser ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
               background: isUser ? 'var(--user-bubble-bg)' : 'var(--ai-card-bg)',
-              border: isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
+              border: isUser && isHighlighted
+                ? '1px solid var(--accent)'
+                : isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
               fontSize: 13, lineHeight: 1.65,
               color: 'var(--text-primary)', wordBreak: 'break-word',
-              boxShadow: isUser ? 'none' : 'var(--shadow-sm)',
+              boxShadow: isUser && isHighlighted
+                ? '0 0 0 3px var(--accent-bg)'
+                : isUser ? 'none' : 'var(--shadow-sm)',
+              transition: 'border-color 0.2s, box-shadow 0.2s',
             }}
           >
             {isUser ? (
@@ -527,12 +535,17 @@ function InputBar() {
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId } = useApp()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (highlightedMessageId) {
+      const el = document.querySelector('[data-highlighted-msg="true"]')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, highlightedMessageId])
 
   const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'
 
@@ -644,7 +657,7 @@ export default function ChatPanel() {
           </div>
         ) : (
           messages.map((msg, i) => (
-            <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} />
+            <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} isHighlighted={msg.id === highlightedMessageId} />
           ))
         )}
 
