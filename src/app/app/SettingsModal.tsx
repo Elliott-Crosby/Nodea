@@ -342,7 +342,7 @@ export default function SettingsModal() {
 interface UsageRecord {
   daily_tokens: number
   monthly_tokens: number
-  total_tokens: number
+  total_tokens?: number
   daily_reset_at: string
   monthly_reset_at: string
 }
@@ -420,10 +420,7 @@ function UsageTab() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Usage</h2>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 28 }}>
-        Your token usage — updates after each message.
-      </p>
+      <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 28 }}>Usage</h2>
 
       <UsageBar
         label="Daily"

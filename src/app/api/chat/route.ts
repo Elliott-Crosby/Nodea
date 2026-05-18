@@ -1,7 +1,7 @@
 import { streamText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
+import { after } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 
 const MODEL_ID = 'claude-sonnet-4-6'
@@ -25,15 +25,12 @@ export async function POST(req: Request) {
 
   const { messages } = await req.json() as { messages: IncomingMessage[] }
 
-  // Filter out any messages with empty content (can happen after interrupted streams)
   const validMessages = messages.filter(msg => (msg.content ?? '').trim() || (msg.attachments ?? []).length > 0)
 
-  // Pre-check: estimate input tokens for limit enforcement and prompt-length guard
-  const inputText        = validMessages.map(m => m.content ?? '').join(' ')
-  const estimatedInput   = estimateTokens(inputText)
+  const inputText      = validMessages.map(m => m.content ?? '').join(' ')
+  const estimatedInput = estimateTokens(inputText)
 
-  const adminSupabase = getSupabaseAdmin()
-  const limitCheck = await checkTokenLimits(user.id, estimatedInput, adminSupabase)
+  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase)
   if (!limitCheck.allowed) {
     return Response.json(
       {
@@ -70,16 +67,25 @@ export async function POST(req: Request) {
     })
 
     const userId = user.id
+
+    // `after` runs after the response is fully sent, with the request context
+    // (cookies/auth) still active — the only reliable place to write to Supabase
+    // from a streaming route handler.
+    after(async () => {
+      try {
+        const usage = await result.usage
+        await recordTokenUsage(userId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, supabase)
+      } catch (err) {
+        console.error('[token-limits] after() recording failed:', err)
+      }
+    })
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of result.textStream) {
             controller.enqueue(encoder.encode(chunk))
           }
-          // Record actual token counts returned by the API
-          const usage = await result.usage
-          recordTokenUsage(userId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, adminSupabase)
-            .catch(err => console.error('[token-limits] Failed to record usage:', err))
           controller.close()
         } catch (streamErr) {
           console.error('Stream error:', streamErr)

@@ -238,16 +238,51 @@ export default function App() {
       if (targetNode) {
         setSelectedNodeId(targetNode.id)
 
-        const chain: DbNode[] = []
+        // Walk UP: ancestors from root to target node (inclusive)
+        const ancestors: DbNode[] = []
         let cur: DbNode | undefined = targetNode
         while (cur) {
-          chain.unshift(cur)
+          ancestors.unshift(cur)
           cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
         }
-        const lastAsst = [...chain].reverse().find((n) => n.role === 'assistant')
+
+        // Build children map so we can walk DOWN
+        const childrenMap = new Map<string, DbNode[]>()
+        for (const node of dbNodes as DbNode[]) {
+          if (node.parent_id) {
+            if (!childrenMap.has(node.parent_id)) childrenMap.set(node.parent_id, [])
+            childrenMap.get(node.parent_id)!.push(node)
+          }
+        }
+        for (const children of childrenMap.values()) {
+          children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        }
+
+        // Walk DOWN from target node following oldest branch
+        const descendants: DbNode[] = []
+        let tipId = targetNode.id
+        while (true) {
+          const children = childrenMap.get(tipId) ?? []
+          if (children.length === 0) break
+          descendants.push(children[0])
+          tipId = children[0].id
+        }
+
+        // Highlight the user prompt that produced the selected node
+        let highlightId: string | null = null
+        if (targetNode.role === 'assistant') {
+          const userParent = targetNode.parent_id ? nodeMap.get(targetNode.parent_id) : null
+          highlightId = userParent?.id ?? null
+        } else {
+          highlightId = targetNode.id
+        }
+        setHighlightedMessageId(highlightId)
+
+        const lastAsst = [...ancestors].reverse().find((n) => n.role === 'assistant')
         if (lastAsst) lastNodeIdRef.current = lastAsst.id
+
         setMessages(
-          chain.map((n) => ({
+          [...ancestors, ...descendants].map((n) => ({
             id: n.id,
             role: n.role,
             content: n.content,
