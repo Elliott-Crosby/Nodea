@@ -352,15 +352,18 @@ function UsageTab() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('user_token_usage')
-      .select('daily_tokens,monthly_tokens,daily_reset_at,monthly_reset_at')
-      .maybeSingle()
-      .then(({ data }) => {
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('user_token_usage')
+          .select('daily_tokens,monthly_tokens,daily_reset_at,monthly_reset_at')
+          .maybeSingle()
         // Errors (e.g. table not yet created) mean 0 usage — treat as null.
         setUsage(data as UsageRecord | null)
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [])
 
   if (loading) {
