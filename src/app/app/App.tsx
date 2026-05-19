@@ -68,6 +68,7 @@ export interface AppContextType {
   userEmail: string
   userName: string
   setUserName: (n: string) => void
+  isAdmin: boolean
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
   nodeSummaries: Record<string, { title: string; summary: string }>
@@ -75,6 +76,8 @@ export interface AppContextType {
   pendingAttachments: AttachmentItem[]
   addAttachment: (a: AttachmentItem) => void
   removeAttachment: (name: string) => void
+  webSearch: boolean
+  setWebSearch: (b: boolean) => void
   lastSavedPairId: string | null
   chatError: string | null
   clearChatError: () => void
@@ -168,9 +171,11 @@ export default function App() {
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
+  const [isAdmin,       setIsAdmin]         = useState(false)
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
+  const [webSearch, setWebSearch] = useState(false)
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
   const [chatError,     setChatError]       = useState<string | null>(null)
   const [saveError,     setSaveError]       = useState(false)
@@ -316,6 +321,7 @@ export default function App() {
       if (!user) { router.push('/login'); return }
       setUserEmail(user.email ?? '')
       setUserName(user.user_metadata?.display_name || user.email?.split('@')[0] || 'User')
+      setIsAdmin(user.id === '64b415d7-4b59-4ff1-aa35-5f88de1599de')
 
       const res = await fetch('/api/projects')
       if (!res.ok) { router.push('/login'); return }
@@ -465,7 +471,7 @@ export default function App() {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: nextMessages }),
+          body: JSON.stringify({ messages: nextMessages, webSearch }),
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
@@ -543,7 +549,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation]
+    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, webSearch]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
@@ -628,12 +634,13 @@ export default function App() {
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
-    userEmail, userName, setUserName,
+    userEmail, userName, setUserName, isAdmin,
     nodeColors, setNodeColor, nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
     highlightedMessageId,
+    webSearch, setWebSearch,
   }
 
   return (

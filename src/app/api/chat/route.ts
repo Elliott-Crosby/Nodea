@@ -2,6 +2,7 @@ import { streamText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
+import { isAdmin } from '@/lib/admin'
 
 const MODEL_ID = 'claude-sonnet-4-6'
 
@@ -17,6 +18,33 @@ interface IncomingMessage {
   attachments?: Attachment[]
 }
 
+function buildUserContent(msg: IncomingMessage) {
+  const attachments = msg.attachments ?? []
+  if (!attachments.length) return msg.content ?? ''
+
+  const parts: Array<
+    | { type: 'image'; image: string }
+    | { type: 'file'; data: string; mediaType: string; filename: string }
+    | { type: 'text'; text: string }
+  > = []
+
+  for (const a of attachments) {
+    const base64 = a.dataUrl.split(',')[1] ?? ''
+
+    if (a.type.startsWith('image/')) {
+      parts.push({ type: 'image', image: a.dataUrl })
+    } else if (a.type === 'application/pdf') {
+      parts.push({ type: 'file', data: base64, mediaType: 'application/pdf', filename: a.name })
+    } else if (a.type.startsWith('text/') || a.type === 'application/json') {
+      const text = Buffer.from(base64, 'base64').toString('utf-8')
+      parts.push({ type: 'text', text: `[File: ${a.name}]\n\`\`\`\n${text}\n\`\`\`` })
+    }
+  }
+
+  if (msg.content?.trim()) parts.push({ type: 'text', text: msg.content })
+  return parts
+}
+
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -29,7 +57,8 @@ export async function POST(req: Request) {
   const inputText      = validMessages.map(m => m.content ?? '').join(' ')
   const estimatedInput = estimateTokens(inputText)
 
-  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase)
+  const admin = await isAdmin(user.id, supabase)
+  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase, admin)
   if (!limitCheck.allowed) {
     return Response.json(
       {
@@ -44,17 +73,10 @@ export async function POST(req: Request) {
   }
 
   const modelMessages = validMessages.map((msg) => {
-    const images = (msg.attachments ?? []).filter(a => a.type.startsWith('image/'))
-    if (!images.length || msg.role !== 'user') {
-      return { role: msg.role as 'user' | 'assistant', content: msg.content ?? '' }
+    if (msg.role !== 'user') {
+      return { role: 'assistant' as const, content: msg.content ?? '' }
     }
-    return {
-      role: 'user' as const,
-      content: [
-        ...images.map(a => ({ type: 'image' as const, image: a.dataUrl })),
-        { type: 'text' as const, text: msg.content ?? '' },
-      ],
-    }
+    return { role: 'user' as const, content: buildUserContent(msg) }
   })
 
   try {
@@ -68,6 +90,7 @@ export async function POST(req: Request) {
       model:    anthropic(MODEL_ID),
       system:   'You are a helpful AI assistant.',
       messages: modelMessages,
+      tools:    { web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }) },
       // onFinish fires after the stream is fully consumed, with real token counts.
       // This is the correct hook vs after()+result.usage, which races the stream.
       onFinish: async ({ totalUsage }) => {

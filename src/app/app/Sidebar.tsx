@@ -6,7 +6,7 @@ import { useApp } from './App'
 export default function Sidebar() {
   const {
     conversations, activeConvId, switchConversation, createConversation,
-    setIsSettingsOpen, signOut, userEmail, userName,
+    setIsSettingsOpen, signOut, userEmail, userName, isAdmin,
     renameConversation, deleteConversation,
   } = useApp()
 
@@ -80,8 +80,13 @@ export default function Sidebar() {
           overflow: 'hidden',
         }}
       >
-        <span style={{ fontSize: collapsed ? 15 : 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', minWidth: 0 }}>
+        <span style={{ fontSize: collapsed ? 15 : 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
           {collapsed ? 'N' : 'Nodea'}
+          {!collapsed && isAdmin && (
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, padding: '1px 5px', opacity: 0.7 }}>
+              ADMIN
+            </span>
+          )}
         </span>
 
         <button

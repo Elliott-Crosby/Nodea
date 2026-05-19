@@ -123,7 +123,10 @@ export async function checkTokenLimits(
   userId: string,
   estimatedInputTokens: number,
   supabase: SupabaseClient,
+  admin = false,
 ): Promise<LimitCheck> {
+  if (admin) return { allowed: true }
+
   if (estimatedInputTokens > MAX_INPUT_TOKENS) {
     return {
       allowed: false,
