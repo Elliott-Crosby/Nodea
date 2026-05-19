@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model:    anthropic(MODEL_ID),
-      system:   'You are a helpful AI assistant.',
+      system:   'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.',
       messages: modelMessages,
       tools:    { web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }) },
       // onFinish fires after the stream is fully consumed, with real token counts.
