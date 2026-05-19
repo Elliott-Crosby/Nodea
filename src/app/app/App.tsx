@@ -76,8 +76,6 @@ export interface AppContextType {
   pendingAttachments: AttachmentItem[]
   addAttachment: (a: AttachmentItem) => void
   removeAttachment: (name: string) => void
-  webSearch: boolean
-  setWebSearch: (b: boolean) => void
   lastSavedPairId: string | null
   chatError: string | null
   clearChatError: () => void
@@ -175,7 +173,6 @@ export default function App() {
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
-  const [webSearch, setWebSearch] = useState(false)
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
   const [chatError,     setChatError]       = useState<string | null>(null)
   const [saveError,     setSaveError]       = useState(false)
@@ -471,7 +468,7 @@ export default function App() {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: nextMessages, webSearch }),
+          body: JSON.stringify({ messages: nextMessages }),
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
@@ -549,7 +546,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, webSearch]
+    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
@@ -640,7 +637,6 @@ export default function App() {
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
     highlightedMessageId,
-    webSearch, setWebSearch,
   }
 
   return (

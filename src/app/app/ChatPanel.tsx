@@ -519,9 +519,35 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
-  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, webSearch, setWebSearch } = useApp()
+  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, activeConvId } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
+
+  const focusAtEnd = useCallback(() => {
+    const el = chatInputRef.current
+    if (!el) return
+    el.focus()
+    const len = el.value.length
+    el.setSelectionRange(len, len)
+  }, [chatInputRef])
+
+  // Auto-focus on mount
+  useEffect(() => { focusAtEnd() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-focus when conversation switches
+  useEffect(() => { if (activeConvId !== null) focusAtEnd() }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tab anywhere → jump to textarea at end
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Tab' && document.activeElement !== chatInputRef.current) {
+        e.preventDefault()
+        focusAtEnd()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [focusAtEnd, chatInputRef])
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     const err = await processFiles(files, addAttachment)
@@ -546,11 +572,13 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
 
       <form
         onSubmit={handleSend}
+        onClick={(e) => { if (e.target === e.currentTarget) focusAtEnd() }}
         style={{
           display: 'flex', alignItems: 'flex-end', gap: 10,
           background: 'var(--input-bg)', border: '1px solid var(--border)',
           borderRadius: 13, padding: '8px 8px 8px 14px',
           boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.15s',
+          cursor: 'text',
         }}
         onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
         onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
@@ -583,29 +611,6 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
           </svg>
         </button>
 
-        <button
-          type="button"
-          title={webSearch ? 'Web search on — click to disable' : 'Enable web search'}
-          onClick={() => setWebSearch(!webSearch)}
-          disabled={isLoading}
-          style={{
-            background: webSearch ? 'var(--accent-bg)' : 'none',
-            border: webSearch ? '1px solid var(--accent)' : '1px solid transparent',
-            borderRadius: 7,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            color: webSearch ? 'var(--accent)' : 'var(--text-muted)',
-            padding: '3px 5px', flexShrink: 0,
-            opacity: isLoading ? 0.4 : 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'color 0.15s, background 0.15s, border-color 0.15s',
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-            <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.3" />
-            <ellipse cx="7.5" cy="7.5" rx="2.8" ry="6" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M1.5 5.5h12M1.5 9.5h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-          </svg>
-        </button>
 
         <textarea
           ref={chatInputRef}
