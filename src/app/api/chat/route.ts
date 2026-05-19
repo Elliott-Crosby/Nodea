@@ -1,7 +1,6 @@
 import { streamText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
-import { after } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 
 const MODEL_ID = 'claude-sonnet-4-6'
@@ -59,25 +58,30 @@ export async function POST(req: Request) {
   })
 
   try {
-    const encoder = new TextEncoder()
-    const result  = streamText({
+    const encoder  = new TextEncoder()
+    const userId   = user.id
+    // Service-role client bypasses RLS and request-context auth — reliable for
+    // server-side writes inside stream callbacks where cookies may be unavailable.
+    const writeClient = createServiceSupabaseClient() ?? supabase
+
+    const result = streamText({
       model:    anthropic(MODEL_ID),
       system:   'You are a helpful AI assistant.',
       messages: modelMessages,
-    })
-
-    const userId = user.id
-
-    // `after` runs after the response is fully sent, with the request context
-    // (cookies/auth) still active — the only reliable place to write to Supabase
-    // from a streaming route handler.
-    after(async () => {
-      try {
-        const usage = await result.usage
-        await recordTokenUsage(userId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, supabase)
-      } catch (err) {
-        console.error('[token-limits] after() recording failed:', err)
-      }
+      // onFinish fires after the stream is fully consumed, with real token counts.
+      // This is the correct hook vs after()+result.usage, which races the stream.
+      onFinish: async ({ totalUsage }) => {
+        try {
+          await recordTokenUsage(
+            userId,
+            totalUsage.inputTokens ?? 0,
+            totalUsage.outputTokens ?? 0,
+            writeClient,
+          )
+        } catch (err) {
+          console.error('[token-limits] onFinish recording failed:', err)
+        }
+      },
     })
 
     const stream = new ReadableStream({

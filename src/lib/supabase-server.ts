@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export async function createServerSupabaseClient() {
@@ -23,5 +24,20 @@ export async function createServerSupabaseClient() {
         },
       },
     }
+  )
+}
+
+/**
+ * Returns a service-role Supabase client that bypasses RLS.
+ * Safe to use for server-side writes where the caller has already verified identity.
+ * Returns null if SUPABASE_SERVICE_ROLE_KEY is not configured.
+ */
+export function createServiceSupabaseClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) return null
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { persistSession: false, autoRefreshToken: false } },
   )
 }

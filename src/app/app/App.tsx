@@ -70,6 +70,7 @@ export interface AppContextType {
   setUserName: (n: string) => void
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
+  nodeSummaries: Record<string, { title: string; summary: string }>
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   pendingAttachments: AttachmentItem[]
   addAttachment: (a: AttachmentItem) => void
@@ -168,6 +169,7 @@ export default function App() {
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
+  const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
   const [chatError,     setChatError]       = useState<string | null>(null)
@@ -207,6 +209,7 @@ export default function App() {
       setMessages([])
       setSelectedNodeId(null)
       setNodeColors({})
+      setNodeSummaries({})
       setHighlightedMessageId(null)
       lastNodeIdRef.current = null
 
@@ -223,12 +226,24 @@ export default function App() {
 
       setAllDbNodes(dbNodes as DbNode[])
 
-      // Restore persisted node colors (Task 1)
+      // Restore persisted node colors
       const colorMap: Record<string, string> = {}
       for (const n of dbNodes as DbNode[]) {
         if (n.color) colorMap[n.id] = n.color
       }
       setNodeColors(colorMap)
+
+      // Restore AI-generated titles/summaries from localStorage
+      const metaMap: Record<string, { title: string; summary: string }> = {}
+      for (const n of dbNodes as DbNode[]) {
+        if (n.role === 'assistant') {
+          try {
+            const cached = localStorage.getItem(`node_meta_v1_${n.id}`)
+            if (cached) metaMap[n.id] = JSON.parse(cached)
+          } catch {}
+        }
+      }
+      setNodeSummaries(metaMap)
 
       const nodeMap = new Map((dbNodes as DbNode[]).map((n) => [n.id, n]))
       const savedNodeId = localStorage.getItem(`lastNodeId_${convId}`)
@@ -478,7 +493,38 @@ export default function App() {
             })
           }
         }
-        if (full.trim()) await saveNodePair(userContent, full)
+        if (full.trim()) {
+          const isFirstPair = lastNodeIdRef.current === null
+          await saveNodePair(userContent, full)
+          // lastNodeIdRef is now the new assistant node id (pair key)
+          const newPairId = lastNodeIdRef.current
+
+          // Fire-and-forget: generate AI title + summary for the node
+          if (newPairId) {
+            fetch('/api/autotitle', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userPrompt: userContent, aiResponse: full, type: 'node' }),
+            }).then(r => r.ok ? r.json() : null).then(data => {
+              if (!data) return
+              const meta = { title: data.title ?? '', summary: data.summary ?? '' }
+              setNodeSummaries(prev => ({ ...prev, [newPairId]: meta }))
+              localStorage.setItem(`node_meta_v1_${newPairId}`, JSON.stringify(meta))
+            }).catch(() => {})
+          }
+
+          // Fire-and-forget: auto-title the conversation on its first message
+          if (isFirstPair && activeConvId) {
+            const convId = activeConvId
+            fetch('/api/autotitle', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userPrompt: userContent, type: 'conversation' }),
+            }).then(r => r.ok ? r.json() : null).then(data => {
+              if (data?.title) renameConversation(convId, data.title)
+            }).catch(() => {})
+          }
+        }
       } catch (err) {
         console.error('Chat error', err)
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
@@ -497,7 +543,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments]
+    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
@@ -583,7 +629,7 @@ export default function App() {
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName,
-    nodeColors, setNodeColor, chatInputRef,
+    nodeColors, setNodeColor, nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
