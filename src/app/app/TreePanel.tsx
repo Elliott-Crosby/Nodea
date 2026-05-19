@@ -260,22 +260,30 @@ export default function TreePanel() {
     (p.aiNode && p.aiNode.id === selectedNodeId)
   ), [pairs, selectedNodeId])
 
-  // Remember the last typed input so the ghost can show it during loading (after input is cleared)
+  // Remember the last typed input so the ghost shows the sent text during loading
   const lastInputRef = useRef(input)
   useEffect(() => { if (input.trim()) lastInputRef.current = input }, [input])
 
-  const showGhost = (input.trim().length > 0 || isLoading) && !!selectedPair
+  // Anchor the ghost to the pair from when the user was typing.
+  // A ref survives selectedNodeId changing mid-stream (saveNodePair calls setSelectedNodeId
+  // after the stream ends, which would wrongly move the ghost to the new pair).
+  const ghostAnchorRef = useRef<typeof selectedPair>(undefined)
+  if (input.trim() && selectedPair) ghostAnchorRef.current = selectedPair  // update while typing
+  if (!isLoading && !input.trim())  ghostAnchorRef.current = undefined      // clear when idle
+
+  const ghostAnchorPair = isLoading ? (ghostAnchorRef.current ?? selectedPair) : selectedPair
+  const showGhost       = (input.trim().length > 0 || isLoading) && !!ghostAnchorPair
 
   const displayPairs  = useMemo(() => {
-    if (!showGhost || !selectedPair) return pairs
+    if (!showGhost || !ghostAnchorPair) return pairs
     const ghost: Pair = {
       id:           '__ghost__',
-      userNode:     { id: '__ghost_user__', project_id: '', parent_id: selectedPair.id, role: 'user', content: '', position_x: 0, position_y: 0, created_at: new Date().toISOString() },
+      userNode:     { id: '__ghost_user__', project_id: '', parent_id: ghostAnchorPair.id, role: 'user', content: '', position_x: 0, position_y: 0, created_at: new Date().toISOString() },
       aiNode:       null,
-      parentPairId: selectedPair.id,
+      parentPairId: ghostAnchorPair.id,
     }
     return [...pairs, ghost]
-  }, [pairs, showGhost, selectedPair])
+  }, [pairs, showGhost, ghostAnchorPair])
 
   const pairPositions = useMemo(() => computePairLayout(displayPairs), [displayPairs])
   const zoomMode      = getZoomMode(scale)
