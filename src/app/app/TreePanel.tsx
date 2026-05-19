@@ -223,7 +223,7 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
@@ -253,14 +253,18 @@ export default function TreePanel() {
   const pairs         = useMemo(() => buildPairs(allDbNodes), [allDbNodes])
   const activePairIds = useMemo(() => getActivePairIds(pairs, selectedNodeId), [pairs, selectedNodeId])
 
-  // Ghost node: shown while the user is typing (branching in progress)
+  // Ghost node: shown while the user is typing or the AI is responding
   const selectedPair  = useMemo(() => pairs.find(p =>
     p.id === selectedNodeId ||
     p.userNode.id === selectedNodeId ||
     (p.aiNode && p.aiNode.id === selectedNodeId)
   ), [pairs, selectedNodeId])
 
-  const showGhost = input.trim().length > 0 && !!selectedPair
+  // Remember the last typed input so the ghost can show it during loading (after input is cleared)
+  const lastInputRef = useRef(input)
+  useEffect(() => { if (input.trim()) lastInputRef.current = input }, [input])
+
+  const showGhost = (input.trim().length > 0 || isLoading) && !!selectedPair
 
   const displayPairs  = useMemo(() => {
     if (!showGhost || !selectedPair) return pairs
@@ -641,12 +645,13 @@ export default function TreePanel() {
                 // ── Ghost node ────────────────────────────────────────────────
                 if (pair.id === '__ghost__') {
                   const offsetX = pos.x + (LAYOUT_W - nodeW) / 2
-                  const ghostText = input.length > 35 ? input.slice(0, 34) + '…' : input
+                  const rawText = input.trim() || lastInputRef.current
+                  const ghostText = rawText.length > 35 ? rawText.slice(0, 34) + '…' : rawText
                   return (
                     <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
                       <div style={{ width: nodeW, height: nodeH, background: 'var(--node-bg)', border: '1.5px dashed var(--accent)', borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 10px', boxSizing: 'border-box' }}>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic' }}>
-                          {ghostText || 'Typing…'}
+                          {ghostText || 'Thinking…'}
                         </span>
                       </div>
                     </div>

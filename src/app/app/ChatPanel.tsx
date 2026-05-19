@@ -340,8 +340,18 @@ function SubHeader() {
 }
 
 // ── Attachment thumbnail chip ─────────────────────────────────────────────────
+function fileTypeBadge(mimeType: string): { label: string; bg: string } {
+  if (mimeType === 'application/pdf')  return { label: 'PDF', bg: '#ef4444' }
+  if (mimeType === 'text/csv')         return { label: 'CSV', bg: '#22c55e' }
+  if (mimeType === 'application/json') return { label: 'JSON', bg: '#3b82f6' }
+  if (mimeType === 'text/markdown')    return { label: 'MD',   bg: '#8b5cf6' }
+  if (mimeType === 'text/plain')       return { label: 'TXT',  bg: '#6b7280' }
+  return { label: 'FILE', bg: '#6b7280' }
+}
+
 function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; onRemove?: () => void }) {
   const isImage = attachment.type.startsWith('image/')
+  const badge   = !isImage ? fileTypeBadge(attachment.type) : null
   return (
     <div
       style={{
@@ -349,7 +359,7 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
         padding: onRemove ? '3px 6px 3px 3px' : '3px 8px',
         background: 'var(--bg-subtle)', border: '1px solid var(--border)',
         borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)',
-        flexShrink: 0, maxWidth: 140,
+        flexShrink: 0, maxWidth: 160,
       }}
     >
       {isImage ? (
@@ -359,11 +369,13 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
           style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
         />
       ) : (
-        <div style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M7 1H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4L7 1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-            <path d="M7 1v3h3" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-          </svg>
+        <div style={{
+          width: 28, height: 22, borderRadius: 4, background: badge!.bg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <span style={{ fontSize: badge!.label.length > 3 ? 7 : 8, fontWeight: 700, color: 'white', letterSpacing: '-0.3px' }}>
+            {badge!.label}
+          </span>
         </div>
       )}
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
