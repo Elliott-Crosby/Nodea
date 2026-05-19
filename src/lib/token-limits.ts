@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const DAILY_LIMIT   = 10_000
+const DAILY_LIMIT   = 100_000
 const MONTHLY_LIMIT = 125_000
 const GRACE_BUFFER  = 500
 export const MAX_INPUT_TOKENS = 4_000
