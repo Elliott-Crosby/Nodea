@@ -3,6 +3,100 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useApp, type AttachmentItem, type ChatMessage } from './App'
 
+// ── Accepted file types (Claude API limits) ───────────────────────────────────
+const ACCEPTED_MIME_TYPES: Record<string, string> = {
+  'image/jpeg':       'JPEG image',
+  'image/png':        'PNG image',
+  'image/gif':        'GIF image',
+  'image/webp':       'WebP image',
+  'application/pdf':  'PDF document',
+  'text/plain':       'Text file',
+  'text/csv':         'CSV file',
+  'text/markdown':    'Markdown file',
+  'application/json': 'JSON file',
+}
+const ACCEPT_STRING = Object.keys(ACCEPTED_MIME_TYPES).join(',')
+
+// Max sizes (bytes)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_PDF_SIZE   = 32 * 1024 * 1024
+const MAX_TEXT_SIZE  = 2 * 1024 * 1024
+
+// Extension → MIME fallback (for OneDrive and other sources that drop MIME type)
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+  pdf: 'application/pdf',
+  txt: 'text/plain', csv: 'text/csv',
+  md: 'text/markdown', markdown: 'text/markdown',
+  json: 'application/json',
+}
+
+function resolveType(file: File): string {
+  if (file.type && ACCEPTED_MIME_TYPES[file.type]) return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return EXT_TO_MIME[ext] ?? file.type
+}
+
+function fileSizeLimit(type: string): number {
+  if (type.startsWith('image/')) return MAX_IMAGE_SIZE
+  if (type === 'application/pdf') return MAX_PDF_SIZE
+  return MAX_TEXT_SIZE
+}
+
+async function processFiles(
+  files: FileList | File[] | null,
+  addAttachment: (a: AttachmentItem) => void,
+): Promise<string | null> {
+  if (!files) return null
+  for (const file of Array.from(files)) {
+    const mimeType = resolveType(file)
+    if (!ACCEPTED_MIME_TYPES[mimeType]) continue
+    if (file.size > fileSizeLimit(mimeType)) {
+      const mb = (fileSizeLimit(mimeType) / 1024 / 1024).toFixed(0)
+      return `"${file.name}" exceeds the ${mb} MB limit for ${ACCEPTED_MIME_TYPES[mimeType]}s.`
+    }
+    await new Promise<void>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        addAttachment({ name: file.name, type: mimeType, dataUrl: reader.result as string })
+        resolve()
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+  return null
+}
+
+// Collect real File objects from a drop event, handling OneDrive/cloud-only quirks
+function extractDroppedFiles(e: React.DragEvent): { files: File[]; hadUriOnly: boolean } {
+  const files: File[] = []
+
+  // Try DataTransferItemList first — more reliable than .files for synced cloud drives
+  if (e.dataTransfer.items) {
+    for (const item of Array.from(e.dataTransfer.items)) {
+      if (item.kind === 'file') {
+        const f = item.getAsFile()
+        if (f && f.size > 0) files.push(f)
+      }
+    }
+  }
+
+  // Fallback to .files (some browsers only populate one or the other)
+  if (files.length === 0) {
+    for (const f of Array.from(e.dataTransfer.files)) {
+      if (f.size > 0) files.push(f)
+    }
+  }
+
+  // If still empty, check if this was a URI-only drop (cloud-only file)
+  const types = Array.from(e.dataTransfer.types)
+  const hadUriOnly = files.length === 0 &&
+    (types.includes('text/uri-list') || types.includes('Files'))
+
+  return { files, hadUriOnly }
+}
+
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
@@ -412,25 +506,16 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 }
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
-function InputBar() {
-  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment } = useApp()
+function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
+  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, webSearch, setWebSearch } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
 
   const handleFiles = useCallback(async (files: FileList | null) => {
-    if (!files) return
-    for (const file of Array.from(files)) {
-      await new Promise<void>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          addAttachment({ name: file.name, type: file.type, dataUrl: reader.result as string })
-          resolve()
-        }
-        reader.readAsDataURL(file)
-      })
-    }
+    const err = await processFiles(files, addAttachment)
+    if (err) onFileError(err)
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [addAttachment])
+  }, [addAttachment, onFileError])
 
   function autoResize(el: HTMLTextAreaElement) {
     el.style.height = 'auto'
@@ -461,7 +546,7 @@ function InputBar() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={ACCEPT_STRING}
           multiple
           style={{ display: 'none' }}
           onChange={(e) => handleFiles(e.target.files)}
@@ -483,6 +568,30 @@ function InputBar() {
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M14 8.5l-6.5 6.5A4 4 0 0 1 1.9 9.4l7.1-7.1a2.5 2.5 0 0 1 3.5 3.5L5.4 12.9a1 1 0 0 1-1.4-1.4L10.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          title={webSearch ? 'Web search on — click to disable' : 'Enable web search'}
+          onClick={() => setWebSearch(!webSearch)}
+          disabled={isLoading}
+          style={{
+            background: webSearch ? 'var(--accent-bg)' : 'none',
+            border: webSearch ? '1px solid var(--accent)' : '1px solid transparent',
+            borderRadius: 7,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            color: webSearch ? 'var(--accent)' : 'var(--text-muted)',
+            padding: '3px 5px', flexShrink: 0,
+            opacity: isLoading ? 0.4 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'color 0.15s, background 0.15s, border-color 0.15s',
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.3" />
+            <ellipse cx="7.5" cy="7.5" rx="2.8" ry="6" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M1.5 5.5h12M1.5 9.5h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
         </button>
 
@@ -535,8 +644,11 @@ function InputBar() {
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId } = useApp()
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment } = useApp()
+  const bottomRef    = useRef<HTMLDivElement>(null)
+  const dragCounter  = useRef(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [fileError,  setFileError]  = useState<string | null>(null)
 
   useEffect(() => {
     if (highlightedMessageId) {
@@ -547,10 +659,92 @@ export default function ChatPanel() {
     }
   }, [messages, highlightedMessageId])
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (dragCounter.current === 1) setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current === 0) setIsDragging(false)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragging(false)
+
+    const { files, hadUriOnly } = extractDroppedFiles(e)
+
+    if (files.length === 0) {
+      if (hadUriOnly) {
+        setFileError(
+          'File not available locally — it may be cloud-only. In OneDrive, right-click it and choose "Always keep on this device", then drop it again.'
+        )
+      }
+      return
+    }
+
+    const err = await processFiles(files, addAttachment)
+    if (err) setFileError(err)
+  }, [addAttachment])
+
   const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)', position: 'relative' }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drop overlay */}
+      {isDragging && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 50,
+            background: 'var(--accent-bg)',
+            border: '2px dashed var(--accent)',
+            borderRadius: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 10, pointerEvents: 'none',
+          }}
+        >
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.7 }}>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83L15 6" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--accent-text)' }}>Drop to attach</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Images, PDF, text, CSV, JSON</span>
+        </div>
+      )}
+
+      {/* File error banner */}
+      {fileError && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 20px', background: 'var(--color-error-bg)',
+            borderBottom: '1px solid var(--color-error-border)',
+            fontSize: 12, color: 'var(--color-error)', flexShrink: 0,
+          }}
+        >
+          <span>{fileError}</span>
+          <button
+            onClick={() => setFileError(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <TopBar />
       <SubHeader />
 
@@ -692,7 +886,7 @@ export default function ChatPanel() {
         <div ref={bottomRef} />
       </div>
 
-      <InputBar />
+      <InputBar onFileError={setFileError} />
 
       <style>{`
         @keyframes bounce {

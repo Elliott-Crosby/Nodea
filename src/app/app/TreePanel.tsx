@@ -223,7 +223,7 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, chatInputRef, lastSavedPairId } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
@@ -246,12 +246,34 @@ export default function TreePanel() {
   scaleRef.current   = scale
   panRef.current     = pan
 
-  const isResizing   = useRef(false)
-  const resizeOrigin = useRef({ x: 0, w: DEFAULT_WIDTH })
+  const isResizing     = useRef(false)
+  const resizeOrigin   = useRef({ x: 0, w: DEFAULT_WIDTH })
+  const initialFitDone = useRef(false)
 
   const pairs         = useMemo(() => buildPairs(allDbNodes), [allDbNodes])
-  const pairPositions = useMemo(() => computePairLayout(pairs), [pairs])
   const activePairIds = useMemo(() => getActivePairIds(pairs, selectedNodeId), [pairs, selectedNodeId])
+
+  // Ghost node: shown while the user is typing (branching in progress)
+  const selectedPair  = useMemo(() => pairs.find(p =>
+    p.id === selectedNodeId ||
+    p.userNode.id === selectedNodeId ||
+    (p.aiNode && p.aiNode.id === selectedNodeId)
+  ), [pairs, selectedNodeId])
+
+  const showGhost = input.trim().length > 0 && !!selectedPair
+
+  const displayPairs  = useMemo(() => {
+    if (!showGhost || !selectedPair) return pairs
+    const ghost: Pair = {
+      id:           '__ghost__',
+      userNode:     { id: '__ghost_user__', project_id: '', parent_id: selectedPair.id, role: 'user', content: '', position_x: 0, position_y: 0, created_at: new Date().toISOString() },
+      aiNode:       null,
+      parentPairId: selectedPair.id,
+    }
+    return [...pairs, ghost]
+  }, [pairs, showGhost, selectedPair])
+
+  const pairPositions = useMemo(() => computePairLayout(displayPairs), [displayPairs])
   const zoomMode      = getZoomMode(scale)
   const nodeW         = NODE_W[zoomMode]
   const nodeH         = NODE_H[zoomMode]
@@ -351,8 +373,14 @@ export default function TreePanel() {
 
   useEffect(() => {
     if (pairs.length > 0) {
-      const t = setTimeout(fitView, 80)
-      return () => clearTimeout(t)
+      if (!initialFitDone.current) {
+        initialFitDone.current = true
+        const t = setTimeout(fitView, 80)
+        return () => clearTimeout(t)
+      } else if (autoZoom) {
+        const t = setTimeout(fitView, 80)
+        return () => clearTimeout(t)
+      }
     }
   }, [pairs.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -446,21 +474,22 @@ export default function TreePanel() {
 
   // ── Edges ─────────────────────────────────────────────────────────────────────
   function renderEdges() {
-    return pairs.flatMap((pair) => {
+    return displayPairs.flatMap((pair) => {
       if (!pair.parentPairId) return []
       const p0 = pairPositions.get(pair.parentPairId)
       const p1 = pairPositions.get(pair.id)
       if (!p0 || !p1) return []
 
-      const isActivePath = activePairIds.has(pair.id) && activePairIds.has(pair.parentPairId)
+      const isGhost      = pair.id === '__ghost__'
+      const isActivePath = !isGhost && activePairIds.has(pair.id) && activePairIds.has(pair.parentPairId)
       const cx           = LAYOUT_W / 2
       const x1           = p0.x + cx
       const y1           = p0.y + nodeH
       const x2           = p1.x + cx
       const y2           = p1.y
-      const stroke       = isActivePath ? 'var(--accent)' : 'var(--edge-color)'
+      const stroke       = isGhost ? 'var(--text-muted)' : isActivePath ? 'var(--accent)' : 'var(--edge-color)'
       const sw           = isActivePath ? 2 : 1.5
-      const dash         = isActivePath ? undefined : '4 3'
+      const dash         = (isGhost || !isActivePath) ? '4 3' : undefined
 
       if (Math.abs(x1 - x2) < 2) {
         return [<line key={`e-${pair.id}`} x1={x1} y1={y1} x2={x2} y2={y2}
@@ -605,9 +634,24 @@ export default function TreePanel() {
                 {renderEdges()}
               </svg>
 
-              {pairs.map((pair) => {
+              {displayPairs.map((pair) => {
                 const pos = pairPositions.get(pair.id)
                 if (!pos) return null
+
+                // ── Ghost node ────────────────────────────────────────────────
+                if (pair.id === '__ghost__') {
+                  const offsetX = pos.x + (LAYOUT_W - nodeW) / 2
+                  const ghostText = input.length > 35 ? input.slice(0, 34) + '…' : input
+                  return (
+                    <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
+                      <div style={{ width: nodeW, height: nodeH, background: 'var(--node-bg)', border: '1.5px dashed var(--accent)', borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 10px', boxSizing: 'border-box' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic' }}>
+                          {ghostText || 'Typing…'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
 
                 const isActive   = pair.id === selectedNodeId || pair.userNode.id === selectedNodeId || (pair.aiNode && pair.aiNode.id === selectedNodeId)
                 const isOnPath   = activePairIds.has(pair.id)
@@ -615,8 +659,9 @@ export default function TreePanel() {
                 const isInactive = activePairIds.size > 0 && !isOnPath
                 const color      = nodeColors[pair.id] || nodeColors[pair.userNode.id] || (pair.aiNode ? nodeColors[pair.aiNode.id] : '') || ''
 
-                const title   = generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
-                const summary = pair.aiNode ? generateSummary(pair.aiNode.content, pair.userNode.content) : ''
+                const aiMeta  = nodeSummaries[pair.id]
+                const title   = aiMeta?.title   || generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
+                const summary = aiMeta?.summary || (pair.aiNode ? generateSummary(pair.aiNode.content, pair.userNode.content) : '')
 
                 const borderCol = color
                   ? color
@@ -668,18 +713,13 @@ export default function TreePanel() {
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
-                      {/* Detailed: title + summary + Active badge */}
+                      {/* Detailed: title + summary */}
                       {zoomMode === 'detailed' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {title}
                             </span>
-                            {isActive && (
-                              <span style={{ fontSize: 9, fontWeight: 700, background: 'var(--accent)', color: 'white', borderRadius: 6, padding: '1px 5px', flexShrink: 0, letterSpacing: '0.04em' }}>
-                                Active
-                              </span>
-                            )}
                           </div>
                           {summary && (
                             <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.4, overflow: 'hidden', maxHeight: 32 }}>
