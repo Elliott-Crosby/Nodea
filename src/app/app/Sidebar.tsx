@@ -300,6 +300,32 @@ export default function Sidebar() {
 
       {/* ── Bottom: settings + user ── */}
       <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        {isAdmin && (
+          <a
+            href="/admin"
+            title="Analytics"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+              gap: 9, width: '100%',
+              padding: collapsed ? '10px 0' : '10px 14px',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--text-secondary)', fontSize: 13,
+              overflow: 'hidden', whiteSpace: 'nowrap',
+              textDecoration: 'none',
+              transition: 'background 0.1s',
+              boxSizing: 'border-box',
+            }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--bg-subtle)')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+              <rect x="1" y="8" width="3" height="5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+              <rect x="5.5" y="5" width="3" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" />
+              <rect x="10" y="1" width="3" height="12" rx="1" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+            {!collapsed && 'Analytics'}
+          </a>
+        )}
         <button
           onClick={() => setIsSettingsOpen(true)}
           title="Settings"
