@@ -443,7 +443,7 @@ function UsageTab({ isPro }: { isPro: boolean }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Usage</h2>
         {isPro && (
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '2px 7px' }}>
@@ -452,33 +452,8 @@ function UsageTab({ isPro }: { isPro: boolean }) {
         )}
       </div>
 
-      <UsageBar
-        label="Daily"
-        used={dailyUsed}
-        limit={DAILY_LIMIT}
-        pct={dailyPct}
-        color={barColor(dailyPct)}
-        resetLabel={dailyResetAt ? `Resets at ${fmtTime(dailyResetAt)}` : ''}
-      />
-
-      <div style={{ marginBottom: 28 }} />
-
-      <UsageBar
-        label="Monthly"
-        used={monthlyUsed}
-        limit={MONTHLY_LIMIT}
-        pct={monthlyPct}
-        color={barColor(monthlyPct)}
-        resetLabel={monthlyResetAt ? `Resets on ${fmtDate(monthlyResetAt)}` : ''}
-      />
-
-      <div style={{ marginTop: 28, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All-time tokens used</span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{totalUsed.toLocaleString()}</span>
-      </div>
-
       {isPro ? (
-        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pro plan</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Manage billing, cancel, or view invoices</div>
@@ -492,7 +467,7 @@ function UsageTab({ isPro }: { isPro: boolean }) {
           </button>
         </div>
       ) : (
-        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Upgrade to Pro</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>20k daily tokens, 250k monthly — double the free limits</div>
@@ -506,6 +481,31 @@ function UsageTab({ isPro }: { isPro: boolean }) {
           </button>
         </div>
       )}
+
+      <UsageBar
+        label="Daily"
+        used={dailyUsed}
+        limit={DAILY_LIMIT}
+        pct={dailyPct}
+        color={barColor(dailyPct)}
+        resetLabel={dailyResetAt ? `Resets at ${fmtTime(dailyResetAt)}` : ''}
+      />
+
+      <div style={{ marginBottom: 20 }} />
+
+      <UsageBar
+        label="Monthly"
+        used={monthlyUsed}
+        limit={MONTHLY_LIMIT}
+        pct={monthlyPct}
+        color={barColor(monthlyPct)}
+        resetLabel={monthlyResetAt ? `Resets on ${fmtDate(monthlyResetAt)}` : ''}
+      />
+
+      <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All-time tokens used</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{totalUsed.toLocaleString()}</span>
+      </div>
     </div>
   )
 }
