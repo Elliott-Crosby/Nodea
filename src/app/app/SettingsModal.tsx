@@ -7,11 +7,8 @@ import { createClient } from '@/lib/supabase'
 
 type Section = 'appearance' | 'account' | 'usage'
 
-const DAILY_LIMIT   = 10_000
-const MONTHLY_LIMIT = 125_000
-
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>('appearance')
 
@@ -250,7 +247,7 @@ export default function SettingsModal() {
           )}
 
           {/* ── Usage ── */}
-          {section === 'usage' && <UsageTab />}
+          {section === 'usage' && <UsageTab isPro={isPro} />}
 
           {/* ── Account ── */}
           {section === 'account' && (
@@ -347,9 +344,13 @@ interface UsageRecord {
   monthly_reset_at: string
 }
 
-function UsageTab() {
-  const [usage, setUsage]     = useState<UsageRecord | null>(null)
-  const [loading, setLoading] = useState(true)
+function UsageTab({ isPro }: { isPro: boolean }) {
+  const [usage, setUsage]         = useState<UsageRecord | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [upgrading, setUpgrading] = useState(false)
+
+  const DAILY_LIMIT   = isPro ? 20_000  : 10_000
+  const MONTHLY_LIMIT = isPro ? 250_000 : 125_000
 
   useEffect(() => {
     const supabase = createClient()
@@ -387,6 +388,28 @@ function UsageTab() {
     return () => { void supabase.removeChannel(channel) }
   }, [])
 
+  async function handleUpgrade() {
+    setUpgrading(true)
+    try {
+      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
+  async function handleManage() {
+    setUpgrading(true)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>
@@ -420,7 +443,14 @@ function UsageTab() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 28 }}>Usage</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Usage</h2>
+        {isPro && (
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '2px 7px' }}>
+            PRO
+          </span>
+        )}
+      </div>
 
       <UsageBar
         label="Daily"
@@ -446,6 +476,36 @@ function UsageTab() {
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All-time tokens used</span>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{totalUsed.toLocaleString()}</span>
       </div>
+
+      {isPro ? (
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pro plan</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Manage billing, cancel, or view invoices</div>
+          </div>
+          <button
+            onClick={handleManage}
+            disabled={upgrading}
+            style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+          >
+            {upgrading ? 'Loading…' : 'Manage'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Upgrade to Pro</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>20k daily tokens, 250k monthly — double the free limits</div>
+          </div>
+          <button
+            onClick={handleUpgrade}
+            disabled={upgrading}
+            style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+          >
+            {upgrading ? 'Loading…' : 'Upgrade'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

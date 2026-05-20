@@ -574,7 +574,7 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
         onSubmit={handleSend}
         onClick={(e) => { if (e.target === e.currentTarget) focusAtEnd() }}
         style={{
-          display: 'flex', alignItems: 'flex-end', gap: 10,
+          display: 'flex', alignItems: 'center', gap: 10,
           background: 'var(--input-bg)', border: '1px solid var(--border)',
           borderRadius: 13, padding: '8px 8px 8px 14px',
           boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.15s',
@@ -601,7 +601,7 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
             background: 'none', border: 'none',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             color: pendingAttachments.length > 0 ? 'var(--accent)' : 'var(--text-muted)',
-            padding: '0 0 2px', flexShrink: 0,
+            padding: 0, flexShrink: 0,
             opacity: isLoading ? 0.4 : 1,
             transition: 'color 0.15s',
           }}

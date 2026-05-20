@@ -7,9 +7,11 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const DAILY_LIMIT   = 10_000
-const MONTHLY_LIMIT = 125_000
-const GRACE_BUFFER  = 500
+const FREE_DAILY_LIMIT    = 10_000
+const FREE_MONTHLY_LIMIT  = 125_000
+const PRO_DAILY_LIMIT     = 20_000
+const PRO_MONTHLY_LIMIT   = 250_000
+const GRACE_BUFFER        = 500
 export const MAX_INPUT_TOKENS = 4_000
 
 export function estimateTokens(text: string): number {
@@ -124,8 +126,12 @@ export async function checkTokenLimits(
   estimatedInputTokens: number,
   supabase: SupabaseClient,
   admin = false,
+  isPro = false,
 ): Promise<LimitCheck> {
   if (admin) return { allowed: true }
+
+  const DAILY_LIMIT   = isPro ? PRO_DAILY_LIMIT   : FREE_DAILY_LIMIT
+  const MONTHLY_LIMIT = isPro ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
 
   if (estimatedInputTokens > MAX_INPUT_TOKENS) {
     return {
@@ -197,11 +203,11 @@ export async function recordTokenUsage(
   const newDailyResetAt   = dailyResetDue   ? nextMidnightUTC().toISOString() : record.daily_reset_at
   const newMonthlyResetAt = monthlyResetDue ? nextMonthUTC().toISOString()    : record.monthly_reset_at
 
-  if (newDaily > DAILY_LIMIT) {
-    console.warn(`[token-limits] daily overage user=${userId} used=${newDaily}/${DAILY_LIMIT}`)
+  if (newDaily > FREE_DAILY_LIMIT) {
+    console.warn(`[token-limits] daily overage user=${userId} used=${newDaily}/${FREE_DAILY_LIMIT}`)
   }
-  if (newMonthly >= MONTHLY_LIMIT * 0.8) {
-    console.warn(`[token-limits] 80% monthly user=${userId} used=${newMonthly}/${MONTHLY_LIMIT}`)
+  if (newMonthly >= FREE_MONTHLY_LIMIT * 0.8) {
+    console.warn(`[token-limits] 80% monthly user=${userId} used=${newMonthly}/${FREE_MONTHLY_LIMIT}`)
   }
 
   // Include total_tokens only if the column already exists in the DB

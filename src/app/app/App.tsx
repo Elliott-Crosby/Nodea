@@ -69,6 +69,7 @@ export interface AppContextType {
   userName: string
   setUserName: (n: string) => void
   isAdmin: boolean
+  isPro: boolean
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
   nodeSummaries: Record<string, { title: string; summary: string }>
@@ -170,6 +171,7 @@ export default function App() {
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
   const [isAdmin,       setIsAdmin]         = useState(false)
+  const [isPro,         setIsPro]           = useState(false)
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
@@ -318,7 +320,21 @@ export default function App() {
       if (!user) { router.push('/login'); return }
       setUserEmail(user.email ?? '')
       setUserName(user.user_metadata?.display_name || user.email?.split('@')[0] || 'User')
-      setIsAdmin(user.id === '64b415d7-4b59-4ff1-aa35-5f88de1599de')
+
+      const hardcodedAdmin = user.id === '64b415d7-4b59-4ff1-aa35-5f88de1599de'
+      setIsAdmin(hardcodedAdmin)
+      if (hardcodedAdmin) {
+        setIsPro(true)
+      } else {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('is_admin, plan')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        const dbAdmin = profile?.is_admin === true
+        if (dbAdmin) setIsAdmin(true)
+        setIsPro(dbAdmin || profile?.plan === 'pro')
+      }
 
       const res = await fetch('/api/projects')
       if (!res.ok) { router.push('/login'); return }
@@ -631,7 +647,7 @@ export default function App() {
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
-    userEmail, userName, setUserName, isAdmin,
+    userEmail, userName, setUserName, isAdmin, isPro,
     nodeColors, setNodeColor, nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,

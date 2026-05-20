@@ -58,7 +58,18 @@ export async function POST(req: Request) {
   const estimatedInput = estimateTokens(inputText)
 
   const admin = await isAdmin(user.id, supabase)
-  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase, admin)
+
+  let isPro = admin
+  if (!admin) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('plan')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    isPro = profile?.plan === 'pro'
+  }
+
+  const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase, admin, isPro)
   if (!limitCheck.allowed) {
     return Response.json(
       {
