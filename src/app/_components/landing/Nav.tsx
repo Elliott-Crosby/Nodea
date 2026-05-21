@@ -16,7 +16,7 @@ export default function Nav() {
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#blog">Blog</a></li>
-          <li><button type="button" aria-disabled="true" className="ln-btn-noop">Pricing<span className="ln-soon-pill">soon</span></button></li>
+          <li><Link href="/upgrade">Pricing</Link></li>
           <li><button type="button" aria-disabled="true" className="ln-btn-noop">Changelog<span className="ln-soon-pill">soon</span></button></li>
         </ul>
 
