@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useApp, type AttachmentItem, type ChatMessage } from './App'
+import { modelDisplayName } from '@/lib/models'
 
 // ── Accepted file types (Claude API limits) ───────────────────────────────────
 const ACCEPTED_MIME_TYPES: Record<string, string> = {
@@ -236,7 +237,7 @@ function ThinkingBubble() {
       />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
-          Claude · Sonnet
+          Claude
           {elapsed > 0 && (
             <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
               {status} · {elapsed}s
@@ -443,7 +444,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>Claude · Sonnet</span>
+            <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
             {isEmptyStreaming && elapsed > 0 && (
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
                 {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s

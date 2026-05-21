@@ -30,6 +30,7 @@ export interface ChatMessage {
   content: string
   timestamp: number
   attachments?: AttachmentItem[]
+  modelId?: string
 }
 
 export interface DbNode {
@@ -495,9 +496,11 @@ export default function App() {
         }
         if (!response.ok) throw new Error('Chat request failed')
 
+        const modelId = response.headers.get('X-Model-Id') ?? undefined
+
         setMessages((prev) => [
           ...prev,
-          { id: assistantId, role: 'assistant', content: '', timestamp: Date.now() },
+          { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), modelId },
         ])
 
         const reader  = response.body?.getReader()

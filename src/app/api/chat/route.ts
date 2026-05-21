@@ -3,8 +3,7 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 import { isAdmin } from '@/lib/admin'
-
-const MODEL_ID = 'claude-sonnet-4-6'
+import { selectChatModel, supportsWebSearch } from '@/lib/models'
 
 interface Attachment {
   name: string
@@ -83,6 +82,9 @@ export async function POST(req: Request) {
     )
   }
 
+  const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
+  const modelId = selectChatModel(isPro, lastUserMessage)
+
   const modelMessages = validMessages.map((msg) => {
     if (msg.role !== 'user') {
       return { role: 'assistant' as const, content: msg.content ?? '' }
@@ -97,11 +99,15 @@ export async function POST(req: Request) {
     // server-side writes inside stream callbacks where cookies may be unavailable.
     const writeClient = createServiceSupabaseClient() ?? supabase
 
+    const tools = supportsWebSearch(modelId)
+      ? { web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }) }
+      : undefined
+
     const result = streamText({
-      model:    anthropic(MODEL_ID),
+      model:    anthropic(modelId),
       system:   'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.',
       messages: modelMessages,
-      tools:    { web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }) },
+      ...(tools ? { tools } : {}),
       // onFinish fires after the stream is fully consumed, with real token counts.
       // This is the correct hook vs after()+result.usage, which races the stream.
       onFinish: async ({ totalUsage }) => {
@@ -133,7 +139,10 @@ export async function POST(req: Request) {
     })
 
     return new Response(stream, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Model-Id':   modelId,
+      },
     })
   } catch (err) {
     console.error('Chat route error:', err)
