@@ -1,0 +1,424 @@
+'use client'
+
+import { useEffect, useId, useState } from 'react'
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+interface DayCount { day: string; count: number }
+
+export interface DashboardData {
+  totalUsers: number
+  usersToday: number
+  usersThisWeek: number
+  totalProjects: number
+  totalTokensAllTime: number
+  totalTokensToday: number
+  totalTokensMonth: number
+  usersByDay: DayCount[]
+  projectsByDay: DayCount[]
+  planBreakdown: { free: number; pro: number; admin: number }
+  topUsers: { email: string; total_tokens: number; daily_tokens: number; monthly_tokens: number }[]
+}
+
+interface TrafficData {
+  pageviews: DayCount[]
+  visitors: DayCount[]
+  totalPageviews: number
+  totalVisitors: number
+  topPages: { path: string; views: number }[]
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function fmt(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
+  return n.toString()
+}
+
+function fmtDay(day: string): string {
+  const d = new Date(day + 'T00:00:00Z')
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+function trendDelta(arr: DayCount[]): number {
+  const n = arr.length
+  if (n < 2) return 0
+  const half = Math.floor(n / 2)
+  const prev = arr.slice(0, half).reduce((s, d) => s + d.count, 0)
+  const curr = arr.slice(half).reduce((s, d) => s + d.count, 0)
+  return prev === 0 ? 0 : Math.round(((curr - prev) / prev) * 100)
+}
+
+// ── Primitives ─────────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      marginBottom: 10, fontSize: 11, fontWeight: 600,
+      color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em',
+    }}>
+      {children}
+    </div>
+  )
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div style={{
+      background: 'var(--ai-card-bg)', border: '1px solid var(--border)',
+      borderRadius: 10, padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 4,
+    }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+// ── Sparkline chart ────────────────────────────────────────────────────────────
+function SparkChart({ data, label, color = 'var(--accent)' }: { data: DayCount[]; label: string; color?: string }) {
+  const uid = useId().replace(/:/g, 'x')
+  const H = 64
+  const W = 500
+  const padT = 8
+  const innerH = H - padT
+  const n = data.length
+  const max = Math.max(...data.map(d => d.count), 1)
+  const total = data.reduce((s, d) => s + d.count, 0)
+  const pct = trendDelta(data)
+  const trendColor = pct > 0 ? '#22c55e' : pct < 0 ? 'var(--color-error)' : 'var(--text-muted)'
+  const trendLabel = pct > 0 ? `+${pct}%` : pct < 0 ? `${pct}%` : '—'
+
+  const xs = data.map((_, i) => n <= 1 ? W / 2 : (i / (n - 1)) * W)
+  const ys = data.map(d => padT + (1 - d.count / max) * innerH)
+  const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')
+  const area = `${line} L${xs[n - 1].toFixed(1)},${H} L${xs[0].toFixed(1)},${H} Z`
+
+  const gridYs = [0.25, 0.5, 0.75].map(f => padT + (1 - f) * innerH)
+
+  return (
+    <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1, marginTop: 4 }}>{fmt(total)}</div>
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: trendColor, marginTop: 2 }}>{trendLabel}</div>
+      </div>
+      <div style={{ height: H }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%', overflow: 'visible' }} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id={`sg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {gridYs.map((y, i) => (
+            <line key={i} x1={0} y1={y} x2={W} y2={y} stroke="var(--border)" strokeWidth={0.8} />
+          ))}
+          <path d={area} fill={`url(#sg-${uid})`} />
+          <path d={line} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+          {n > 0 && <circle cx={xs[n - 1]} cy={ys[n - 1]} r={3} fill={color} />}
+        </svg>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDay(data[0]?.day ?? '')}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDay(data[n - 1]?.day ?? '')}</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Plan distribution ──────────────────────────────────────────────────────────
+function PlanDistribution({ free, pro, admin, total }: { free: number; pro: number; admin: number; total: number }) {
+  const segments = [
+    { label: 'Free', count: free, color: 'var(--border-strong)' },
+    { label: 'Pro', count: pro, color: 'var(--accent)' },
+    { label: 'Admin', count: admin, color: '#a78bfa' },
+  ].filter(s => s.count > 0)
+
+  return (
+    <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+        Plan distribution
+      </div>
+      <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2, marginBottom: 14 }}>
+        {segments.map(s => (
+          <div key={s.label} style={{ flex: s.count, background: s.color, minWidth: 4, borderRadius: 4 }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+        {segments.map(s => (
+          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{s.label}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{s.count}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{total ? Math.round((s.count / total) * 100) : 0}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Token bars ─────────────────────────────────────────────────────────────────
+function TopUsersPanel({ users }: { users: DashboardData['topUsers'] }) {
+  if (users.length === 0) return null
+  const max = users[0]?.total_tokens ?? 1
+  return (
+    <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+        Top users by token usage
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {users.map((u, i) => (
+          <div key={u.email}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{
+                  fontSize: 10, color: 'var(--text-muted)', width: 16,
+                  textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+                }}>{i + 1}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.email}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 16, flexShrink: 0, marginLeft: 12 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>today </span>{fmt(u.daily_tokens)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(u.total_tokens)}
+                </span>
+              </div>
+            </div>
+            <div style={{ height: 4, background: 'var(--bg-muted)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{
+                width: `${(u.total_tokens / max) * 100}%`,
+                height: '100%', background: 'var(--accent)', borderRadius: 2,
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Traffic section ────────────────────────────────────────────────────────────
+function TrafficChart({ data, label, color }: { data: DayCount[]; label: string; color: string }) {
+  const uid = useId().replace(/:/g, 'x')
+  const H = 56
+  const W = 500
+  const padT = 6
+  const innerH = H - padT
+  const n = data.length
+  const max = Math.max(...data.map(d => d.count), 1)
+  const xs = data.map((_, i) => n <= 1 ? W / 2 : (i / (n - 1)) * W)
+  const ys = data.map(d => padT + (1 - d.count / max) * innerH)
+  const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')
+  const area = `${line} L${xs[n - 1].toFixed(1)},${H} L${xs[0].toFixed(1)},${H} Z`
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ height: H }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%' }} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id={`tc-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={area} fill={`url(#tc-${uid})`} />
+          <path d={line} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+          {n > 0 && <circle cx={xs[n - 1]} cy={ys[n - 1]} r={3} fill={color} />}
+        </svg>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDay(data[0]?.day ?? '')}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDay(data[n - 1]?.day ?? '')}</span>
+      </div>
+    </div>
+  )
+}
+
+function TrafficSection() {
+  const [data, setData] = useState<TrafficData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/traffic')
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setData(d) })
+      .catch(() => setError('Network error loading traffic data.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{
+        background: 'var(--ai-card-bg)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '28px 22px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13,
+      }}>
+        Loading traffic…
+      </div>
+    )
+  }
+
+  if (error) {
+    const needsToken = error.includes('VERCEL_ACCESS_TOKEN')
+    return (
+      <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '22px 24px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+          {needsToken ? 'Connect Vercel Analytics' : 'Traffic data unavailable'}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: 480 }}>
+          {needsToken ? (
+            <>
+              Add{' '}
+              <code style={{ fontFamily: 'monospace', background: 'var(--bg-muted)', padding: '2px 5px', borderRadius: 4, fontSize: 11 }}>
+                VERCEL_ACCESS_TOKEN
+              </code>
+              {' '}to{' '}
+              <code style={{ fontFamily: 'monospace', background: 'var(--bg-muted)', padding: '2px 5px', borderRadius: 4, fontSize: 11 }}>
+                .env.local
+              </code>
+              {' '}to enable page-view metrics. Create a token at{' '}
+              <strong>vercel.com/account/tokens</strong>.
+            </>
+          ) : error}
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, marginBottom: 14 }}>
+            {fmt(data.totalPageviews)}
+            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>30 days</span>
+          </div>
+          <TrafficChart data={data.pageviews} label="Page views" color="var(--accent)" />
+        </div>
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, marginBottom: 14 }}>
+            {fmt(data.totalVisitors)}
+            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>30 days</span>
+          </div>
+          <TrafficChart data={data.visitors} label="Unique visitors" color="#a78bfa" />
+        </div>
+      </div>
+
+      {/* Top pages */}
+      {data.topPages.length > 0 && (
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+            Top pages
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.topPages.slice(0, 8).map((p, i) => {
+              const pct = data.topPages[0].views ? (p.views / data.topPages[0].views) * 100 : 0
+              return (
+                <div key={i}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.path}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginLeft: 16, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmt(p.views)}
+                    </span>
+                  </div>
+                  <div style={{ height: 4, background: 'var(--bg-muted)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main dashboard ─────────────────────────────────────────────────────────────
+export function AdminDashboard(props: DashboardData) {
+  const {
+    totalUsers, usersToday, usersThisWeek, totalProjects,
+    totalTokensAllTime, totalTokensToday, totalTokensMonth,
+    usersByDay, projectsByDay, planBreakdown, topUsers,
+  } = props
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', padding: '32px 40px', fontFamily: 'inherit' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>Analytics</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Admin view</div>
+          </div>
+          <a
+            href="/app"
+            style={{
+              fontSize: 13, color: 'var(--text-secondary)',
+              background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+              borderRadius: 7, padding: '6px 14px', textDecoration: 'none',
+            }}
+          >
+            Back to app
+          </a>
+        </div>
+
+        {/* Users */}
+        <SectionLabel>Users</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <StatCard label="Total" value={totalUsers} />
+          <StatCard label="New today" value={usersToday} />
+          <StatCard label="New this week" value={usersThisWeek} />
+          <StatCard label="Total projects" value={totalProjects} />
+        </div>
+
+        {/* Growth charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <SparkChart data={usersByDay} label="User signups — 30 days" />
+          <SparkChart data={projectsByDay} label="Projects created — 30 days" />
+        </div>
+
+        {/* Plan breakdown */}
+        <div style={{ marginBottom: 32 }}>
+          <PlanDistribution {...planBreakdown} total={totalUsers} />
+        </div>
+
+        {/* Tokens */}
+        <SectionLabel>Token usage</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <StatCard label="All time" value={fmt(totalTokensAllTime)} />
+          <StatCard label="This month" value={fmt(totalTokensMonth)} />
+          <StatCard label="Today" value={fmt(totalTokensToday)} />
+        </div>
+        <div style={{ marginBottom: 32 }}>
+          <TopUsersPanel users={topUsers} />
+        </div>
+
+        {/* Traffic */}
+        <SectionLabel>Traffic</SectionLabel>
+        <div style={{ marginBottom: 32 }}>
+          <TrafficSection />
+        </div>
+
+      </div>
+    </div>
+  )
+}
