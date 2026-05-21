@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/lib/theme'
 import { DM_Sans, Bricolage_Grotesque, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { PageTracker } from './_components/PageTracker'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${dmSans.variable} ${bricolage.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}>
         <ThemeProvider>{children}</ThemeProvider>
+        <PageTracker />
         <Analytics />
         <SpeedInsights />
       </body>

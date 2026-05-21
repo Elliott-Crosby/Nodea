@@ -271,28 +271,37 @@ function TrafficSection() {
   }
 
   if (error) {
-    const needsToken = error.includes('VERCEL_ACCESS_TOKEN')
+    const needsMigration = error === 'MIGRATION_PENDING'
+    const sql = `CREATE TABLE public.page_views (
+  id         BIGSERIAL   PRIMARY KEY,
+  path       TEXT        NOT NULL,
+  referrer   TEXT,
+  session_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_insert_page_view" ON public.page_views FOR INSERT WITH CHECK (true);
+CREATE INDEX page_views_created_at_idx ON public.page_views (created_at);
+CREATE INDEX page_views_path_idx ON public.page_views (path);`
+
     return (
       <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '22px 24px' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-          {needsToken ? 'Connect Vercel Analytics' : 'Traffic data unavailable'}
+          {needsMigration ? 'One-time setup needed' : 'Traffic data unavailable'}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: 480 }}>
-          {needsToken ? (
-            <>
-              Add{' '}
-              <code style={{ fontFamily: 'monospace', background: 'var(--bg-muted)', padding: '2px 5px', borderRadius: 4, fontSize: 11 }}>
-                VERCEL_ACCESS_TOKEN
-              </code>
-              {' '}to{' '}
-              <code style={{ fontFamily: 'monospace', background: 'var(--bg-muted)', padding: '2px 5px', borderRadius: 4, fontSize: 11 }}>
-                .env.local
-              </code>
-              {' '}to enable page-view metrics. Create a token at{' '}
-              <strong>vercel.com/account/tokens</strong>.
-            </>
-          ) : error}
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.65, maxWidth: 520, marginBottom: needsMigration ? 12 : 0 }}>
+          {needsMigration
+            ? <>Run this SQL once in your <strong>Supabase SQL Editor</strong> (<a href="https://supabase.com/dashboard/project/kzqhpygdhphjaiymqcmq/sql/new" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>open editor ↗</a>), then reload:</>
+            : error}
         </div>
+        {needsMigration && (
+          <pre style={{
+            fontFamily: 'monospace', fontSize: 11, background: 'var(--bg-muted)',
+            border: '1px solid var(--border)', borderRadius: 7,
+            padding: '12px 14px', overflowX: 'auto', color: 'var(--text-secondary)',
+            lineHeight: 1.6, margin: 0,
+          }}>{sql}</pre>
+        )}
       </div>
     )
   }

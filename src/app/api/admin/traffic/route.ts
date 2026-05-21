@@ -1,8 +1,16 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
 
-const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID ?? 'prj_or8odXhUNMHxNIhnPw2e2scmoOug'
-const VERCEL_TEAM_ID    = process.env.VERCEL_ORG_ID    ?? 'team_kosoS0n8Hy0CMoDPvCOzBcet'
+function buildDayMap(days: number): Map<string, number> {
+  const map = new Map<string, number>()
+  const now = new Date()
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now)
+    d.setUTCDate(d.getUTCDate() - i)
+    map.set(d.toISOString().slice(0, 10), 0)
+  }
+  return map
+}
 
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -12,84 +20,55 @@ export async function GET() {
   const admin = await isAdmin(user.id, supabase)
   if (!admin) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
-  const token = process.env.VERCEL_ACCESS_TOKEN
-  if (!token) {
-    return Response.json({ error: 'VERCEL_ACCESS_TOKEN is not set.' }, { status: 400 })
-  }
+  const service = createServiceSupabaseClient()
+  if (!service) return Response.json({ error: 'Service client unavailable' }, { status: 500 })
 
-  const now = new Date()
-  const from = new Date(now)
-  from.setUTCDate(from.getUTCDate() - 29)
-  from.setUTCHours(0, 0, 0, 0)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 29)
+  thirtyDaysAgo.setUTCHours(0, 0, 0, 0)
 
-  const fromStr = from.toISOString().slice(0, 10)
-  const toStr   = now.toISOString().slice(0, 10)
+  const { data: rows, error } = await service
+    .from('page_views')
+    .select('path, session_id, created_at')
+    .gte('created_at', thirtyDaysAgo.toISOString())
 
-  const base = `https://api.vercel.com/v1/web/analytics`
-  const qs = `projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&from=${fromStr}&to=${toStr}`
-  const headers: HeadersInit = { Authorization: `Bearer ${token}` }
-
-  // Build the 30-day skeleton so we always return a full array
-  const dayMap = new Map<string, { pv: number; v: number }>()
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now)
-    d.setUTCDate(d.getUTCDate() - i)
-    dayMap.set(d.toISOString().slice(0, 10), { pv: 0, v: 0 })
-  }
-
-  try {
-    const [summaryRes, timelineRes, pathsRes] = await Promise.all([
-      fetch(`${base}?${qs}`, { headers }),
-      fetch(`${base}/views?${qs}&granularity=day`, { headers }),
-      fetch(`${base}/paths?${qs}&limit=8`, { headers }),
-    ])
-
-    if (!summaryRes.ok) {
-      const body = await summaryRes.text().catch(() => summaryRes.statusText)
-      return Response.json(
-        { error: `Vercel API returned ${summaryRes.status}: ${body}` },
-        { status: 502 },
-      )
+  if (error) {
+    // Table doesn't exist yet — migration needs to run
+    if (error.message.includes('page_views') || error.code === '42P01') {
+      return Response.json({ error: 'MIGRATION_PENDING' }, { status: 400 })
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const summary: any  = await summaryRes.json()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const timeline: any = timelineRes.ok ? await timelineRes.json() : {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const paths: any    = pathsRes.ok   ? await pathsRes.json()    : {}
-
-    // Merge timeline data into day map
-    for (const entry of (timeline?.data ?? [])) {
-      const ts  = entry.timestamp ?? entry.ts
-      const day = ts ? new Date(ts).toISOString().slice(0, 10) : null
-      if (day && dayMap.has(day)) {
-        dayMap.set(day, {
-          pv: entry.pageViews ?? entry.views  ?? entry.count ?? 0,
-          v:  entry.visitors  ?? entry.unique ?? 0,
-        })
-      }
-    }
-
-    const pageviews = Array.from(dayMap, ([day, v]) => ({ day, count: v.pv }))
-    const visitors  = Array.from(dayMap, ([day, v]) => ({ day, count: v.v  }))
-
-    const totalPageviews = summary?.pageViews ?? summary?.totalPageViews ??
-      pageviews.reduce((s, d) => s + d.count, 0)
-    const totalVisitors  = summary?.visitors  ?? summary?.uniqueVisitors  ??
-      visitors.reduce((s, d) => s + d.count, 0)
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const topPages = (paths?.data ?? []).map((p: any) => ({
-      path:  p.path  ?? p.url ?? '/',
-      views: p.pageViews ?? p.views ?? p.count ?? 0,
-    }))
-
-    return Response.json({ pageviews, visitors, totalPageviews, totalVisitors, topPages })
-  } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Failed to reach Vercel API.' },
-      { status: 500 },
-    )
+    return Response.json({ error: `Database error: ${error.message}` }, { status: 500 })
   }
+
+  // Page views by day
+  const pvMap = buildDayMap(30)
+  // Unique visitors by day: distinct session_ids per day
+  const visitorMap = new Map<string, Set<string>>()
+  pvMap.forEach((_, day) => visitorMap.set(day, new Set()))
+
+  // Top pages
+  const pathCounts = new Map<string, number>()
+
+  for (const row of rows ?? []) {
+    const day = (row.created_at as string).slice(0, 10)
+    if (pvMap.has(day)) {
+      pvMap.set(day, pvMap.get(day)! + 1)
+      if (row.session_id) visitorMap.get(day)!.add(row.session_id)
+    }
+    const p = row.path as string
+    pathCounts.set(p, (pathCounts.get(p) ?? 0) + 1)
+  }
+
+  const pageviews = Array.from(pvMap, ([day, count]) => ({ day, count }))
+  const visitors  = Array.from(visitorMap, ([day, set]) => ({ day, count: set.size }))
+
+  const totalPageviews = pageviews.reduce((s, d) => s + d.count, 0)
+  const totalVisitors  = new Set((rows ?? []).map(r => r.session_id).filter(Boolean)).size
+
+  const topPages = Array.from(pathCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([path, views]) => ({ path, views }))
+
+  return Response.json({ pageviews, visitors, totalPageviews, totalVisitors, topPages })
 }
