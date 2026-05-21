@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="6" fill="#16131f"/>
+  <text
+    x="16"
+    y="25"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-size="26"
+    fill="#e8e4f0"
+    letter-spacing="-1"
+  >N</text>
+</svg>
