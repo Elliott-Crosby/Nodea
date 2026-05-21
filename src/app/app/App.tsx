@@ -83,6 +83,8 @@ export interface AppContextType {
   saveError: boolean
   clearSaveError: () => void
   highlightedMessageId: string | null
+  settingsInitialSection: string | null
+  setSettingsInitialSection: (s: string | null) => void
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -168,6 +170,7 @@ export default function App() {
   const [isLoading,     setIsLoading]       = useState(false)
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
+  const [settingsInitialSection, setSettingsInitialSection] = useState<string | null>(null)
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
   const [isAdmin,       setIsAdmin]         = useState(false)
@@ -653,6 +656,7 @@ export default function App() {
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
     highlightedMessageId,
+    settingsInitialSection, setSettingsInitialSection,
   }
 
   return (

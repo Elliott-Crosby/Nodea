@@ -8,9 +8,14 @@ import { createClient } from '@/lib/supabase'
 type Section = 'appearance' | 'account' | 'usage'
 
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection } = useApp()
   const { theme, setTheme } = useTheme()
-  const [section, setSection] = useState<Section>('appearance')
+  const [section, setSection] = useState<Section>((settingsInitialSection as Section) ?? 'appearance')
+
+  useEffect(() => {
+    if (settingsInitialSection) setSettingsInitialSection(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Account form state
   const [displayName, setDisplayName] = useState(userName)
