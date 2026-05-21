@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { track } from '@vercel/analytics'
 import { useApp, type DbNode } from './App'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1000,7 +1001,7 @@ export default function TreePanel() {
               const active = (nodeColors[colorMenu.nodeId] ?? '') === p.hex
               return (
                 <button key={p.id} title={p.label}
-                  onClick={() => { setNodeColor(colorMenu.nodeId, p.hex); setColorMenu(null) }}
+                  onClick={() => { setNodeColor(colorMenu.nodeId, p.hex); track('node_color_changed', { color: p.id }); setColorMenu(null) }}
                   style={{ width: 22, height: 22, borderRadius: '50%', background: p.hex || 'var(--bg-muted)', border: active ? '2.5px solid var(--text-primary)' : `1.5px solid ${p.hex ? p.hex + '55' : 'var(--border)'}`, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: active ? `0 0 0 2px var(--modal-bg), 0 0 0 4px ${p.hex || 'var(--border)'}` : 'none', transition: 'box-shadow 0.12s' }}
                 >
                   {active && (

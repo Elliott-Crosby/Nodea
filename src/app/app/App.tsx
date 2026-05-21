@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { track } from '@vercel/analytics'
 import { createClient } from '@/lib/supabase'
 import Sidebar from './Sidebar'
 import ChatPanel from './ChatPanel'
 import TreePanel from './TreePanel'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
+import UpgradeModal from './UpgradeModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +61,8 @@ export interface AppContextType {
   setIsSearchOpen: (b: boolean) => void
   isSettingsOpen: boolean
   setIsSettingsOpen: (b: boolean) => void
+  isUpgradeOpen: boolean
+  setIsUpgradeOpen: (b: boolean) => void
   handleSend: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
   handleNodeClick: (nodeId: string) => Promise<void>
   switchConversation: (id: string) => Promise<void>
@@ -101,12 +105,6 @@ function formatRateLimitMessage(data: { limit_type?: string; resets_at?: string 
       ? new Date(data.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'midnight'
     return `You've reached your daily usage limit. Your limit resets at ${t}. Upgrade for more.`
-  }
-  if (data.limit_type === 'monthly') {
-    const d = data.resets_at
-      ? new Date(data.resets_at).toLocaleDateString([], { month: 'long', day: 'numeric' })
-      : 'next month'
-    return `You've reached your monthly usage limit. It resets on ${d}. Upgrade for more.`
   }
   return 'Your message is too long. Please shorten it and try again.'
 }
@@ -171,6 +169,7 @@ export default function App() {
   const [isLoading,     setIsLoading]       = useState(false)
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
+  const [isUpgradeOpen, setIsUpgradeOpen]  = useState(false)
   const [settingsInitialSection, setSettingsInitialSection] = useState<string | null>(null)
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
@@ -184,8 +183,9 @@ export default function App() {
   const [saveError,     setSaveError]       = useState(false)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
 
-  const lastNodeIdRef = useRef<string | null>(null)
-  const chatInputRef  = useRef<HTMLTextAreaElement | null>(null)
+  const lastNodeIdRef     = useRef<string | null>(null)
+  const isBranchPointRef  = useRef(false)
+  const chatInputRef      = useRef<HTMLTextAreaElement | null>(null)
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
@@ -390,6 +390,7 @@ export default function App() {
     const { project } = await res.json()
     setConversations((prev) => [...prev, project])
     await loadConversation(project.id, project.name)
+    track('conversation_created')
   }, [loadConversation])
 
   // ── Rename conversation (Task 3) ──────────────────────────────────────────
@@ -408,6 +409,7 @@ export default function App() {
     const { error } = await supabase.from('projects').delete().eq('id', id)
     if (error) { console.error('Delete failed', error); return }
 
+    track('conversation_deleted')
     const remaining = conversations.filter((c) => c.id !== id)
     setConversations(remaining)
 
@@ -484,6 +486,16 @@ export default function App() {
       setPendingAttachments([])
       setIsLoading(true)
 
+      track('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        attachment_count: pendingAttachments.length,
+        conversation_length: messages.length,
+      })
+      if (isBranchPointRef.current) {
+        track('branch_created')
+        isBranchPointRef.current = false
+      }
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -492,6 +504,7 @@ export default function App() {
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
+          track('token_limit_hit', { limit_type: data.limit_type ?? 'unknown' })
           throw new RateLimitError(formatRateLimitMessage(data))
         }
         if (!response.ok) throw new Error('Chat request failed')
@@ -624,6 +637,8 @@ export default function App() {
         highlightId = nodeId
       }
 
+      isBranchPointRef.current = (childrenMap.get(nodeId) ?? []).length > 0
+
       setMessages(
         [...ancestors, ...descendants].map((n) => ({
           id: n.id, role: n.role, content: n.content,
@@ -651,6 +666,7 @@ export default function App() {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
     input, setInput, isLoading,
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
+    isUpgradeOpen, setIsUpgradeOpen,
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
@@ -673,6 +689,7 @@ export default function App() {
       </div>
       {isSearchOpen  && <SearchModal />}
       {isSettingsOpen && <SettingsModal />}
+      {isUpgradeOpen && <UpgradeModal />}
     </AppContext.Provider>
   )
 }

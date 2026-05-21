@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { track } from '@vercel/analytics'
 import { useApp } from './App'
 
 type Mode = 'keyword' | 'concept'
@@ -57,6 +58,7 @@ export default function SearchModal() {
       if (!res.ok) throw new Error('Search failed')
       const { results: r } = await res.json()
       setResults(r)
+      track('search_performed', { mode: 'concept', result_count: (r as unknown[]).length })
     } catch (e) {
       console.error('Concept search error', e)
       setResults([])
@@ -69,8 +71,12 @@ export default function SearchModal() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (mode === 'keyword') doKeywordSearch(query)
-    else doConceptSearch(query)
+    if (mode === 'keyword') {
+      doKeywordSearch(query)
+      track('search_performed', { mode: 'keyword', result_count: results.length })
+    } else {
+      doConceptSearch(query)
+    }
   }
 
   // Live keyword search as user types
@@ -78,7 +84,8 @@ export default function SearchModal() {
     if (mode === 'keyword') doKeywordSearch(query)
   }, [query, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleResultClick(id: string) {
+  function handleResultClick(id: string, rank: number) {
+    track('search_result_clicked', { rank, mode })
     handleNodeClick(id)
     setIsSearchOpen(false)
   }
@@ -239,7 +246,7 @@ export default function SearchModal() {
           {results.map((r, i) => (
             <button
               key={r.id + i}
-              onClick={() => handleResultClick(r.id)}
+              onClick={() => handleResultClick(r.id, i)}
               style={{
                 display: 'block',
                 width: '100%',

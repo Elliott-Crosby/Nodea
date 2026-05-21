@@ -1,17 +1,8 @@
-/*
- * SQL migration required — see supabase/migrations/20260517000000_token_limits.sql
- *
- * If total_tokens column is not yet present, daily/monthly tracking still works;
- * the all-time counter stays at 0 until the column is added.
- */
-
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const FREE_DAILY_LIMIT    = 10_000
-const FREE_MONTHLY_LIMIT  = 125_000
-const PRO_DAILY_LIMIT     = 20_000
-const PRO_MONTHLY_LIMIT   = 250_000
-const GRACE_BUFFER        = 500
+const FREE_DAILY_LIMIT = 25_000
+const PRO_DAILY_LIMIT  = 250_000
+const GRACE_BUFFER     = 500
 export const MAX_INPUT_TOKENS = 4_000
 
 export function estimateTokens(text: string): number {
@@ -21,14 +12,12 @@ export function estimateTokens(text: string): number {
 interface UsageRecord {
   user_id: string
   daily_tokens: number
-  monthly_tokens: number
-  total_tokens?: number   // optional — column may not exist yet if migration not applied
+  monthly_tokens: number   // kept for DB compat; not enforced
+  total_tokens?: number
   daily_reset_at: string
-  monthly_reset_at: string
+  monthly_reset_at: string // kept for DB compat; not enforced
 }
 
-// Supabase PostgREST errors have these fields; using a local interface avoids
-// casting to Record<string,unknown> which TypeScript rejects.
 interface PgError { code?: string; message?: string; details?: string; hint?: string }
 
 function pgCode(err: unknown): string | undefined {
@@ -60,8 +49,6 @@ async function getOrCreateUsageRecord(userId: string, supabase: SupabaseClient):
   if (selectErr) logErr('SELECT failed', selectErr)
   if (existing) return existing as UsageRecord
 
-  // No row yet — insert one. Try with total_tokens first; fall back without it
-  // in case the column hasn't been added via migration yet.
   const baseRecord = {
     user_id:          userId,
     daily_tokens:     0,
@@ -84,10 +71,8 @@ async function getOrCreateUsageRecord(userId: string, supabase: SupabaseClient):
 
     const code = pgCode(error)
 
-    // 42703 = undefined_column (total_tokens not migrated yet) — retry without it
     if (code === '42703') continue
 
-    // 23505 = unique_violation (race: another request beat us) — re-fetch
     if (code === '23505') {
       const { data: refetched } = await supabase
         .from('user_token_usage')
@@ -101,7 +86,6 @@ async function getOrCreateUsageRecord(userId: string, supabase: SupabaseClient):
     throw error
   }
 
-  // Both insert attempts failed — last chance fetch
   const { data: lastFetch, error: lastErr } = await supabase
     .from('user_token_usage')
     .select('*')
@@ -113,7 +97,7 @@ async function getOrCreateUsageRecord(userId: string, supabase: SupabaseClient):
 
 export type RateLimitError = {
   allowed: false
-  limit_type: 'daily' | 'monthly' | 'input_too_large'
+  limit_type: 'daily' | 'input_too_large'
   resets_at: string
   tokens_used: number
   tokens_limit: number
@@ -130,8 +114,7 @@ export async function checkTokenLimits(
 ): Promise<LimitCheck> {
   if (admin) return { allowed: true }
 
-  const DAILY_LIMIT   = isPro ? PRO_DAILY_LIMIT   : FREE_DAILY_LIMIT
-  const MONTHLY_LIMIT = isPro ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
+  const DAILY_LIMIT = isPro ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT
 
   if (estimatedInputTokens > MAX_INPUT_TOKENS) {
     return {
@@ -151,9 +134,8 @@ export async function checkTokenLimits(
     return { allowed: true }
   }
 
-  const now     = new Date()
-  const daily   = now >= new Date(record.daily_reset_at)   ? 0 : record.daily_tokens
-  const monthly = now >= new Date(record.monthly_reset_at) ? 0 : record.monthly_tokens
+  const now   = new Date()
+  const daily = now >= new Date(record.daily_reset_at) ? 0 : record.daily_tokens
 
   if (daily > DAILY_LIMIT + GRACE_BUFFER) {
     return {
@@ -162,16 +144,6 @@ export async function checkTokenLimits(
       resets_at: record.daily_reset_at,
       tokens_used: daily,
       tokens_limit: DAILY_LIMIT,
-    }
-  }
-
-  if (monthly > MONTHLY_LIMIT + GRACE_BUFFER) {
-    return {
-      allowed: false,
-      limit_type: 'monthly',
-      resets_at: record.monthly_reset_at,
-      tokens_used: monthly,
-      tokens_limit: MONTHLY_LIMIT,
     }
   }
 
@@ -195,29 +167,18 @@ export async function recordTokenUsage(
     return
   }
 
-  const dailyResetDue   = now >= new Date(record.daily_reset_at)
-  const monthlyResetDue = now >= new Date(record.monthly_reset_at)
-
-  const newDaily          = dailyResetDue   ? total : record.daily_tokens   + total
-  const newMonthly        = monthlyResetDue ? total : record.monthly_tokens + total
-  const newDailyResetAt   = dailyResetDue   ? nextMidnightUTC().toISOString() : record.daily_reset_at
-  const newMonthlyResetAt = monthlyResetDue ? nextMonthUTC().toISOString()    : record.monthly_reset_at
+  const dailyResetDue = now >= new Date(record.daily_reset_at)
+  const newDaily        = dailyResetDue ? total : record.daily_tokens + total
+  const newDailyResetAt = dailyResetDue ? nextMidnightUTC().toISOString() : record.daily_reset_at
 
   if (newDaily > FREE_DAILY_LIMIT) {
     console.warn(`[token-limits] daily overage user=${userId} used=${newDaily}/${FREE_DAILY_LIMIT}`)
   }
-  if (newMonthly >= FREE_MONTHLY_LIMIT * 0.8) {
-    console.warn(`[token-limits] 80% monthly user=${userId} used=${newMonthly}/${FREE_MONTHLY_LIMIT}`)
-  }
 
-  // Include total_tokens only if the column already exists in the DB
-  // (indicated by whether the fetched record contains the field).
   const hasTotal = typeof record.total_tokens === 'number'
   const updatePayload: Record<string, unknown> = {
-    daily_tokens:     newDaily,
-    monthly_tokens:   newMonthly,
-    daily_reset_at:   newDailyResetAt,
-    monthly_reset_at: newMonthlyResetAt,
+    daily_tokens:   newDaily,
+    daily_reset_at: newDailyResetAt,
     ...(hasTotal ? { total_tokens: record.total_tokens! + total } : {}),
   }
 
@@ -228,7 +189,6 @@ export async function recordTokenUsage(
 
   if (updateError) {
     if (pgCode(updateError) === '42703' && hasTotal) {
-      // total_tokens column not yet migrated — retry without it
       console.warn('[token-limits] total_tokens column missing, retrying without it')
       const fallback = { ...updatePayload }
       delete fallback['total_tokens']

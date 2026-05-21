@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { track } from '@vercel/analytics'
 import { Sun, Moon, Mail, Lock, AlertTriangle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
@@ -60,6 +61,7 @@ export default function LoginPage() {
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({})
 
   function switchMode(next: Mode) {
+    if (next === 'signup') track('signup_started')
     setMode(next)
     setError(null)
     setSuccess(null)
@@ -94,16 +96,19 @@ export default function LoginPage() {
       if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
+        track('signup_completed')
         setSuccess('Check your email to confirm your account.')
       } else if (mode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/login/update-password`,
         })
         if (error) throw error
+        track('password_reset_requested')
         setSuccess('Password reset link sent — check your email.')
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
+        track('login', { method: 'email' })
         setSuccess('Signed in. Redirecting to your canvas…')
         setTimeout(() => { window.location.href = '/app' }, 800)
       }

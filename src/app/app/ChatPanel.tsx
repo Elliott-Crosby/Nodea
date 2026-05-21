@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { track } from '@vercel/analytics'
 import { useApp, type AttachmentItem, type ChatMessage } from './App'
 import { modelDisplayName } from '@/lib/models'
 
@@ -61,6 +62,7 @@ async function processFiles(
       const reader = new FileReader()
       reader.onload = () => {
         addAttachment({ name: file.name, type: mimeType, dataUrl: reader.result as string })
+        track('file_attached', { file_type: mimeType })
         resolve()
       }
       reader.readAsDataURL(file)
