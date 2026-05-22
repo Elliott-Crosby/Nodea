@@ -93,6 +93,9 @@ export const metadata: Metadata = {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
   },
+  verification: {
+    google: 'gAA5jhPiRp1ygM5edRO1kL1Wc_QEK2YVg8S12TqGeyI',
+  },
 }
 
 const ORGANIZATION_JSONLD = {
