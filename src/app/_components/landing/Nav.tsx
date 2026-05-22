@@ -13,11 +13,11 @@ export default function Nav() {
         <Link href="/" className="ln-wordmark">Nodea</Link>
 
         <ul className="ln-nav-links">
+          <li><Link href="/what-is-nodea">What is Nodea</Link></li>
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#features">Features</a></li>
-          <li><a href="#blog">Blog</a></li>
+          <li><Link href="/blog">Blog</Link></li>
           <li><Link href="/upgrade">Pricing</Link></li>
-          <li><button type="button" aria-disabled="true" className="ln-btn-noop">Changelog<span className="ln-soon-pill">soon</span></button></li>
         </ul>
 
         <div className="ln-nav-actions">

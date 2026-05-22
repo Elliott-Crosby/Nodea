@@ -1,0 +1,295 @@
+/* ── /what-is-nodea page styles ─────────────────────────────── */
+
+.wn-root {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ── Hero ──────────────────────────────────────────────────── */
+.wn-hero {
+  padding: 96px 0 56px;
+  text-align: center;
+}
+.wn-h1 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  margin: 12px 0 24px;
+  color: var(--text-primary);
+}
+.wn-lede {
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 720px;
+  margin: 0 auto 14px;
+}
+.wn-lede-sub {
+  color: var(--text-muted);
+  margin-bottom: 36px;
+}
+.wn-lede strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.wn-ctas {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── TL;DR card ────────────────────────────────────────────── */
+.wn-tldr {
+  padding: 24px 0 56px;
+}
+.wn-tldr-card {
+  max-width: 760px;
+  margin: 0 auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 32px 36px;
+}
+.wn-tldr-title {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin: 0 0 18px;
+}
+.wn-tldr-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wn-tldr-list li {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding-left: 22px;
+  position: relative;
+}
+.wn-tldr-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+.wn-tldr-list strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Deep / prose section ─────────────────────────────────── */
+.wn-deep {
+  padding: 64px 0 56px;
+}
+.wn-prose {
+  max-width: 760px;
+}
+.wn-h2 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  line-height: 1.15;
+  margin: 12px 0 24px;
+  color: var(--text-primary);
+}
+.wn-h3 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin: 44px 0 14px;
+  color: var(--text-primary);
+}
+.wn-prose p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+}
+.wn-prose ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wn-prose ul li {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  padding-left: 22px;
+  position: relative;
+}
+.wn-prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.wn-prose strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.wn-prose code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88em;
+  background: var(--bg-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.wn-prose em {
+  color: var(--text-primary);
+  font-style: italic;
+}
+
+/* Code block */
+.wn-code {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  overflow-x: auto;
+  margin: 0 0 22px;
+  white-space: pre;
+}
+
+/* ── Stack table ──────────────────────────────────────────── */
+.wn-stack-table {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 0 22px;
+  background: var(--bg-subtle);
+}
+.wn-stack-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 1.4fr;
+  gap: 16px;
+  padding: 12px 18px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.wn-stack-row:last-child {
+  border-bottom: none;
+}
+.wn-stack-head {
+  background: var(--bg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wn-stack-layer {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.wn-stack-tech {
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+}
+.wn-stack-note {
+  color: var(--text-muted);
+}
+@media (max-width: 720px) {
+  .wn-stack-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .wn-stack-head { display: none; }
+  .wn-stack-layer { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-text); }
+}
+
+/* ── FAQ ──────────────────────────────────────────────────── */
+.wn-faq {
+  padding: 32px 0 80px;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border);
+}
+.wn-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.wn-faq-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+.wn-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wn-faq-item summary::-webkit-details-marker { display: none; }
+.wn-faq-item summary::after {
+  content: '+';
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.wn-faq-item[open] summary::after {
+  content: '−';
+}
+.wn-faq-item p {
+  padding: 0 20px 18px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+/* ── Final CTA ────────────────────────────────────────────── */
+.wn-cta {
+  padding: 80px 0 96px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.wn-cta-h2 {
+  margin-bottom: 12px;
+}
+.wn-cta-sub {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 0 28px;
+}

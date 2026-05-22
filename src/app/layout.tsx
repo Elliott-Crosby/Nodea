@@ -35,13 +35,103 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const SITE_URL = 'https://nodea.ai'
+const SITE_NAME = 'Nodea'
+const DEFAULT_TITLE = 'Nodea — Branching AI Chat Canvas'
+const DEFAULT_DESC =
+  'Nodea is a branching AI chat canvas. Fork any reply, compare branches side-by-side, and never lose context. Built on Claude. Free during beta — no credit card.'
+
 export const metadata: Metadata = {
-  title: 'Nodea',
-  description: 'Branching AI conversations',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: DEFAULT_TITLE,
+    template: '%s | Nodea',
+  },
+  description: DEFAULT_DESC,
+  applicationName: SITE_NAME,
+  keywords: [
+    'branching AI chat',
+    'AI conversation tree',
+    'ChatGPT alternative',
+    'Claude chat',
+    'non-linear AI chat',
+    'fork ChatGPT conversation',
+    'tree of thought AI',
+    'AI brainstorming tool',
+    'compare AI responses',
+    'AI chat canvas',
+  ],
+  authors: [{ name: 'Nodea' }],
+  creator: 'Nodea',
+  publisher: 'Nodea',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESC,
+    url: SITE_URL,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESC,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
   },
+}
+
+const ORGANIZATION_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon.svg`,
+  sameAs: ['https://github.com/Elliott-Crosby/Nodea'],
+}
+
+const SOFTWARE_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: SITE_NAME,
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: SITE_URL,
+  description: DEFAULT_DESC,
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Free',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Pro',
+      price: '8',
+      priceCurrency: 'USD',
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: '8',
+        priceCurrency: 'USD',
+        billingDuration: 'P1M',
+      },
+    },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -53,6 +143,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('nodea-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})()`,
           }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSONLD) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_JSONLD) }}
         />
       </head>
       <body className={`${dmSans.variable} ${bricolage.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}>

@@ -1,0 +1,202 @@
+/* ── /compare/* shared styles ──────────────────────────────── */
+
+.cmp-root {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Hero */
+.cmp-hero {
+  padding: 88px 0 32px;
+  text-align: center;
+}
+.cmp-h1 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: clamp(36px, 5.5vw, 60px);
+  font-weight: 700;
+  letter-spacing: -1.8px;
+  line-height: 1.1;
+  margin: 12px 0 16px;
+}
+.cmp-lede {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* TL;DR */
+.cmp-tldr {
+  max-width: 720px;
+  margin: 36px auto 0;
+  padding: 24px 28px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+}
+.cmp-tldr h2 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin: 0 0 12px;
+}
+.cmp-tldr p {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.cmp-tldr strong { color: var(--text-primary); }
+
+/* Table */
+.cmp-table-wrap {
+  padding: 48px 0 32px;
+}
+.cmp-table {
+  max-width: 880px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+.cmp-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: 16px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.55;
+  align-items: center;
+}
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row-head {
+  background: var(--bg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cmp-row-head .cmp-col-mine { color: var(--accent-text); }
+.cmp-feature {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.cmp-cell {
+  color: var(--text-secondary);
+}
+.cmp-cell-yes { color: var(--accent); font-weight: 700; }
+.cmp-cell-no  { color: var(--text-muted); }
+@media (max-width: 720px) {
+  .cmp-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 16px 18px;
+  }
+  .cmp-row-head { display: none; }
+  .cmp-feature { font-size: 13px; color: var(--accent-text); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .cmp-cell::before { content: attr(data-label) ': '; font-weight: 600; color: var(--text-muted); }
+}
+
+/* Prose sections */
+.cmp-prose {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 0;
+}
+.cmp-prose h2 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  margin: 32px 0 14px;
+  color: var(--text-primary);
+}
+.cmp-prose p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+}
+.cmp-prose ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmp-prose ul li {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  padding-left: 22px;
+  position: relative;
+}
+.cmp-prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.cmp-prose strong { color: var(--text-primary); }
+
+/* FAQ */
+.cmp-faq {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 0 64px;
+}
+.cmp-faq h2 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 26px;
+  margin: 0 0 18px;
+}
+.cmp-faq-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.cmp-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.cmp-faq-item summary::-webkit-details-marker { display: none; }
+.cmp-faq-item summary::after { content: '+'; font-size: 18px; color: var(--text-muted); }
+.cmp-faq-item[open] summary::after { content: '−'; }
+.cmp-faq-item p { padding: 0 18px 16px; margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--text-secondary); }
+
+/* CTA */
+.cmp-cta {
+  text-align: center;
+  padding: 64px 24px 88px;
+  border-top: 1px solid var(--border);
+}
+.cmp-cta h2 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 32px;
+  margin: 0 0 12px;
+}
+.cmp-cta p { color: var(--text-muted); margin: 0 0 24px; }

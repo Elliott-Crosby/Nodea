@@ -10,11 +10,13 @@ export default function Footer() {
         </div>
 
         <nav className="ln-footer-links">
+          <Link href="/what-is-nodea">What is Nodea</Link>
+          <Link href="/blog">Blog</Link>
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
           <Link href="/upgrade">Pricing</Link>
-          <button type="button" aria-disabled="true" className="ln-btn-noop">Changelog<span className="ln-soon-pill">soon</span></button>
-          <button type="button" aria-disabled="true" className="ln-btn-noop">Third-party services<span className="ln-soon-pill">soon</span></button>
+          <Link href="/compare/nodea-vs-chatgpt">vs ChatGPT</Link>
+          <Link href="/compare/nodea-vs-claude-projects">vs Claude Projects</Link>
           <Link href="/login">Sign in</Link>
         </nav>
 
