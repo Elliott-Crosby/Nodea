@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp } from './App'
+import { trackEvent } from '@/lib/track-event'
 
 export default function Sidebar() {
   const {
@@ -95,7 +96,7 @@ export default function Sidebar() {
           )}
           {!collapsed && !isPro && (
             <button
-              onClick={() => { track('upgrade_clicked', { source: 'sidebar' }); setSettingsInitialSection('usage'); setIsSettingsOpen(true) }}
+              onClick={() => { track('upgrade_clicked', { source: 'sidebar' }); window.location.href = '/upgrade' }}
               style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '2px 8px', opacity: 0.85, background: 'transparent', cursor: 'pointer', lineHeight: 1 }}
             >
               UPGRADE
@@ -341,7 +342,7 @@ export default function Sidebar() {
           </a>
         )}
         <button
-          onClick={() => setIsSettingsOpen(true)}
+          onClick={() => { trackEvent('settings_opened'); setIsSettingsOpen(true) }}
           title="Settings"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',

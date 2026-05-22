@@ -6,7 +6,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org)
 [![Supabase](https://img.shields.io/badge/Supabase-database%20%26%20auth-green?logo=supabase)](https://supabase.com)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-nodea--software.com-orange)](https://nodea-software.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-nodea.ai-orange)](https://nodea.ai)
 
 ---
 
@@ -59,8 +59,8 @@ It has been used to deliver over 40 major applications across enterprise, educat
 ### Install
 
 ```bash
-git clone https://github.com/Elliott-Crosby/Nodea_1.git
-cd Nodea_1
+git clone https://github.com/Elliott-Crosby/Nodea.git
+cd Nodea
 npm install
 ```
 
@@ -143,16 +143,15 @@ npm run lint     # Run ESLint
 
 Deploy to [Vercel](https://vercel.com) — connect this repository, add your environment variables in the Vercel project settings, and deploy.
 
-Live at: [https://nodea-software.com](https://nodea-software.com)
+Live at: [https://nodea.ai](https://nodea.ai)
 
 ---
 
-## About Nodea Software
+## About Nodea
 
-- 🌐 [nodea-software.com](https://nodea-software.com)
-- 📖 [docs.nodea-software.com](https://docs.nodea-software.com)
-- 💬 [GitHub Discussions](https://github.com/nodea-software/Nodea/discussions)
-- 🏢 [Core platform repo](https://github.com/nodea-software/Nodea)
+- 🌐 [nodea.ai](https://nodea.ai)
+- 💬 [GitHub Discussions](https://github.com/Elliott-Crosby/Nodea/discussions)
+- 🏢 [GitHub Repository](https://github.com/Elliott-Crosby/Nodea)
 
 ---
 

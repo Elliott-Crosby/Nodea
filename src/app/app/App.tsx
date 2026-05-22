@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback, us
 import { useRouter } from 'next/navigation'
 import { track } from '@vercel/analytics'
 import { createClient } from '@/lib/supabase'
+import { trackEvent } from '@/lib/track-event'
 import Sidebar from './Sidebar'
 import ChatPanel from './ChatPanel'
 import TreePanel from './TreePanel'
@@ -362,6 +363,7 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         if (chatInputRef.current && document.activeElement === chatInputRef.current) return
         e.preventDefault()
+        trackEvent('search_opened', { trigger: 'keyboard' })
         setIsSearchOpen(true)
       }
     }
@@ -391,6 +393,7 @@ export default function App() {
     setConversations((prev) => [...prev, project])
     await loadConversation(project.id, project.name)
     track('conversation_created')
+    trackEvent('conversation_created')
   }, [loadConversation])
 
   // ── Rename conversation (Task 3) ──────────────────────────────────────────
@@ -491,8 +494,13 @@ export default function App() {
         attachment_count: pendingAttachments.length,
         conversation_length: messages.length,
       })
+      trackEvent('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        conversation_length: messages.length,
+      })
       if (isBranchPointRef.current) {
         track('branch_created')
+        trackEvent('branch_created')
         isBranchPointRef.current = false
       }
 
@@ -566,17 +574,17 @@ export default function App() {
       } catch (err) {
         console.error('Chat error', err)
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
-        const isRateLimit = err instanceof RateLimitError
-        if (!isRateLimit) {
-          // Restore the user's message to input so they can retry
+        if (err instanceof RateLimitError) {
+          setIsUpgradeOpen(true)
+        } else {
           setInput(userContent)
           if (attachmentsSnapshot) setPendingAttachments(attachmentsSnapshot)
+          setChatError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to get a response. Check your connection and try again.',
+          )
         }
-        setChatError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to get a response. Check your connection and try again.',
-        )
       } finally {
         setIsLoading(false)
       }

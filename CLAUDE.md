@@ -12,5 +12,4 @@ Key directories:
 - `src/app/` — all Next.js App Router pages, layouts, and API routes
 - `supabase/migrations/` — database schema
 
-Official platform: https://nodea-software.com
-Docs: https://docs.nodea-software.com
+Official platform: https://nodea.ai

@@ -254,7 +254,7 @@ export default function SettingsModal() {
           )}
 
           {/* ── Usage ── */}
-          {section === 'usage' && <UsageTab isPro={isPro} />}
+          {section === 'usage' && <UsageTab isPro={isPro} onUpgrade={() => { track('upgrade_clicked', { source: 'settings' }); setIsSettingsOpen(false); window.location.href = '/upgrade' }} />}
 
           {/* ── Account ── */}
           {section === 'account' && (
@@ -349,10 +349,11 @@ interface UsageRecord {
   daily_reset_at: string
 }
 
-function UsageTab({ isPro }: { isPro: boolean }) {
-  const [usage, setUsage]         = useState<UsageRecord | null>(null)
-  const [loading, setLoading]     = useState(true)
-  const [upgrading, setUpgrading] = useState(false)
+function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void }) {
+  const [usage, setUsage]           = useState<UsageRecord | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [upgrading, setUpgrading]   = useState(false)
+  const [cancelConfirm, setCancelConfirm] = useState(false)
 
   const DAILY_LIMIT = isPro ? 250_000 : 25_000
 
@@ -391,21 +392,6 @@ function UsageTab({ isPro }: { isPro: boolean }) {
 
     return () => { void supabase.removeChannel(channel) }
   }, [])
-
-  async function handleUpgrade() {
-    track('upgrade_clicked', { source: 'settings' })
-    setUpgrading(true)
-    try {
-      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) {
-        track('checkout_started')
-        window.location.href = data.url
-      }
-    } finally {
-      setUpgrading(false)
-    }
-  }
 
   async function handleManage() {
     setUpgrading(true)
@@ -455,18 +441,52 @@ function UsageTab({ isPro }: { isPro: boolean }) {
       </div>
 
       {isPro ? (
-        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pro plan</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Manage billing, cancel, or view invoices</div>
+        <div style={{ marginBottom: 16, borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pro plan</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Manage billing or view invoices</div>
+            </div>
+            <button
+              onClick={handleManage}
+              disabled={upgrading}
+              style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+            >
+              {upgrading ? 'Loading…' : 'Manage'}
+            </button>
           </div>
-          <button
-            onClick={handleManage}
-            disabled={upgrading}
-            style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
-          >
-            {upgrading ? 'Loading…' : 'Manage'}
-          </button>
+          {!cancelConfirm ? (
+            <div style={{ borderTop: '1px solid var(--border)', padding: '8px 14px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setCancelConfirm(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2 }}
+              >
+                Cancel subscription
+              </button>
+            </div>
+          ) : (
+            <div style={{ borderTop: '1px solid var(--border)', padding: '12px 14px', background: 'var(--bg-base)' }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>Cancel your Pro subscription?</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+                You&apos;ll keep Pro access until the end of your billing period. You can resubscribe any time.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleManage}
+                  disabled={upgrading}
+                  style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fef2f2', color: '#b91c1c', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+                >
+                  {upgrading ? 'Loading…' : 'Continue to cancel'}
+                </button>
+                <button
+                  onClick={() => setCancelConfirm(false)}
+                  style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Keep Pro
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
@@ -475,11 +495,10 @@ function UsageTab({ isPro }: { isPro: boolean }) {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>250k daily tokens — 10× the free limit</div>
           </div>
           <button
-            onClick={handleUpgrade}
-            disabled={upgrading}
-            style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+            onClick={onUpgrade}
+            style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
-            {upgrading ? 'Loading…' : 'Upgrade'}
+            Upgrade
           </button>
         </div>
       )}
