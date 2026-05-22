@@ -85,28 +85,21 @@ export default function Hero() {
   return (
     <section className="ln-hero">
       <div className="ln-container">
-        <div className="ln-eyebrow">
-          <span className="ln-eyebrow-dot" />
-          Now in private beta &middot; v0.3
-        </div>
-
-        <h1 className="ln-hero-h1">Think in <em>branches.</em></h1>
+        <h1 className="ln-hero-h1">Stop scrolling.<br />Start <em>branching.</em></h1>
 
         <p className="ln-hero-sub">
-          Nodea turns AI conversations into a living map of ideas — fork any message,
-          explore multiple paths, and navigate the thinking you&apos;ve already done.
+          Free while in beta. Bring your own keys or use ours. No credit card,
+          no waitlist — open an account, open a canvas.
         </p>
 
         <div className="ln-hero-ctas">
           <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
-            Start branching — it&apos;s free
+            Create your first canvas
           </Link>
-          <a href="#how-it-works" className="ln-btn ln-btn-outline ln-btn-lg">
-            See how it works
+          <a href="#features" className="ln-btn ln-btn-outline ln-btn-lg">
+            See the canvas in motion
           </a>
         </div>
-
-        <p className="ln-hero-meta">Claude today &middot; GPT &amp; Gemini soon</p>
 
         {/* Demo */}
         <div className="ln-demo">

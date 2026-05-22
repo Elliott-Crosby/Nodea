@@ -15,27 +15,27 @@ export default function Features() {
           {/* 1: Branch from any message */}
           <div className="ln-bcard wide">
             <span className="ln-bcard-num">01 — branch</span>
-            <h3>Branch from any message</h3>
-            <p>Hover any response and fork a new path — the original stays intact.</p>
+            <h3>Branch from any message.</h3>
+            <p>Hover a reply, hit branch, ask the question a different way. The old path stays put. You explore in parallel instead of starting over.</p>
             <div className="ln-bcard-art">
-              <svg viewBox="0 0 240 80" width="240" height="80" style={{ overflow: 'visible' }}>
+              <svg viewBox="0 0 300 80" style={{ overflow: 'visible' }}>
                 {/* Root node */}
-                <g transform="translate(82, 10)">
-                  <rect width="76" height="26" rx="7" fill="var(--bg-base)" stroke="var(--border)" strokeWidth="1" />
-                  <text x="38" y="17" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--text-secondary)">Ask Claude</text>
+                <g transform="translate(86, 8)">
+                  <rect width="128" height="26" rx="7" fill="var(--user-bubble-bg)" stroke="var(--user-bubble-border)" strokeWidth="1" />
+                  <text x="64" y="17" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--text-primary)">&ldquo;Cut the budget by half&rdquo;</text>
                 </g>
                 {/* Bézier edges */}
-                <path d="M 120 37 C 120 45 70 45 70 53" fill="none" stroke="var(--edge-color)"  strokeWidth="1.5" />
-                <path d="M 120 37 C 120 45 170 45 170 53" fill="none" stroke="var(--edge-active)" strokeWidth="1.5" />
-                {/* Path A */}
-                <g transform="translate(32, 54)">
-                  <rect width="76" height="26" rx="7" fill="var(--bg-base)" stroke="var(--border)" strokeWidth="1" />
-                  <text x="38" y="17" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--text-secondary)">Path A</text>
+                <path d="M 150 35 C 150 45 90 45 90 53" fill="none" stroke="var(--edge-color)" strokeWidth="1.5" />
+                <path d="M 150 35 C 150 45 210 45 210 53" fill="none" stroke="var(--edge-active)" strokeWidth="1.5" />
+                {/* Conservative plan */}
+                <g transform="translate(28, 54)">
+                  <rect width="124" height="22" rx="6" fill="var(--bg-base)" stroke="var(--border)" strokeWidth="1" />
+                  <text x="62" y="14" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--text-secondary)">Conservative plan</text>
                 </g>
-                {/* Path B — active */}
-                <g transform="translate(132, 54)">
-                  <rect width="76" height="26" rx="7" fill="var(--accent-bg)" stroke="var(--accent)" strokeWidth="1" />
-                  <text x="38" y="17" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--accent-text)">Path B</text>
+                {/* Aggressive plan — active */}
+                <g transform="translate(148, 54)">
+                  <rect width="124" height="22" rx="6" fill="var(--accent-bg)" stroke="var(--accent)" strokeWidth="1" />
+                  <text x="62" y="14" textAnchor="middle" fontSize="10" fontFamily="var(--font-dm-sans,sans-serif)" fill="var(--accent-text)">Aggressive plan</text>
                 </g>
               </svg>
             </div>
@@ -44,10 +44,10 @@ export default function Features() {
           {/* 2: See your thinking */}
           <div className="ln-bcard wide">
             <span className="ln-bcard-num">02 — canvas</span>
-            <h3>See your thinking</h3>
-            <p>The canvas gives you a bird&apos;s-eye view of every path you&apos;ve explored.</p>
+            <h3>See your thinking, not just your scroll.</h3>
+            <p>Every conversation becomes a live tree. Drag, zoom, jump to any node. The shape of your thought becomes visible — and editable.</p>
             <div className="ln-bcard-art">
-              <svg viewBox="0 0 260 120" width="260" height="120" style={{ overflow: 'visible' }}>
+              <svg viewBox="0 0 260 120" style={{ overflow: 'visible' }}>
                 {/* Root */}
                 <g transform="translate(92, 6)">
                   <rect width="76" height="24" rx="6" fill="var(--bg-base)" stroke="var(--accent)" strokeWidth="1" />
@@ -81,8 +81,8 @@ export default function Features() {
           {/* 3: Color-code */}
           <div className="ln-bcard wide">
             <span className="ln-bcard-num">03 — color</span>
-            <h3>Color-code the keepers</h3>
-            <p>Tag branches with colors to track quality and intent at a glance.</p>
+            <h3>Color-code the keepers.</h3>
+            <p>Tag the answers worth remembering. Skim a project at a glance.</p>
             <div className="ln-bcard-art">
               <div className="ln-swatches">
                 <div className="ln-swatch" style={{ background: '#8b5cf6' }} />
@@ -97,20 +97,20 @@ export default function Features() {
           {/* 4: Search */}
           <div className="ln-bcard wide">
             <span className="ln-bcard-num">04 — search</span>
-            <h3>Search across every path</h3>
-            <p>Find any message in any branch instantly — nothing gets buried.</p>
+            <h3>Search across every path.</h3>
+            <p>One ⌘K, every node, every branch. The good thought is never more than a keystroke away.</p>
             <div className="ln-bcard-art">
               <div className="ln-palette">
                 <div className="ln-palette-input">
-                  <span className="ln-palette-q">phase 2 strategy</span>
+                  <span className="ln-palette-q">launch plan</span>
                   <div className="ln-palette-cursor" />
                 </div>
                 <div className="ln-palette-result">
-                  <span>Branch 3 &middot; message 7</span>
+                  <span>Plan v2.1: 30-day push</span>
                   <span className="ln-palette-enter">↩</span>
                 </div>
                 <div className="ln-palette-result muted">
-                  <span>Branch 1 &middot; message 4</span>
+                  <span>Plan v3: enterprise</span>
                   <span>—</span>
                 </div>
               </div>
