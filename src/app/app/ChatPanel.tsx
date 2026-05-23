@@ -746,9 +746,11 @@ export default function ChatPanel() {
       const el = document.querySelector('[data-highlighted-msg="true"]')
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     } else {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      // During streaming this fires every rAF tick; 'smooth' would queue
+      // animations and visibly lag. Use instant scroll while streaming.
+      bottomRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' })
     }
-  }, [messages, highlightedMessageId])
+  }, [messages, highlightedMessageId, isLoading])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()

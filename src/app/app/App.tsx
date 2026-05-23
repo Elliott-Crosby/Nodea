@@ -165,14 +165,24 @@ export const useApp = () => useContext(AppContext)
 
 class RateLimitError extends Error {
   readonly isRateLimit = true
+  readonly limitType: string
+  constructor(message: string, limitType: string) {
+    super(message)
+    this.limitType = limitType
+  }
 }
 
-function formatRateLimitMessage(data: { limit_type?: string; resets_at?: string }): string {
+function formatRateLimitMessage(
+  data: { limit_type?: string; resets_at?: string },
+  isPro: boolean,
+): string {
   if (data.limit_type === 'daily') {
     const t = data.resets_at
       ? new Date(data.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'midnight'
-    return `You've reached your daily usage limit. Your limit resets at ${t}. Upgrade for more.`
+    return isPro
+      ? `You've reached your daily usage limit. Your limit resets at ${t}.`
+      : `You've reached your daily usage limit. Your limit resets at ${t}. Upgrade for more.`
   }
   return 'Your message is too long. Please shorten it and try again.'
 }
@@ -688,7 +698,7 @@ export default function App() {
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
           track('token_limit_hit', { limit_type: data.limit_type ?? 'unknown' })
-          throw new RateLimitError(formatRateLimitMessage(data))
+          throw new RateLimitError(formatRateLimitMessage(data, isPro), data.limit_type ?? 'unknown')
         }
         if (!response.ok) throw new Error('Chat request failed')
 
@@ -703,16 +713,43 @@ export default function App() {
         const decoder = new TextDecoder()
         let full      = ''
         if (reader) {
+          // Decouple network chunk arrivals from render rate. Tokens land in
+          // bursts and re-parsing markdown on every chunk visibly lags long
+          // answers. A rAF loop coalesces bursts into one paint per frame and
+          // reveals chars progressively for a typewriter feel.
+          let displayedLen = 0
+          let streamDone   = false
+          let cancelled    = false
+
+          const paint = () => {
+            if (cancelled) return
+            if (displayedLen < full.length) {
+              const gap  = full.length - displayedLen
+              // Catch up fast when far behind, slow when close. Last few chars
+              // always reveal over a couple frames so the finish reads smoothly.
+              const step = Math.max(2, Math.ceil(gap / 6))
+              displayedLen = Math.min(full.length, displayedLen + step)
+              const visible = full.slice(0, displayedLen)
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantId)
+                if (idx < 0) { cancelled = true; return prev }
+                const updated = [...prev]
+                updated[idx] = { ...updated[idx], content: visible, modelId }
+                return updated
+              })
+            }
+            if (!cancelled && (!streamDone || displayedLen < full.length)) {
+              requestAnimationFrame(paint)
+            }
+          }
+          requestAnimationFrame(paint)
+
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
             full += decoder.decode(value, { stream: true })
-            setMessages((prev) => {
-              const updated = [...prev]
-              updated[updated.length - 1] = { id: assistantId, role: 'assistant', content: full, timestamp: Date.now() }
-              return updated
-            })
           }
+          streamDone = true
         }
         if (full.trim()) {
           const isFirstPair = lastNodeIdRef.current === null
@@ -749,7 +786,9 @@ export default function App() {
       } catch (err) {
         console.error('Chat error', err)
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
-        if (err instanceof RateLimitError) {
+        // Only surface the upgrade modal for free users who exhausted the daily
+        // pool — Pro users and per-message size caps don't get fixed by upgrading.
+        if (err instanceof RateLimitError && !isPro && err.limitType === 'daily') {
           setIsUpgradeOpen(true)
         } else {
           setInput(userContent)
@@ -766,7 +805,7 @@ export default function App() {
         setIsLoading(false)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation]
+    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, isPro]
   )
 
   // ── Click a tree node ─────────────────────────────────────────────────────
