@@ -90,6 +90,27 @@ export default function WhatIsNodea() {
     mainEntityOfPage: 'https://nodea.ai/what-is-nodea',
   }
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home',          item: 'https://nodea.ai/' },
+      { '@type': 'ListItem', position: 2, name: 'What is Nodea', item: 'https://nodea.ai/what-is-nodea' },
+    ],
+  }
+
+  // Speakable: hint to voice / AI Overviews about which selectors hold
+  // the canonical short answer + the FAQ answers (all visible content).
+  const speakableJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    url: 'https://nodea.ai/what-is-nodea',
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['.wn-lede', '.wn-tldr-list', '.wn-faq-item p'],
+    },
+  }
+
   return (
     <div className="ln-root wn-root">
       <Nav />
@@ -438,6 +459,14 @@ nodes (
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(speakableJsonLd) }}
       />
     </div>
   )

@@ -6,21 +6,73 @@ import '@/app/_components/landing/landing.css'
 import './blog.css'
 import { POSTS } from './posts'
 
+const SITE_URL = 'https://nodea.ai'
+
 export const metadata: Metadata = {
   title: 'Blog — Branching AI, Claude, and Non-Linear Thinking',
   description:
     'Essays and guides on branching AI chat, prompt design, Claude vs ChatGPT, and the craft of building a tree-shaped conversation tool.',
-  alternates: { canonical: '/blog' },
+  alternates: {
+    canonical: '/blog',
+    types: { 'application/rss+xml': `${SITE_URL}/feed.xml` },
+  },
   openGraph: {
     title: 'Nodea Blog — Branching AI Chat',
     description:
       'Essays and guides on branching AI chat, prompt design, Claude vs ChatGPT, and non-linear AI workflows.',
-    url: 'https://nodea.ai/blog',
+    url: `${SITE_URL}/blog`,
     type: 'website',
   },
 }
 
 export default function BlogIndex() {
+  // Blog schema describes the publication; ItemList enumerates posts so
+  // AI engines can pull a structured list of available articles in one shot.
+  const blogJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${SITE_URL}/blog#blog`,
+    name: 'Nodea Blog',
+    description:
+      'Essays and guides on branching AI chat, prompt design, Claude vs ChatGPT, and non-linear AI workflows.',
+    url: `${SITE_URL}/blog`,
+    publisher: { '@type': 'Organization', name: 'Nodea', url: SITE_URL },
+    blogPost: POSTS.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      description: p.description,
+      url: `${SITE_URL}/blog/${p.slug}`,
+      datePublished: p.publishedAt,
+      dateModified: p.updatedAt ?? p.publishedAt,
+      keywords: p.keywords.join(', '),
+      author: { '@type': 'Organization', name: 'Nodea' },
+      mainEntityOfPage: `${SITE_URL}/blog/${p.slug}`,
+    })),
+  }
+
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Nodea Blog — all posts',
+    itemListOrder: 'https://schema.org/ItemListOrderDescending',
+    numberOfItems: POSTS.length,
+    itemListElement: POSTS.map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${SITE_URL}/blog/${p.slug}`,
+      name: p.title,
+    })),
+  }
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
+    ],
+  }
+
   return (
     <div className="ln-root bl-root">
       <Nav />
@@ -64,6 +116,19 @@ export default function BlogIndex() {
         </section>
       </main>
       <Footer />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
     </div>
   )
 }

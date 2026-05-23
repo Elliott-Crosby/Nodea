@@ -1,13 +1,7 @@
 import type { MetadataRoute } from 'next'
+import { POSTS } from './blog/posts'
 
 const SITE_URL = 'https://nodea.ai'
-
-const BLOG_POSTS = [
-  'branching-ai-chat-guide',
-  'fork-chatgpt-conversation',
-  'tree-of-thought-prompting',
-  'compare-ai-model-outputs',
-] as const
 
 const COMPARE_PAGES = [
   'nodea-vs-chatgpt',
@@ -32,6 +26,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/glossary`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
       url: `${SITE_URL}/upgrade`,
       lastModified: now,
       changeFrequency: 'monthly',
@@ -51,9 +51,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ]
 
-  const blogRoutes: MetadataRoute.Sitemap = BLOG_POSTS.map((slug) => ({
-    url: `${SITE_URL}/blog/${slug}`,
-    lastModified: now,
+  // Derive from POSTS so adding a new post in posts.ts auto-updates the sitemap.
+  const blogRoutes: MetadataRoute.Sitemap = POSTS.map((p) => ({
+    url: `${SITE_URL}/blog/${p.slug}`,
+    lastModified: p.updatedAt ? new Date(p.updatedAt) : new Date(p.publishedAt),
     changeFrequency: 'monthly',
     priority: 0.7,
   }))

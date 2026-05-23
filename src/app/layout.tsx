@@ -64,7 +64,10 @@ export const metadata: Metadata = {
   authors: [{ name: 'Nodea' }],
   creator: 'Nodea',
   publisher: 'Nodea',
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    types: { 'application/rss+xml': `${SITE_URL}/feed.xml` },
+  },
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,

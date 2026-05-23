@@ -11,12 +11,16 @@ export default function Footer() {
 
         <nav className="ln-footer-links">
           <Link href="/what-is-nodea">What is Nodea</Link>
+          <Link href="/glossary">Glossary</Link>
           <Link href="/blog">Blog</Link>
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
+          <a href="#faq">FAQ</a>
           <Link href="/upgrade">Pricing</Link>
           <Link href="/compare/nodea-vs-chatgpt">vs ChatGPT</Link>
-          <Link href="/compare/nodea-vs-claude-projects">vs Claude Projects</Link>
+          <Link href="/compare/nodea-vs-claude-projects">vs Claude</Link>
+          <Link href="/compare/nodea-vs-typingmind">vs TypingMind</Link>
+          <a href="/feed.xml">RSS</a>
           <Link href="/login">Sign in</Link>
         </nav>
 
