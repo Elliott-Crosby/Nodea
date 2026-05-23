@@ -255,9 +255,14 @@ export default function App() {
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
   const chatInputRef      = useRef<HTMLTextAreaElement | null>(null)
+  // Mirror of activeConvId, readable from async closures (saveNodePair) so we
+  // can tell if the user has navigated away by the time a save resolves.
+  const activeConvIdRef   = useRef<string | null>(null)
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
+
+  useEffect(() => { activeConvIdRef.current = activeConvId }, [activeConvId])
 
   // Global, persistent input draft — survives conv switches and reloads.
   const setInput = useCallback((s: string) => {
@@ -400,17 +405,24 @@ export default function App() {
     [supabase]
   )
 
-  // Delete the active conv if it's empty (no DB nodes). Only safe after load completes.
-  // Returns true if a deletion happened (so callers can update local lists accordingly).
+  // Delete the active conv only if it's truly empty: no DB nodes, no in-flight
+  // local messages, and no send in progress. The local-messages check matters
+  // because a mid-stream user message lives in `messages` before it's persisted
+  // to `nodes` — without this guard, clicking "New Conversation" mid-send would
+  // delete the conv that the running save is about to write into, producing
+  // the "Message sent but could not be saved to history" error.
   const deleteIfEmpty = useCallback((): string | null => {
-    if (!activeConvId || !isCurrentLoaded || allDbNodes.length > 0) return null
+    if (!activeConvId || !isCurrentLoaded) return null
+    if (allDbNodes.length > 0) return null
+    if (messages.length > 0) return null
+    if (isLoading) return null
     const oldId = activeConvId
     setConversations((prev) => prev.filter((c) => c.id !== oldId))
     supabase.from('projects').delete().eq('id', oldId).then(({ error }) => {
       if (error) console.error('Auto-delete empty conv failed', error)
     })
     return oldId
-  }, [activeConvId, isCurrentLoaded, allDbNodes, supabase])
+  }, [activeConvId, isCurrentLoaded, allDbNodes, messages, isLoading, supabase])
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -548,23 +560,36 @@ export default function App() {
         .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0, attachments: attachmentMeta })
         .select()
         .single()
-      // Fall back if the attachments column hasn't been migrated yet — the
-      // attachment metadata still lives inside the content header.
-      if (ue?.code === '42703') {
+      // Fall back if the attachments column isn't recognized. Two codes show up
+      // here: Postgres-native 42703 (column truly missing) and PostgREST's
+      // PGRST204 ("schema cache" — column exists but the API layer hasn't
+      // refreshed yet). Either way, the attachment metadata still lives inside
+      // the content header, so the retry is safe.
+      if (ue?.code === '42703' || ue?.code === 'PGRST204') {
         ;({ data: userNode, error: ue } = await supabase
           .from('nodes')
           .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0 })
           .select()
           .single())
       }
-      if (ue || !userNode) { console.error('user node save failed', ue); setSaveError(true); return }
+      if (ue || !userNode) {
+        console.error('user node save failed', ue)
+        // If the user already navigated away from this conv (and likely caused
+        // it to be auto-deleted), suppress the banner — they've moved on.
+        if (activeConvIdRef.current === pid) setSaveError(true)
+        return
+      }
 
       const { data: asst, error: ae } = await supabase
         .from('nodes')
         .insert({ project_id: pid, parent_id: userNode.id, role: 'assistant', content: assistantContent, position_x: 0, position_y: 0 })
         .select()
         .single()
-      if (ae || !asst) { console.error('assistant node save failed', ae); setSaveError(true); return }
+      if (ae || !asst) {
+        console.error('assistant node save failed', ae)
+        if (activeConvIdRef.current === pid) setSaveError(true)
+        return
+      }
 
       lastNodeIdRef.current = asst.id
       setSelectedNodeId(asst.id)

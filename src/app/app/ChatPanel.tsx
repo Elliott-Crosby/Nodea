@@ -917,7 +917,7 @@ export default function ChatPanel() {
             style={{
               flex: 1, display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              gap: 26, padding: '20px 24px', minHeight: 0,
+              gap: 26, padding: '20px 24px 28vh', minHeight: 0,
             }}
           >
             <div style={{ textAlign: 'center', maxWidth: 560 }}>
@@ -925,7 +925,7 @@ export default function ChatPanel() {
                 {userName ? `What's on your mind, ${userName}?` : "What's on your mind?"}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                Send a message to start — every reply becomes a node you can fork from.
+                Send a message to start — every reply becomes a node you can branch from.
               </div>
             </div>
             <div style={{ width: '100%', maxWidth: 720 }}>
