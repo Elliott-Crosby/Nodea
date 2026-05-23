@@ -39,6 +39,67 @@ export interface ChatMessage {
 export interface NodeAttachment {
   name: string
   type: string
+  url?: string  // Supabase Storage URL — present once the file has been uploaded
+}
+
+// ─── Attachment persistence ──────────────────────────────────────────────────
+// We embed attachment metadata at the top of the node's `content` column with
+// these markers, so attachments survive across branches without depending on
+// a separate JSONB column (which would require a DB migration).
+
+const ATT_MARK_OPEN  = '<<<NODEA_ATT_V1\n'
+const ATT_MARK_CLOSE = '\nNODEA_ATT_V1>>>\n'
+
+export function serializeUserContent(text: string, attachments: NodeAttachment[]): string {
+  if (!attachments.length) return text
+  return ATT_MARK_OPEN + JSON.stringify(attachments) + ATT_MARK_CLOSE + text
+}
+
+export function parseUserContent(content: string): { text: string; attachments: NodeAttachment[] } {
+  if (!content.startsWith(ATT_MARK_OPEN)) return { text: content, attachments: [] }
+  const closeIdx = content.indexOf(ATT_MARK_CLOSE, ATT_MARK_OPEN.length)
+  if (closeIdx < 0) return { text: content, attachments: [] }
+  const jsonStr = content.slice(ATT_MARK_OPEN.length, closeIdx)
+  const text    = content.slice(closeIdx + ATT_MARK_CLOSE.length)
+  try {
+    const parsed = JSON.parse(jsonStr)
+    if (!Array.isArray(parsed)) return { text: content, attachments: [] }
+    return { text, attachments: parsed.filter((a) => a && typeof a.name === 'string' && typeof a.type === 'string') }
+  } catch {
+    return { text: content, attachments: [] }
+  }
+}
+
+// Take raw DbNode rows and surface the embedded attachment metadata onto the
+// node itself, so TreePanel (which reads userNode.attachments) Just Works.
+function enrichDbNodes(nodes: DbNode[]): DbNode[] {
+  return nodes.map((n) => {
+    if (n.role !== 'user') return n
+    if (n.attachments && n.attachments.length > 0) return n  // already populated from DB column
+    const { attachments } = parseUserContent(n.content)
+    return attachments.length > 0 ? { ...n, attachments } : n
+  })
+}
+
+// Turn a DbNode into the ChatMessage shape the UI/API expect — strips the
+// attachment header from content and lifts the attachments into a field.
+function dbNodeToMessage(n: DbNode): ChatMessage {
+  if (n.role === 'user') {
+    const { text, attachments } = parseUserContent(n.content)
+    return {
+      id: n.id,
+      role: 'user',
+      content: text,
+      timestamp: new Date(n.created_at).getTime(),
+      attachments: attachments.length > 0
+        ? attachments.map((a) => ({ name: a.name, type: a.type, dataUrl: a.url ?? '' }))
+        : undefined,
+    }
+  }
+  return {
+    id: n.id, role: n.role, content: n.content,
+    timestamp: new Date(n.created_at).getTime(),
+  }
 }
 
 export interface DbNode {
@@ -172,7 +233,8 @@ export default function App() {
   const [allDbNodes,    setAllDbNodes]      = useState<DbNode[]>([])
   const [messages,      setMessages]        = useState<ChatMessage[]>([])
   const [selectedNodeId,setSelectedNodeId]  = useState<string | null>(null)
-  const [input,         setInput]           = useState('')
+  const [isCurrentLoaded, setIsCurrentLoaded] = useState(false)
+  const [input,         setInputState]      = useState('')
   const [isLoading,     setIsLoading]       = useState(false)
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
@@ -197,6 +259,23 @@ export default function App() {
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
 
+  // Global, persistent input draft — survives conv switches and reloads.
+  const setInput = useCallback((s: string) => {
+    setInputState(s)
+    try {
+      if (s) localStorage.setItem('nodea_input_draft', s)
+      else localStorage.removeItem('nodea_input_draft')
+    } catch {}
+  }, [])
+
+  // Restore draft on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nodea_input_draft')
+      if (saved) setInputState(saved)
+    } catch {}
+  }, [])
+
   const addAttachment = useCallback((a: AttachmentItem) => {
     setPendingAttachments((prev) => [...prev, a])
   }, [])
@@ -218,6 +297,7 @@ export default function App() {
   // ── Load conversation from DB into state ──────────────────────────────────
   const loadConversation = useCallback(
     async (convId: string, name: string) => {
+      setIsCurrentLoaded(false)
       setActiveConvId(convId)
       localStorage.setItem('lastConvId', convId)
       setConvName(name)
@@ -236,21 +316,23 @@ export default function App() {
 
       if (error || !dbNodes?.length) {
         setAllDbNodes([])
+        setIsCurrentLoaded(true)
         return
       }
 
-      setAllDbNodes(dbNodes as DbNode[])
+      const enriched = enrichDbNodes(dbNodes as DbNode[])
+      setAllDbNodes(enriched)
 
       // Restore persisted node colors
       const colorMap: Record<string, string> = {}
-      for (const n of dbNodes as DbNode[]) {
+      for (const n of enriched) {
         if (n.color) colorMap[n.id] = n.color
       }
       setNodeColors(colorMap)
 
       // Restore AI-generated titles/summaries from localStorage
       const metaMap: Record<string, { title: string; summary: string }> = {}
-      for (const n of dbNodes as DbNode[]) {
+      for (const n of enriched) {
         if (n.role === 'assistant') {
           try {
             const cached = localStorage.getItem(`node_meta_v1_${n.id}`)
@@ -260,10 +342,10 @@ export default function App() {
       }
       setNodeSummaries(metaMap)
 
-      const nodeMap = new Map((dbNodes as DbNode[]).map((n) => [n.id, n]))
+      const nodeMap = new Map(enriched.map((n) => [n.id, n]))
       const savedNodeId = localStorage.getItem(`lastNodeId_${convId}`)
       const savedNode = savedNodeId ? nodeMap.get(savedNodeId) : undefined
-      const assistantNodes = (dbNodes as DbNode[]).filter((n) => n.role === 'assistant')
+      const assistantNodes = enriched.filter((n) => n.role === 'assistant')
       const targetNode = savedNode ?? (assistantNodes.length ? assistantNodes[assistantNodes.length - 1] : undefined)
       if (targetNode) {
         setSelectedNodeId(targetNode.id)
@@ -311,18 +393,26 @@ export default function App() {
         const lastAsst = [...ancestors].reverse().find((n) => n.role === 'assistant')
         if (lastAsst) lastNodeIdRef.current = lastAsst.id
 
-        setMessages(
-          [...ancestors, ...descendants].map((n) => ({
-            id: n.id,
-            role: n.role,
-            content: n.content,
-            timestamp: new Date(n.created_at).getTime(),
-          }))
-        )
+        setMessages([...ancestors, ...descendants].map(dbNodeToMessage))
       }
+      setIsCurrentLoaded(true)
     },
     [supabase]
   )
+
+  // Delete the active conv if it's empty (no DB nodes). Only safe after load completes.
+  // Returns true if a deletion happened (so callers can update local lists accordingly).
+  const deleteIfEmpty = useCallback((): string | null => {
+    console.log(`[deleteIfEmpty] activeConvId=${activeConvId} isCurrentLoaded=${isCurrentLoaded} dbNodesLen=${allDbNodes.length}`)
+    if (!activeConvId || !isCurrentLoaded || allDbNodes.length > 0) return null
+    const oldId = activeConvId
+    console.log('[deleteIfEmpty] DELETING', oldId)
+    setConversations((prev) => prev.filter((c) => c.id !== oldId))
+    supabase.from('projects').delete().eq('id', oldId).then(({ error }) => {
+      if (error) console.error('Auto-delete empty conv failed', error)
+    })
+    return oldId
+  }, [activeConvId, isCurrentLoaded, allDbNodes, supabase])
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -382,9 +472,11 @@ export default function App() {
     async (id: string) => {
       const conv = conversations.find((c) => c.id === id)
       if (!conv) return
+      if (id === activeConvId) return
+      deleteIfEmpty()
       await loadConversation(id, conv.name)
     },
-    [conversations, loadConversation]
+    [conversations, activeConvId, deleteIfEmpty, loadConversation]
   )
 
   // ── Create new conversation ───────────────────────────────────────────────
@@ -396,11 +488,12 @@ export default function App() {
     })
     if (!res.ok) return
     const { project } = await res.json()
+    deleteIfEmpty()
     setConversations((prev) => [...prev, project])
     await loadConversation(project.id, project.name)
     track('conversation_created')
     trackEvent('conversation_created')
-  }, [loadConversation])
+  }, [deleteIfEmpty, loadConversation])
 
   // ── Rename conversation (Task 3) ──────────────────────────────────────────
   const renameConversation = useCallback(async (id: string, name: string) => {
@@ -445,19 +538,24 @@ export default function App() {
 
       const parentId = lastNodeIdRef.current
       const attachmentMeta: NodeAttachment[] =
-        attachments?.map((a) => ({ name: a.name, type: a.type })) ?? []
+        attachments?.map((a) => ({ name: a.name, type: a.type, url: a.dataUrl })) ?? []
+
+      // Embed attachment URLs in the content itself so they roundtrip through
+      // the DB without needing a schema migration — and so when the user forks
+      // a branch from this node, the next request still has the image URLs.
+      const persistedContent = serializeUserContent(userContent, attachmentMeta)
 
       let { data: userNode, error: ue } = await supabase
         .from('nodes')
-        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0, attachments: attachmentMeta })
+        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0, attachments: attachmentMeta })
         .select()
         .single()
-      // Fall back if the attachments column hasn't been migrated yet — saves
-      // still succeed; tree-node attachment chips just stay hidden until then.
+      // Fall back if the attachments column hasn't been migrated yet — the
+      // attachment metadata still lives inside the content header.
       if (ue?.code === '42703') {
         ;({ data: userNode, error: ue } = await supabase
           .from('nodes')
-          .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0 })
+          .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0 })
           .select()
           .single())
       }
@@ -474,7 +572,10 @@ export default function App() {
       setSelectedNodeId(asst.id)
       localStorage.setItem(`lastNodeId_${pid}`, asst.id)
       setLastSavedPairId(asst.id)
-      setAllDbNodes((prev) => [...prev, userNode as DbNode, asst as DbNode])
+      // Ensure the in-memory node has the attachments field populated (so the
+      // tree picks them up immediately, even before a reload).
+      const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
+      setAllDbNodes((prev) => [...prev, userNodeWithAtt, asst as DbNode])
     },
     [supabase, activeConvId]
   )
@@ -491,12 +592,12 @@ export default function App() {
       setSaveError(false)
       setHighlightedMessageId(null)
 
-      const userContent        = input.trim()
-      const attachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
-      const now                 = Date.now()
+      const userContent             = input.trim()
+      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
+      const now                      = Date.now()
       const userMsg: ChatMessage = {
         id: now.toString(), role: 'user', content: userContent,
-        timestamp: now, attachments: attachmentsSnapshot,
+        timestamp: now, attachments: localAttachmentsSnapshot,
       }
       const assistantId = (now + 1).toString()
 
@@ -521,11 +622,45 @@ export default function App() {
         isBranchPointRef.current = false
       }
 
+      // The snapshot we'll actually send and persist. Starts as the local
+      // (data: URL) snapshot, then upgrades to Storage-URL attachments once
+      // the upload step completes below.
+      let attachmentsSnapshot = localAttachmentsSnapshot
+
       try {
+        // Upload any newly-attached files (data: URLs) to Supabase Storage so
+        // (1) the chat API request stays well under the 4.5 MB serverless cap,
+        // and (2) the URL persists across branches without bloating the DB.
+        if (localAttachmentsSnapshot?.some((a) => a.dataUrl.startsWith('data:'))) {
+          const uploaded = await Promise.all(
+            localAttachmentsSnapshot.map(async (a) => {
+              if (!a.dataUrl.startsWith('data:')) return a  // already a URL
+              const r = await fetch('/api/upload-attachment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: a.name, type: a.type, dataUrl: a.dataUrl }),
+              })
+              if (!r.ok) throw new Error('Attachment upload failed')
+              const { url } = await r.json() as { url: string }
+              return { ...a, dataUrl: url }
+            })
+          )
+          attachmentsSnapshot = uploaded
+          // Reflect the URL-backed attachments in the on-screen message too,
+          // so subsequent renders don't keep huge base64 blobs in memory.
+          setMessages((prev) => prev.map((m) =>
+            m.id === userMsg.id ? { ...m, attachments: uploaded } : m
+          ))
+        }
+
+        // Send messages with the post-upload attachments (URLs, not data:).
+        const messagesForApi = nextMessages.map((m) =>
+          m.id === userMsg.id ? { ...m, attachments: attachmentsSnapshot } : m
+        )
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: nextMessages }),
+          body: JSON.stringify({ messages: messagesForApi }),
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
@@ -595,7 +730,9 @@ export default function App() {
           setIsUpgradeOpen(true)
         } else {
           setInput(userContent)
-          if (attachmentsSnapshot) setPendingAttachments(attachmentsSnapshot)
+          // Restore the *local* (data: URL) snapshot so the chips still have a
+          // preview thumbnail to render after a failed send.
+          if (localAttachmentsSnapshot) setPendingAttachments(localAttachmentsSnapshot)
           setChatError(
             err instanceof Error
               ? err.message
@@ -619,8 +756,9 @@ export default function App() {
         .eq('project_id', activeConvId)
       if (!allNodes) return
 
-      setAllDbNodes(allNodes as DbNode[])
-      const nodeMap = new Map((allNodes as DbNode[]).map((n) => [n.id, n]))
+      const enriched = enrichDbNodes(allNodes as DbNode[])
+      setAllDbNodes(enriched)
+      const nodeMap = new Map(enriched.map((n) => [n.id, n]))
 
       // Walk UP: ancestors from root to clicked node
       const ancestors: DbNode[] = []
@@ -632,7 +770,7 @@ export default function App() {
 
       // Build children map and sort by created_at for oldest-branch selection
       const childrenMap = new Map<string, DbNode[]>()
-      for (const node of allNodes as DbNode[]) {
+      for (const node of enriched) {
         if (node.parent_id) {
           if (!childrenMap.has(node.parent_id)) childrenMap.set(node.parent_id, [])
           childrenMap.get(node.parent_id)!.push(node)
@@ -664,12 +802,7 @@ export default function App() {
 
       isBranchPointRef.current = (childrenMap.get(nodeId) ?? []).length > 0
 
-      setMessages(
-        [...ancestors, ...descendants].map((n) => ({
-          id: n.id, role: n.role, content: n.content,
-          timestamp: new Date(n.created_at).getTime(),
-        }))
-      )
+      setMessages([...ancestors, ...descendants].map(dbNodeToMessage))
       setSelectedNodeId(nodeId)
       setHighlightedMessageId(highlightId)
       if (activeConvId) localStorage.setItem(`lastNodeId_${activeConvId}`, nodeId)

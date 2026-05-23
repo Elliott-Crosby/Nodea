@@ -576,7 +576,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 }
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
-function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
+function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: string) => void; variant?: 'docked' | 'centered' }) {
   const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, activeConvId } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
@@ -594,6 +594,14 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
 
   // Re-focus when conversation switches
   useEffect(() => { if (activeConvId !== null) focusAtEnd() }, [activeConvId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resize textarea when input changes externally (e.g. draft restore from localStorage)
+  useEffect(() => {
+    const el = chatInputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [input, chatInputRef])
 
   // Tab anywhere → jump to textarea at end
   useEffect(() => {
@@ -618,8 +626,16 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`
   }
 
+  const isCentered = variant === 'centered'
+
   return (
-    <div style={{ padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }}>
+    <div
+      style={
+        isCentered
+          ? { padding: 0, background: 'transparent' }
+          : { padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }
+      }
+    >
       {pendingAttachments.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           {pendingAttachments.map((a) => (
@@ -719,7 +735,7 @@ function InputBar({ onFileError }: { onFileError: (msg: string) => void }) {
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName } = useApp()
   const bottomRef    = useRef<HTMLDivElement>(null)
   const dragCounter  = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -896,32 +912,24 @@ export default function ChatPanel() {
             </div>
           </div>
         ) : messages.length === 0 ? (
-          /* ── Empty state: conversation exists but no messages ── */
+          /* ── Empty state: conversation exists but no messages — centered input ── */
           <div
             style={{
               flex: 1, display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              gap: 12, minHeight: 300, textAlign: 'center',
+              gap: 26, padding: '20px 24px', minHeight: 0,
             }}
           >
-            <div
-              style={{
-                width: 48, height: 48, borderRadius: '50%',
-                background: 'var(--bg-subtle)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.4 }}>
-                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+            <div style={{ textAlign: 'center', maxWidth: 560 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px', letterSpacing: '-0.3px' }}>
+                {userName ? `What's on your mind, ${userName}?` : "What's on your mind?"}
+              </h2>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                Send a message to start — every reply becomes a node you can fork from.
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                Send your first message
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Or hover a tree node and click &ldquo;Branch here&rdquo; to fork from any point.
-              </div>
+            <div style={{ width: '100%', maxWidth: 720 }}>
+              <InputBar onFileError={setFileError} variant="centered" />
             </div>
           </div>
         ) : (
@@ -961,7 +969,7 @@ export default function ChatPanel() {
         <div ref={bottomRef} />
       </div>
 
-      <InputBar onFileError={setFileError} />
+      {!(activeConvId && messages.length === 0) && <InputBar onFileError={setFileError} />}
 
       <style>{`
         @keyframes bounce {

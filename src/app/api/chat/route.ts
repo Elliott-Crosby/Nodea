@@ -17,7 +17,36 @@ interface IncomingMessage {
   attachments?: Attachment[]
 }
 
-function buildUserContent(msg: IncomingMessage) {
+// Resolve an attachment's `dataUrl` (either a `data:` URL or an https URL
+// from Supabase Storage) into raw base64 + mediaType. We fetch URLs server-
+// side rather than passing them through to Anthropic because:
+//   • Anthropic's url-source image input is unreliable (rejects small or
+//     unusual images with "Could not process image" / "Unable to download").
+//   • The fetched body is on the server side, so the 4.5 MB Vercel POST cap
+//     doesn't apply between Vercel and Anthropic.
+async function resolveAttachmentData(
+  dataUrl: string,
+  declaredType: string,
+): Promise<{ base64: string; mediaType: string } | null> {
+  if (dataUrl.startsWith('data:')) {
+    const base64 = dataUrl.split(',')[1] ?? ''
+    return base64 ? { base64, mediaType: declaredType } : null
+  }
+  if (/^https?:\/\//i.test(dataUrl)) {
+    try {
+      const r = await fetch(dataUrl)
+      if (!r.ok) return null
+      const buf = Buffer.from(await r.arrayBuffer())
+      const ct = r.headers.get('content-type')?.split(';')[0]?.trim()
+      return { base64: buf.toString('base64'), mediaType: ct || declaredType }
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+async function buildUserContent(msg: IncomingMessage) {
   const attachments = msg.attachments ?? []
   if (!attachments.length) return msg.content ?? ''
 
@@ -28,18 +57,15 @@ function buildUserContent(msg: IncomingMessage) {
 
   for (const a of attachments) {
     if (!a.dataUrl) continue
-    const base64 = a.dataUrl.split(',')[1] ?? ''
-    if (!base64) continue
 
-    if (a.type.startsWith('image/')) {
-      // Pass raw base64 + mediaType so the SDK forwards it directly to
-      // Anthropic; sending the full data URL via `{type:'image'}` triggers a
-      // round-trip fetch on the data: URL and is more fragile.
-      parts.push({ type: 'file', data: base64, mediaType: a.type, filename: a.name })
-    } else if (a.type === 'application/pdf') {
-      parts.push({ type: 'file', data: base64, mediaType: 'application/pdf', filename: a.name })
+    if (a.type.startsWith('image/') || a.type === 'application/pdf') {
+      const resolved = await resolveAttachmentData(a.dataUrl, a.type)
+      if (!resolved) continue
+      parts.push({ type: 'file', data: resolved.base64, mediaType: resolved.mediaType, filename: a.name })
     } else if (a.type.startsWith('text/') || a.type === 'application/json') {
-      const text = Buffer.from(base64, 'base64').toString('utf-8')
+      const resolved = await resolveAttachmentData(a.dataUrl, a.type)
+      if (!resolved) continue
+      const text = Buffer.from(resolved.base64, 'base64').toString('utf-8')
       parts.push({ type: 'text', text: `[File: ${a.name}]\n\`\`\`\n${text}\n\`\`\`` })
     }
   }
@@ -89,12 +115,12 @@ export async function POST(req: Request) {
   const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
   const modelId = selectChatModel(isPro, lastUserMessage)
 
-  const modelMessages = validMessages.map((msg) => {
+  const modelMessages = await Promise.all(validMessages.map(async (msg) => {
     if (msg.role !== 'user') {
       return { role: 'assistant' as const, content: msg.content ?? '' }
     }
-    return { role: 'user' as const, content: buildUserContent(msg) }
-  })
+    return { role: 'user' as const, content: await buildUserContent(msg) }
+  }))
 
   try {
     const encoder  = new TextEncoder()
