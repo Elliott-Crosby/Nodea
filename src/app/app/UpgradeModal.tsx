@@ -5,7 +5,7 @@ import { useApp } from './App'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
-  { title: 'Double the limits', desc: '20k daily · 250k monthly tokens' },
+  { title: '10× daily limit', desc: '250k daily tokens vs 25k on free' },
   { title: 'Smarter model routing', desc: 'Right model picked for every message' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
