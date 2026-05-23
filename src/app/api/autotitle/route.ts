@@ -1,6 +1,18 @@
 import { generateText } from 'ai'
 import { anthropic } from '@/lib/anthropic'
+import { MODELS } from '@/lib/models'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+// Strip wrapping quotes / trailing punctuation / "Title:" prefixes that small
+// models sometimes add despite being told not to.
+function cleanTitle(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, '')
+    .replace(/^(?:title|conversation|topic)\s*[:\-—]\s*/i, '')
+    .replace(/[.。!?]+$/, '')
+    .trim()
+}
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient()
@@ -15,16 +27,16 @@ export async function POST(req: Request) {
 
   if (type === 'conversation') {
     const { text } = await generateText({
-      model: anthropic('claude-3-haiku-20240307'),
+      model: anthropic(MODELS.haiku),
       system: 'Generate an ultra-short title (max 30 chars) for a conversation based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation at end, no explanation.',
       prompt: userPrompt.slice(0, 500),
     })
-    return Response.json({ title: text.trim().slice(0, 30) })
+    return Response.json({ title: cleanTitle(text).slice(0, 30) })
   }
 
   if (type === 'node') {
     const { text } = await generateText({
-      model: anthropic('claude-3-haiku-20240307'),
+      model: anthropic(MODELS.haiku),
       system: 'Generate compact node labels for a conversation tree UI. Reply with JSON only — no markdown fences, no explanation. Format: {"title":"...","summary":"..."}. Rules: title is max 35 chars summarising the user\'s question; summary is max 110 chars capturing the key takeaway from the AI\'s answer in plain English.',
       prompt: `User: ${userPrompt.slice(0, 300)}\n\nAI: ${(aiResponse ?? '').slice(0, 600)}`,
     })
