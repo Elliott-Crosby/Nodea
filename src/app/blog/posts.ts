@@ -78,6 +78,91 @@ export const POSTS: PostMeta[] = [
       'ChatGPT alternative comparison',
     ],
   },
+  {
+    slug: 'never-lose-thinking',
+    title: 'Never Lose a Train of Thought Again: Why Linear AI Chats Forget Your Best Ideas',
+    description:
+      'Why every promising tangent in a linear AI chat ends up buried or overwritten — and how a branching canvas keeps every line of thinking intact and addressable.',
+    category: 'Essay',
+    readMinutes: 8,
+    publishedAt: '2026-05-22',
+    keywords: [
+      'never lose thinking',
+      'save AI conversations',
+      'AI chat history',
+      'branching AI chat',
+      'conversation tree',
+      'preserve AI thinking',
+    ],
+  },
+  {
+    slug: 'organize-ai-like-your-brain',
+    title: 'Organize AI Conversations the Way Your Brain Actually Works',
+    description:
+      'Human thinking branches; chat interfaces force it into a single line. A look at why tree-shaped conversations match the way ideas actually develop — and how to use them.',
+    category: 'Essay',
+    readMinutes: 9,
+    publishedAt: '2026-05-22',
+    keywords: [
+      'organize AI conversations',
+      'mind map AI',
+      'non-linear thinking',
+      'second brain AI',
+      'AI workflow',
+      'thinking in branches',
+    ],
+  },
+  {
+    slug: 'persistent-project-intelligence',
+    title: 'Persistent Project Intelligence: Turning Scattered AI Chats Into a Living Knowledge Base',
+    description:
+      'How to make AI conversations accumulate value over weeks and months instead of dying with the tab — a workflow for long-running projects that need shared context, not a new session every time.',
+    category: 'Guide',
+    readMinutes: 10,
+    publishedAt: '2026-05-22',
+    keywords: [
+      'persistent AI memory',
+      'AI project workspace',
+      'AI knowledge base',
+      'long-term AI projects',
+      'AI context window',
+      'project intelligence',
+    ],
+  },
+  {
+    slug: 'research-without-chaos',
+    title: 'Research Without Chaos: A Branching Workflow for Deep AI Investigation',
+    description:
+      'A repeatable system for doing serious research with an AI — how to branch hypotheses, separate sources, compare findings, and never lose the thread of an investigation.',
+    category: 'Guide',
+    readMinutes: 10,
+    publishedAt: '2026-05-22',
+    keywords: [
+      'AI research workflow',
+      'organize AI research',
+      'deep research with AI',
+      'ChatGPT research',
+      'branching research',
+      'structured AI exploration',
+    ],
+  },
+  {
+    slug: 'ai-for-deep-work',
+    title: 'AI for Deep Work: How Branching Conversations Protect Your Focus',
+    description:
+      'Most AI chat interfaces are built for quick replies, not concentrated thinking. A look at what deep work with an AI looks like — and how a branching canvas keeps you in flow instead of starting over.',
+    category: 'Essay',
+    readMinutes: 8,
+    publishedAt: '2026-05-22',
+    keywords: [
+      'AI deep work',
+      'focus with AI',
+      'AI for knowledge workers',
+      'deep work tools',
+      'focused AI workflow',
+      'AI without distractions',
+    ],
+  },
 ]
 
 export function getPost(slug: string): PostMeta | undefined {

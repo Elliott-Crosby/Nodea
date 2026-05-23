@@ -187,6 +187,11 @@ hosted product runs at nodea.ai; you can self-host the same codebase.
 - How to fork a ChatGPT conversation: https://nodea.ai/blog/fork-chatgpt-conversation
 - Tree-of-thought prompting in practice: https://nodea.ai/blog/tree-of-thought-prompting
 - How to compare AI model outputs side-by-side: https://nodea.ai/blog/compare-ai-model-outputs
+- Never lose a train of thought again: https://nodea.ai/blog/never-lose-thinking
+- Organize AI conversations the way your brain works: https://nodea.ai/blog/organize-ai-like-your-brain
+- Persistent project intelligence with AI: https://nodea.ai/blog/persistent-project-intelligence
+- Research without chaos — a branching workflow: https://nodea.ai/blog/research-without-chaos
+- AI for deep work: https://nodea.ai/blog/ai-for-deep-work
 
 ---
 
