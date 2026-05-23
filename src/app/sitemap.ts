@@ -4,6 +4,9 @@ const SITE_URL = 'https://nodea.ai'
 
 const BLOG_POSTS = [
   'branching-ai-chat-guide',
+  'fork-chatgpt-conversation',
+  'tree-of-thought-prompting',
+  'compare-ai-model-outputs',
 ] as const
 
 const COMPARE_PAGES = [
