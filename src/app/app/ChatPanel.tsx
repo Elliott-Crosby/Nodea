@@ -46,6 +46,57 @@ function fileSizeLimit(type: string): number {
   return MAX_TEXT_SIZE
 }
 
+function readAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+// Vercel serverless functions cap request bodies at 4.5 MB. A few real photos
+// blow past that as raw data URLs, so we downscale + re-encode large images
+// client-side before they go into pendingAttachments. Animated GIFs are left
+// alone (re-encoding would freeze them).
+async function compressImageIfNeeded(
+  file: File,
+  mimeType: string,
+): Promise<{ dataUrl: string; type: string }> {
+  const COMPRESS_THRESHOLD = 700 * 1024 // 700 KB
+  const MAX_DIMENSION      = 1600       // longest side after resize
+
+  if (mimeType === 'image/gif' || file.size <= COMPRESS_THRESHOLD) {
+    return { dataUrl: await readAsDataUrl(file), type: mimeType }
+  }
+
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file)
+  } catch {
+    return { dataUrl: await readAsDataUrl(file), type: mimeType }
+  }
+
+  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+  const w = Math.max(1, Math.round(bitmap.width  * scale))
+  const h = Math.max(1, Math.round(bitmap.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width  = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) { bitmap.close?.(); return { dataUrl: await readAsDataUrl(file), type: mimeType } }
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  bitmap.close?.()
+
+  // JPEG re-encodes photos far smaller than PNG; PNGs with transparency lose
+  // it, but the chat flow has no use for transparency anyway.
+  const outType = 'image/jpeg'
+  const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, outType, 0.82))
+  if (!blob) return { dataUrl: await readAsDataUrl(file), type: mimeType }
+  return { dataUrl: await readAsDataUrl(blob), type: outType }
+}
+
 async function processFiles(
   files: FileList | File[] | null,
   addAttachment: (a: AttachmentItem) => void,
@@ -58,15 +109,19 @@ async function processFiles(
       const mb = (fileSizeLimit(mimeType) / 1024 / 1024).toFixed(0)
       return `"${file.name}" exceeds the ${mb} MB limit for ${ACCEPTED_MIME_TYPES[mimeType]}s.`
     }
-    await new Promise<void>((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        addAttachment({ name: file.name, type: mimeType, dataUrl: reader.result as string })
-        track('file_attached', { file_type: mimeType })
-        resolve()
-      }
-      reader.readAsDataURL(file)
-    })
+
+    let dataUrl: string
+    let storedType = mimeType
+    if (mimeType.startsWith('image/')) {
+      const r = await compressImageIfNeeded(file, mimeType)
+      dataUrl   = r.dataUrl
+      storedType = r.type
+    } else {
+      dataUrl = await readAsDataUrl(file)
+    }
+
+    addAttachment({ name: file.name, type: storedType, dataUrl })
+    track('file_attached', { file_type: storedType })
   }
   return null
 }
