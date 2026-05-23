@@ -403,10 +403,8 @@ export default function App() {
   // Delete the active conv if it's empty (no DB nodes). Only safe after load completes.
   // Returns true if a deletion happened (so callers can update local lists accordingly).
   const deleteIfEmpty = useCallback((): string | null => {
-    console.log(`[deleteIfEmpty] activeConvId=${activeConvId} isCurrentLoaded=${isCurrentLoaded} dbNodesLen=${allDbNodes.length}`)
     if (!activeConvId || !isCurrentLoaded || allDbNodes.length > 0) return null
     const oldId = activeConvId
-    console.log('[deleteIfEmpty] DELETING', oldId)
     setConversations((prev) => prev.filter((c) => c.id !== oldId))
     supabase.from('projects').delete().eq('id', oldId).then(({ error }) => {
       if (error) console.error('Auto-delete empty conv failed', error)
