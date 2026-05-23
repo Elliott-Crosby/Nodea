@@ -74,6 +74,29 @@ function generateSummary(aiResponse: string, _userPrompt: string): string {
   return firstSentence.length > 120 ? firstSentence.slice(0, 117) + '…' : firstSentence
 }
 
+// File-type badge for the tiny attachment chips shown on each tree node.
+// Colors match the AttachmentChip in ChatPanel so the tree and chat agree.
+function attachmentBadge(mimeType: string): { label: string; bg: string } {
+  if (mimeType === 'application/pdf')  return { label: 'PDF',  bg: '#ef4444' }
+  if (mimeType === 'text/csv')         return { label: 'CSV',  bg: '#22c55e' }
+  if (mimeType === 'application/json') return { label: 'JSON', bg: '#3b82f6' }
+  if (mimeType === 'text/markdown')    return { label: 'MD',   bg: '#8b5cf6' }
+  if (mimeType === 'text/plain')       return { label: 'TXT',  bg: '#6b7280' }
+  if (mimeType.startsWith('image/'))   return { label: 'IMG',  bg: '#f59e0b' }
+  return { label: 'FILE', bg: '#6b7280' }
+}
+
+function shortFilename(name: string, max = 16): string {
+  if (name.length <= max) return name
+  const dot = name.lastIndexOf('.')
+  if (dot > 0 && name.length - dot <= 6) {
+    const ext  = name.slice(dot)              // ".pdf"
+    const base = name.slice(0, max - ext.length - 1)
+    return base + '…' + ext
+  }
+  return name.slice(0, max - 1) + '…'
+}
+
 function getZoomMode(scale: number): ZoomMode {
   if (scale >= 0.85) return 'detailed'
   if (scale >= 0.55) return 'compact'
@@ -676,6 +699,8 @@ export default function TreePanel() {
                 const aiMeta  = nodeSummaries[pair.id]
                 const title   = aiMeta?.title   || generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
                 const summary = aiMeta?.summary || (pair.aiNode ? generateSummary(pair.aiNode.content, pair.userNode.content) : '')
+                const attachments    = pair.userNode.attachments ?? []
+                const hasAttachments = attachments.length > 0
 
                 const borderCol = color
                   ? color
@@ -727,7 +752,7 @@ export default function TreePanel() {
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
-                      {/* Detailed: title + summary */}
+                      {/* Detailed: title + summary + attachment row */}
                       {zoomMode === 'detailed' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
@@ -736,18 +761,61 @@ export default function TreePanel() {
                             </span>
                           </div>
                           {summary && (
-                            <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.4, overflow: 'hidden', maxHeight: 32 }}>
+                            <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.4, overflow: 'hidden', maxHeight: hasAttachments ? 16 : 32 }}>
                               {summary}
+                            </div>
+                          )}
+                          {hasAttachments && (
+                            <div style={{ display: 'flex', gap: 4, marginTop: 'auto', alignItems: 'center', overflow: 'hidden' }}>
+                              {attachments.slice(0, 2).map((a, i) => {
+                                const b = attachmentBadge(a.type)
+                                return (
+                                  <div key={i} style={{
+                                    display: 'flex', alignItems: 'center', gap: 3,
+                                    padding: '1px 4px 1px 1px', borderRadius: 4,
+                                    background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+                                    maxWidth: 100, overflow: 'hidden', flexShrink: 1,
+                                  }}>
+                                    <div style={{
+                                      width: 18, height: 11, borderRadius: 2.5, background: b.bg,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                    }}>
+                                      <span style={{ fontSize: b.label.length > 3 ? 6 : 7, fontWeight: 700, color: 'white', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                                        {b.label}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>
+                                      {shortFilename(a.name, 14)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                              {attachments.length > 2 && (
+                                <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>
+                                  +{attachments.length - 2}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Compact: title + one-line summary */}
+                      {/* Compact: title + one-line summary, paperclip+count if attached */}
                       {zoomMode === 'compact' && (
                         <div style={{ padding: '7px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
-                          <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {title}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                              {title}
+                            </div>
+                            {hasAttachments && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>
+                                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+                                  <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
+                                    stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                </svg>
+                                {attachments.length > 1 && attachments.length}
+                              </span>
+                            )}
                           </div>
                           {summary && (
                             <div style={{ fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -757,12 +825,18 @@ export default function TreePanel() {
                         </div>
                       )}
 
-                      {/* Mini: title only */}
+                      {/* Mini: title only, paperclip dot if attached */}
                       {zoomMode === 'mini' && (
-                        <div style={{ padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center' }}>
-                          <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                        <div style={{ padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             {title}
                           </div>
+                          {hasAttachments && (
+                            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                              <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
+                                stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            </svg>
+                          )}
                         </div>
                       )}
 
@@ -877,6 +951,7 @@ export default function TreePanel() {
         const promptPreview = pair.userNode.content.length > 100
           ? pair.userNode.content.slice(0, 97) + '…'
           : pair.userNode.content
+        const attachments   = pair.userNode.attachments ?? []
         return (
           <div style={{
             position: 'fixed', left: hoverPos.x, top: hoverPos.y,
@@ -897,6 +972,33 @@ export default function TreePanel() {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: 6, lineHeight: 1.4 }}>
               <span style={{ fontWeight: 600 }}>Prompt: </span>{promptPreview}
             </div>
+            {attachments.length > 0 && (
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Attachments
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {attachments.map((a, i) => {
+                    const b = attachmentBadge(a.type)
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                        <div style={{
+                          width: 22, height: 13, borderRadius: 3, background: b.bg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <span style={{ fontSize: b.label.length > 3 ? 6.5 : 7.5, fontWeight: 700, color: 'white', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                            {b.label}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.name}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )
       })()}

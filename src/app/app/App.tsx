@@ -36,6 +36,11 @@ export interface ChatMessage {
   modelId?: string
 }
 
+export interface NodeAttachment {
+  name: string
+  type: string
+}
+
 export interface DbNode {
   id: string
   project_id: string
@@ -46,6 +51,7 @@ export interface DbNode {
   position_y: number
   created_at: string
   color?: string | null
+  attachments?: NodeAttachment[] | null
 }
 
 export interface AppContextType {
@@ -433,17 +439,28 @@ export default function App() {
 
   // ── Save a user+assistant node pair after a response ─────────────────────
   const saveNodePair = useCallback(
-    async (userContent: string, assistantContent: string) => {
+    async (userContent: string, assistantContent: string, attachments?: AttachmentItem[]) => {
       const pid = activeConvId
       if (!pid) return
 
       const parentId = lastNodeIdRef.current
+      const attachmentMeta: NodeAttachment[] =
+        attachments?.map((a) => ({ name: a.name, type: a.type })) ?? []
 
-      const { data: userNode, error: ue } = await supabase
+      let { data: userNode, error: ue } = await supabase
         .from('nodes')
-        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0 })
+        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0, attachments: attachmentMeta })
         .select()
         .single()
+      // Fall back if the attachments column hasn't been migrated yet — saves
+      // still succeed; tree-node attachment chips just stay hidden until then.
+      if (ue?.code === '42703') {
+        ;({ data: userNode, error: ue } = await supabase
+          .from('nodes')
+          .insert({ project_id: pid, parent_id: parentId, role: 'user', content: userContent, position_x: 0, position_y: 0 })
+          .select()
+          .single())
+      }
       if (ue || !userNode) { console.error('user node save failed', ue); setSaveError(true); return }
 
       const { data: asst, error: ae } = await supabase
@@ -541,7 +558,7 @@ export default function App() {
         }
         if (full.trim()) {
           const isFirstPair = lastNodeIdRef.current === null
-          await saveNodePair(userContent, full)
+          await saveNodePair(userContent, full, attachmentsSnapshot)
           // lastNodeIdRef is now the new assistant node id (pair key)
           const newPairId = lastNodeIdRef.current
 

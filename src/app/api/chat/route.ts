@@ -1,5 +1,5 @@
 import { streamText } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { anthropic } from '@/lib/anthropic'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 import { isAdmin } from '@/lib/admin'
@@ -22,16 +22,20 @@ function buildUserContent(msg: IncomingMessage) {
   if (!attachments.length) return msg.content ?? ''
 
   const parts: Array<
-    | { type: 'image'; image: string }
     | { type: 'file'; data: string; mediaType: string; filename: string }
     | { type: 'text'; text: string }
   > = []
 
   for (const a of attachments) {
+    if (!a.dataUrl) continue
     const base64 = a.dataUrl.split(',')[1] ?? ''
+    if (!base64) continue
 
     if (a.type.startsWith('image/')) {
-      parts.push({ type: 'image', image: a.dataUrl })
+      // Pass raw base64 + mediaType so the SDK forwards it directly to
+      // Anthropic; sending the full data URL via `{type:'image'}` triggers a
+      // round-trip fetch on the data: URL and is more fragile.
+      parts.push({ type: 'file', data: base64, mediaType: a.type, filename: a.name })
     } else if (a.type === 'application/pdf') {
       parts.push({ type: 'file', data: base64, mediaType: 'application/pdf', filename: a.name })
     } else if (a.type.startsWith('text/') || a.type === 'application/json') {
