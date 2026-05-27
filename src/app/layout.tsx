@@ -50,6 +50,8 @@ export const metadata: Metadata = {
   description: DEFAULT_DESC,
   applicationName: SITE_NAME,
   keywords: [
+    'Nodea',
+    'Nodea AI',
     'branching AI chat',
     'AI conversation tree',
     'ChatGPT alternative',
@@ -104,10 +106,25 @@ export const metadata: Metadata = {
 const ORGANIZATION_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': `${SITE_URL}/#organization`,
   name: SITE_NAME,
+  alternateName: ['Nodea AI', 'Nodea.ai'],
+  description: DEFAULT_DESC,
   url: SITE_URL,
   logo: `${SITE_URL}/icon.svg`,
   sameAs: ['https://github.com/Elliott-Crosby/Nodea'],
+}
+
+const WEBSITE_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${SITE_URL}/#website`,
+  name: SITE_NAME,
+  alternateName: 'Nodea AI',
+  url: SITE_URL,
+  description: DEFAULT_DESC,
+  publisher: { '@id': `${SITE_URL}/#organization` },
+  inLanguage: 'en-US',
 }
 
 const SOFTWARE_JSONLD = {
@@ -153,6 +170,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSONLD) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
         />
         <script
           type="application/ld+json"
