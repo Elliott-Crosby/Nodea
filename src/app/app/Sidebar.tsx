@@ -82,8 +82,9 @@ export default function Sidebar() {
           overflow: 'hidden',
         }}
       >
-        <span style={{ fontSize: collapsed ? 15 : 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {collapsed ? 'N' : 'Nodea'}
+        <span style={{ whiteSpace: 'nowrap', minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <img src="/icon.svg" alt="Nodea" style={{ width: 22, height: 22, borderRadius: 5, flexShrink: 0 }} />
+          {!collapsed && <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px' }}>Nodea</span>}
           {!collapsed && isAdmin && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, padding: '1px 5px', opacity: 0.7 }}>
               ADMIN
