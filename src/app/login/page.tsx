@@ -94,10 +94,19 @@ export default function LoginPage() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+        })
         if (error) throw error
         track('signup_completed')
-        setSuccess('Check your email to confirm your account.')
+        if (data.session) {
+          setSuccess('Account created. One quick question…')
+          setTimeout(() => { window.location.href = '/welcome' }, 800)
+        } else {
+          setSuccess('Check your email to confirm your account.')
+        }
       } else if (mode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/login/update-password`,

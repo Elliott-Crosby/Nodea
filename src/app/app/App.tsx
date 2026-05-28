@@ -439,8 +439,13 @@ export default function App() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      const displayName = user.user_metadata?.display_name
+      if (typeof displayName !== 'string' || displayName.trim().length === 0) {
+        router.push('/welcome')
+        return
+      }
       setUserEmail(user.email ?? '')
-      setUserName(user.user_metadata?.display_name || user.email?.split('@')[0] || 'User')
+      setUserName(displayName)
 
       const hardcodedAdmin = user.id === '64b415d7-4b59-4ff1-aa35-5f88de1599de'
       setIsAdmin(hardcodedAdmin)
