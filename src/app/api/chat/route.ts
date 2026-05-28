@@ -4,6 +4,10 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 import { isAdmin } from '@/lib/admin'
 import { selectChatModel, supportsWebSearch } from '@/lib/models'
+import { loadUserMemories, formatMemoryBlock } from '@/lib/memory'
+
+const BASE_SYSTEM_PROMPT =
+  'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.'
 
 interface Attachment {
   name: string
@@ -115,6 +119,13 @@ export async function POST(req: Request) {
   const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
   const modelId = selectChatModel(isPro, lastUserMessage)
 
+  // Cross-chat memory is a Pro feature. Loaded inline so it's available
+  // immediately — fast (one indexed query) and small (<= 30 short rows).
+  const memoryBlock = isPro
+    ? formatMemoryBlock(await loadUserMemories(user.id, supabase))
+    : ''
+  const systemPrompt = BASE_SYSTEM_PROMPT + memoryBlock
+
   const modelMessages = await Promise.all(validMessages.map(async (msg) => {
     if (msg.role !== 'user') {
       return { role: 'assistant' as const, content: msg.content ?? '' }
@@ -135,7 +146,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model:    anthropic(modelId),
-      system:   'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.',
+      system:   systemPrompt,
       messages: modelMessages,
       ...(tools ? { tools } : {}),
       // onFinish fires after the stream is fully consumed, with real token counts.

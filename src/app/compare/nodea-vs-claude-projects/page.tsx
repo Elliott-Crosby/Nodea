@@ -26,7 +26,7 @@ export default function NodeaVsClaudeProjects() {
       rows={[
         { feature: 'Conversation shape',  competitor: 'Linear thread per chat',  nodea: 'Tree of nodes (branching)', nodeaWins: true },
         { feature: 'Fork any reply',      competitor: 'Regenerate only',         nodea: 'Branch any node',           nodeaWins: true },
-        { feature: 'Project context',     competitor: 'Persistent files + instructions', nodea: 'Per-canvas; no global memory yet' },
+        { feature: 'Project context',     competitor: 'Persistent files + instructions', nodea: 'Per-canvas, plus cross-chat memory (Pro)' },
         { feature: 'File uploads',        competitor: 'PDFs, docs, images',      nodea: 'Images, PDFs, text files in chat' },
         { feature: 'Visual canvas',       competitor: 'No',                      nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Models available',    competitor: 'Sonnet, Opus (Pro plans)', nodea: 'Haiku, Sonnet, Opus (Opus = Pro)' },

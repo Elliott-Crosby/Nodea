@@ -11,17 +11,19 @@ const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
   { title: '2× daily tokens', desc: '50k daily tokens vs 25k on free' },
   { title: '1M monthly tokens', desc: '2.2× the free monthly budget (450k)' },
+  { title: 'Cross-chat memory', desc: 'Claude remembers what matters about you across every conversation' },
   { title: 'Smarter model routing', desc: 'Right model selected for every message' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
 
 const COMPARE = [
-  { label: 'Daily tokens',      free: '25k',  pro: '50k'  },
-  { label: 'Monthly tokens',    free: '450k', pro: '1M'   },
-  { label: 'Claude Haiku',      free: true,   pro: true   },
-  { label: 'Claude Sonnet',     free: true,   pro: true   },
-  { label: 'Claude Opus',       free: false,  pro: true   },
-  { label: 'Early access',      free: false,  pro: true   },
+  { label: 'Daily tokens',        free: '25k',  pro: '50k'  },
+  { label: 'Monthly tokens',      free: '450k', pro: '1M'   },
+  { label: 'Claude Haiku',        free: true,   pro: true   },
+  { label: 'Claude Sonnet',       free: true,   pro: true   },
+  { label: 'Claude Opus',         free: false,  pro: true   },
+  { label: 'Cross-chat memory',   free: false,  pro: true   },
+  { label: 'Early access',        free: false,  pro: true   },
 ]
 
 function CheckIcon({ on }: { on: boolean }) {

@@ -158,6 +158,7 @@ export interface AppContextType {
   highlightedMessageId: string | null
   settingsInitialSection: string | null
   setSettingsInitialSection: (s: string | null) => void
+  memorySavedByMsgId: Record<string, string[]>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -269,6 +270,10 @@ export default function App() {
   const [chatError,     setChatError]       = useState<string | null>(null)
   const [saveError,     setSaveError]       = useState(false)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  // Indicators for "saved to memory" lines under assistant messages. Keyed by
+  // the local (session) message id, so the badge appears immediately after a
+  // save and naturally disappears when the conv reloads from DB on switch.
+  const [memorySavedByMsgId, setMemorySavedByMsgId] = useState<Record<string, string[]>>({})
 
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
@@ -329,6 +334,7 @@ export default function App() {
       setNodeColors({})
       setNodeSummaries({})
       setHighlightedMessageId(null)
+      setMemorySavedByMsgId({})
       lastNodeIdRef.current = null
 
       const { data: dbNodes, error } = await supabase
@@ -770,6 +776,21 @@ export default function App() {
           // lastNodeIdRef is now the new assistant node id (pair key)
           const newPairId = lastNodeIdRef.current
 
+          // Fire-and-forget: cross-chat memory extraction (Pro only, server-gated).
+          // The route returns {saved: []} for free users so we never need to
+          // branch on plan here.
+          if (isPro) {
+            fetch('/api/memory/extract', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userMessage: userContent, assistantReply: full }),
+            }).then((r) => r.ok ? r.json() : null).then((data) => {
+              const saved = (data?.saved ?? []) as string[]
+              if (saved.length === 0) return
+              setMemorySavedByMsgId((prev) => ({ ...prev, [assistantId]: saved }))
+            }).catch(() => {})
+          }
+
           // Fire-and-forget: generate AI title + summary for the node
           if (newPairId) {
             fetch('/api/autotitle', {
@@ -909,6 +930,7 @@ export default function App() {
     chatError, clearChatError, saveError, clearSaveError,
     highlightedMessageId,
     settingsInitialSection, setSettingsInitialSection,
+    memorySavedByMsgId,
   }
 
   return (

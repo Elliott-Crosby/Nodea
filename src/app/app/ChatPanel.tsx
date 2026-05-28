@@ -456,7 +456,8 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
 
 // ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
-  const { isLoading } = useApp()
+  const { isLoading, memorySavedByMsgId } = useApp()
+  const savedMemories = !msg.role || msg.role === 'assistant' ? memorySavedByMsgId[msg.id] : undefined
   const isUser = msg.role === 'user'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
   const [elapsed, setElapsed] = useState(0)
@@ -568,6 +569,27 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
         {isUser && msg.timestamp && (
           <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 3 }}>
             {formatTime(msg.timestamp)}
+          </div>
+        )}
+
+        {!isUser && savedMemories && savedMemories.length > 0 && (
+          <div
+            title={savedMemories.join('\n')}
+            style={{
+              marginTop: 6,
+              fontSize: 11,
+              fontStyle: 'italic',
+              color: 'var(--text-muted)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              cursor: 'help',
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3 1.5h6a1.5 1.5 0 0 1 1.5 1.5v8L6 8.5 1.5 11V3A1.5 1.5 0 0 1 3 1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+            </svg>
+            <span>saved to memory</span>
           </div>
         )}
       </div>
