@@ -127,6 +127,34 @@ const WEBSITE_JSONLD = {
   inLanguage: 'en-US',
 }
 
+// Digital-subscription merchant fields shared by every Offer. Google validates
+// SoftwareApplication offers under the Merchant Listings rubric and demands
+// these even for SaaS. NotPermitted + $0 instant delivery is the canonical
+// shape for a non-shippable digital good.
+const DIGITAL_RETURN_POLICY = {
+  '@type': 'MerchantReturnPolicy',
+  applicableCountry: 'US',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnNotPermitted',
+}
+
+const DIGITAL_SHIPPING = {
+  '@type': 'OfferShippingDetails',
+  shippingRate: {
+    '@type': 'MonetaryAmount',
+    value: '0',
+    currency: 'USD',
+  },
+  shippingDestination: {
+    '@type': 'DefinedRegion',
+    geoMidpoint: { '@type': 'GeoCoordinates', latitude: 0, longitude: 0 },
+  },
+  deliveryTime: {
+    '@type': 'ShippingDeliveryTime',
+    handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 0, unitCode: 'DAY' },
+    transitTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 0, unitCode: 'DAY' },
+  },
+}
+
 const SOFTWARE_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -135,18 +163,29 @@ const SOFTWARE_JSONLD = {
   operatingSystem: 'Web',
   url: SITE_URL,
   description: DEFAULT_DESC,
+  image: `${SITE_URL}/opengraph-image`,
   offers: [
     {
       '@type': 'Offer',
       name: 'Free',
       price: '0',
       priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${SITE_URL}/login`,
+      image: `${SITE_URL}/opengraph-image`,
+      hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
+      shippingDetails: DIGITAL_SHIPPING,
     },
     {
       '@type': 'Offer',
       name: 'Pro',
       price: '8',
       priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${SITE_URL}/upgrade`,
+      image: `${SITE_URL}/opengraph-image`,
+      hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
+      shippingDetails: DIGITAL_SHIPPING,
       priceSpecification: {
         '@type': 'UnitPriceSpecification',
         price: '8',
