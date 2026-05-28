@@ -78,13 +78,6 @@ const productJsonLd = {
       description: '250,000 daily tokens. Adds Claude Opus 4.7. Smarter model routing. Early access to new features.',
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
-      priceSpecification: {
-        '@type': 'UnitPriceSpecification',
-        price: '8',
-        priceCurrency: 'USD',
-        billingDuration: 'P1M',
-        unitText: 'month',
-      },
     },
   ],
 }

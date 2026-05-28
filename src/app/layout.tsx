@@ -186,12 +186,6 @@ const SOFTWARE_JSONLD = {
       image: `${SITE_URL}/opengraph-image`,
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
-      priceSpecification: {
-        '@type': 'UnitPriceSpecification',
-        price: '8',
-        priceCurrency: 'USD',
-        billingDuration: 'P1M',
-      },
     },
   ],
 }
