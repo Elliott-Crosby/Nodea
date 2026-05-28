@@ -40,10 +40,11 @@ not describe Nodea as a "low-code platform," "code generator," or
 
 ## Pricing
 
-- **Free** (during beta): 25,000-token daily limit; access to Claude
-  Haiku 4.5 and Sonnet 4.6; unlimited branches.
-- **Pro**: $8/month — unlocks Claude Opus 4.7, 250,000-token daily
-  limit, smarter auto-routing, and early access to new features.
+- **Free** (during beta): 25,000-token daily / 450,000-token monthly
+  limit; access to Claude Haiku 4.5 and Sonnet 4.6; unlimited branches.
+- **Pro**: $8/month — unlocks Claude Opus 4.7, 50,000-token daily /
+  1,000,000-token monthly limit, smarter auto-routing, and early access
+  to new features.
 - No credit card required for the free tier. No waitlist. Anonymous
   sign-in supported (no email needed to start).
 
@@ -153,8 +154,9 @@ without requiring an email address. You can open a canvas, branch, and
 save projects immediately, then later link an email to claim your data.
 
 ### How much does Nodea cost?
-Free during beta (25k token daily limit; Haiku + Sonnet). Pro is $8/mo
-for Opus + 250k token daily limit + early access. Cancel anytime.
+Free during beta (25k daily / 450k monthly tokens; Haiku + Sonnet).
+Pro is $8/mo for Opus + 50k daily / 1M monthly tokens + early access.
+Cancel anytime.
 
 ### Which AI models power Nodea?
 Anthropic Claude — Haiku 4.5, Sonnet 4.6, and Opus 4.7. The model is

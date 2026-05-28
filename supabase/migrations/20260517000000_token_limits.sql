@@ -1,6 +1,6 @@
 -- Token usage tracking for per-user rate limiting.
--- Daily limit: 10,000 tokens  (~7 exchanges, resets midnight UTC)
--- Monthly limit: 125,000 tokens (~96 exchanges, resets 1st of month UTC)
+-- Limits live in src/lib/token-limits.ts (currently free 25k/450k, pro 50k/1M).
+-- Daily counter resets midnight UTC; monthly resets the 1st of the month UTC.
 
 CREATE TABLE public.user_token_usage (
   user_id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

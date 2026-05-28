@@ -184,6 +184,14 @@ function formatRateLimitMessage(
       ? `You've reached your daily usage limit. Your limit resets at ${t}.`
       : `You've reached your daily usage limit. Your limit resets at ${t}. Upgrade for more.`
   }
+  if (data.limit_type === 'monthly') {
+    const d = data.resets_at
+      ? new Date(data.resets_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+      : 'the 1st'
+    return isPro
+      ? `You've reached your monthly usage limit. Your limit resets on ${d}.`
+      : `You've reached your monthly usage limit. Your limit resets on ${d}. Upgrade for more.`
+  }
   return 'Your message is too long. Please shorten it and try again.'
 }
 

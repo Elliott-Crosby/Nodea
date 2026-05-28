@@ -9,13 +9,15 @@ import { createClient } from '@/lib/supabase'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
-  { title: '10× daily token limit', desc: '250k daily tokens vs 25k on free' },
+  { title: '2× daily tokens', desc: '50k daily tokens vs 25k on free' },
+  { title: '1M monthly tokens', desc: '2.2× the free monthly budget (450k)' },
   { title: 'Smarter model routing', desc: 'Right model selected for every message' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
 
 const COMPARE = [
-  { label: 'Daily tokens',      free: '25k',  pro: '250k' },
+  { label: 'Daily tokens',      free: '25k',  pro: '50k'  },
+  { label: 'Monthly tokens',    free: '450k', pro: '1M'   },
   { label: 'Claude Haiku',      free: true,   pro: true   },
   { label: 'Claude Sonnet',     free: true,   pro: true   },
   { label: 'Claude Opus',       free: false,  pro: true   },
@@ -156,12 +158,12 @@ export default function UpgradePage() {
                 <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>/mo</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, marginBottom: 0, lineHeight: 1.5 }}>
-                A full experience with generous daily limits.
+                A full experience with generous daily and monthly limits.
               </p>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 24 }}>
-              {['25k daily tokens', 'Claude Haiku & Sonnet', 'Unlimited branches'].map(f => (
+              {['25k daily · 450k monthly tokens', 'Claude Haiku & Sonnet', 'Unlimited branches'].map(f => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <CheckIcon on={true} />
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{f}</span>

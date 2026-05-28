@@ -54,7 +54,7 @@ It's MIT-licensed — fork it, self-host it, or read it to understand the archit
 - **Search** — live keyword search plus semantic ("concept") search via Claude
 - **Anonymous mode** — start a canvas without signing up; claim it later by linking an email
 - **Color-coded nodes** — tag the keepers, skim a project at a glance
-- **Stripe billing** — $0 free, $8/mo Pro for Claude Opus + 10× the daily token limit
+- **Stripe billing** — $0 free (25k daily / 450k monthly tokens), $8/mo Pro for Claude Opus + 50k daily / 1M monthly tokens
 
 ---
 

@@ -31,7 +31,7 @@ export default function NodeaVsTypingMind() {
         { feature: 'Bring-your-own keys',   competitor: 'Yes — required',              nodea: 'Roadmap; today managed' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',            nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'No (local storage)',          nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
-        { feature: 'Free tier',             competitor: 'Free app, pay your own API',  nodea: 'Free 25k tokens/day, ours' },
+        { feature: 'Free tier',             competitor: 'Free app, pay your own API',  nodea: 'Free 25k/day · 450k/mo, ours' },
         { feature: 'Price',                 competitor: '$39 one-time + API costs',    nodea: '$8/mo subscription' },
         { feature: 'Plugin system',         competitor: 'Yes',                         nodea: 'Not yet' },
       ]}

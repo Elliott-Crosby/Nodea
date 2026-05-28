@@ -33,7 +33,7 @@ export const HOMEPAGE_FAQ: FaqItem[] = [
   },
   {
     q: 'How much does Nodea cost?',
-    a: 'Nodea is free during beta with a 25,000-token daily limit and access to Claude Haiku 4.5 and Sonnet 4.6. The Pro plan is $8/month and unlocks Claude Opus 4.7, a 250,000-token daily limit, and early access to new features. Cancel anytime.',
+    a: 'Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Claude Haiku 4.5 and Sonnet 4.6. The Pro plan is $8/month and unlocks Claude Opus 4.7, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features. Cancel anytime.',
   },
   {
     q: 'Which AI models power Nodea?',

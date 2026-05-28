@@ -5,11 +5,11 @@ const SITE_URL = 'https://nodea.ai'
 export const metadata: Metadata = {
   title: 'Pricing — Free & Pro Plans',
   description:
-    'Nodea is free during beta with a 25k daily token limit. Pro is $8/month: unlocks Claude Opus, 250k daily tokens, and early access to new features. Cancel anytime.',
+    'Nodea is free during beta with 25k daily / 450k monthly tokens. Pro is $8/month: unlocks Claude Opus, 50k daily / 1M monthly tokens, and early access to new features. Cancel anytime.',
   alternates: { canonical: '/upgrade' },
   openGraph: {
     title: 'Pricing — Nodea',
-    description: 'Free with generous limits. Pro is $8/mo for Claude Opus and 10× the daily tokens.',
+    description: 'Free with generous limits. Pro is $8/mo for Claude Opus, doubled daily tokens, and a 1M monthly budget.',
     url: `${SITE_URL}/upgrade`,
   },
 }
@@ -63,7 +63,7 @@ const productJsonLd = {
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/login`,
       image: `${SITE_URL}/opengraph-image`,
-      description: '25,000 daily tokens. Claude Haiku 4.5 + Sonnet 4.6. Unlimited branches.',
+      description: '25,000 daily / 450,000 monthly tokens. Claude Haiku 4.5 + Sonnet 4.6. Unlimited branches.',
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
     },
@@ -75,7 +75,7 @@ const productJsonLd = {
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/upgrade`,
       image: `${SITE_URL}/opengraph-image`,
-      description: '250,000 daily tokens. Adds Claude Opus 4.7. Smarter model routing. Early access to new features.',
+      description: '50,000 daily / 1,000,000 monthly tokens. Adds Claude Opus 4.7. Smarter model routing. Early access to new features.',
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
     },

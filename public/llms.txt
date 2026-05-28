@@ -1,6 +1,6 @@
 # Nodea
 
-> Nodea is a branching AI chat canvas. Every reply from the AI becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread that you keep scrolling. Built on Anthropic Claude (Haiku 4.5, Sonnet 4.6, Opus 4.7). Free during beta; $8/mo Pro unlocks Claude Opus and a 10x daily token limit.
+> Nodea is a branching AI chat canvas. Every reply from the AI becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread that you keep scrolling. Built on Anthropic Claude (Haiku 4.5, Sonnet 4.6, Opus 4.7). Free during beta (25k daily / 450k monthly tokens); $8/mo Pro unlocks Claude Opus and a 50k daily / 1M monthly token budget.
 
 ## What Nodea is
 

@@ -345,8 +345,10 @@ export default function SettingsModal() {
 
 interface UsageRecord {
   daily_tokens: number
+  monthly_tokens?: number
   total_tokens?: number
   daily_reset_at: string
+  monthly_reset_at?: string
 }
 
 function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void }) {
@@ -355,7 +357,8 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
   const [upgrading, setUpgrading]   = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState(false)
 
-  const DAILY_LIMIT = isPro ? 250_000 : 25_000
+  const DAILY_LIMIT   = isPro ? 50_000    : 25_000
+  const MONTHLY_LIMIT = isPro ? 1_000_000 : 450_000
 
   useEffect(() => {
     const supabase = createClient()
@@ -364,7 +367,7 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
       try {
         const { data, error } = await supabase
           .from('user_token_usage')
-          .select('daily_tokens,total_tokens,daily_reset_at')
+          .select('daily_tokens,monthly_tokens,total_tokens,daily_reset_at,monthly_reset_at')
           .maybeSingle()
         if (error) {
           console.warn('[UsageTab]', error.code, error.message, error.details)
@@ -412,12 +415,17 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
     )
   }
 
-  const now          = new Date()
-  const dailyUsed    = !usage || now >= new Date(usage.daily_reset_at) ? 0 : usage.daily_tokens
-  const totalUsed    = usage?.total_tokens ?? 0
-  const dailyResetAt = usage ? new Date(usage.daily_reset_at) : null
+  const now            = new Date()
+  const dailyUsed      = !usage || now >= new Date(usage.daily_reset_at) ? 0 : usage.daily_tokens
+  const monthlyUsed    = !usage || !usage.monthly_reset_at || now >= new Date(usage.monthly_reset_at)
+    ? 0
+    : (usage.monthly_tokens ?? 0)
+  const totalUsed      = usage?.total_tokens ?? 0
+  const dailyResetAt   = usage ? new Date(usage.daily_reset_at) : null
+  const monthlyResetAt = usage?.monthly_reset_at ? new Date(usage.monthly_reset_at) : null
 
-  const dailyPct = Math.min(100, (dailyUsed / DAILY_LIMIT) * 100)
+  const dailyPct   = Math.min(100, (dailyUsed   / DAILY_LIMIT)   * 100)
+  const monthlyPct = Math.min(100, (monthlyUsed / MONTHLY_LIMIT) * 100)
 
   function barColor(pct: number) {
     if (pct >= 90) return '#ef4444'
@@ -427,6 +435,10 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
 
   function fmtTime(d: Date) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  }
+
+  function fmtDate(d: Date) {
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
 
   return (
@@ -492,7 +504,7 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
         <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Upgrade to Pro</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>250k daily tokens — 10× the free limit</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>50k daily · 1M monthly tokens</div>
           </div>
           <button
             onClick={onUpgrade}
@@ -511,6 +523,17 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
         color={barColor(dailyPct)}
         resetLabel={dailyResetAt ? `Resets at ${fmtTime(dailyResetAt)}` : ''}
       />
+
+      <div style={{ marginTop: 20 }}>
+        <UsageBar
+          label="Monthly"
+          used={monthlyUsed}
+          limit={MONTHLY_LIMIT}
+          pct={monthlyPct}
+          color={barColor(monthlyPct)}
+          resetLabel={monthlyResetAt ? `Resets ${fmtDate(monthlyResetAt)}` : ''}
+        />
+      </div>
 
       <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>All-time tokens used</span>

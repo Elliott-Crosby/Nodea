@@ -30,8 +30,8 @@ export default function NodeaVsChatGPT() {
         { feature: 'Underlying model',       competitor: 'GPT-4o / GPT-5',            nodea: 'Claude Haiku 4.5 / Sonnet 4.6 / Opus 4.7' },
         { feature: 'Auto model routing',     competitor: 'Manual model picker',       nodea: 'Auto by prompt complexity', nodeaWins: true },
         { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'Yes — no email needed', nodeaWins: true },
-        { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k tokens/day, Haiku + Sonnet' },
-        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$8/mo (Opus + 250k tokens/day)', nodeaWins: true },
+        { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
+        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$8/mo (Opus + 50k/day · 1M/mo)', nodeaWins: true },
         { feature: 'Open source',            competitor: 'No',                        nodea: 'Admin dashboard is MIT-licensed', nodeaWins: true },
         { feature: 'Data isolation',         competitor: 'OpenAI cloud',              nodea: 'Supabase Postgres with RLS' },
       ]}
