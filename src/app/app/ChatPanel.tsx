@@ -330,7 +330,7 @@ function ThinkingBubble() {
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen } = useApp()
+  const { convName, setIsSearchOpen, setIsChatCollapsed } = useApp()
 
   return (
     <div
@@ -354,6 +354,12 @@ function TopBar() {
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
             <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </IconBtn>
+        <IconBtn title="Collapse chat" onClick={() => setIsChatCollapsed(true)}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M9 2l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.45" />
           </svg>
         </IconBtn>
       </div>
@@ -757,7 +763,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed } = useApp()
   const bottomRef    = useRef<HTMLDivElement>(null)
   const dragCounter  = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -811,6 +817,33 @@ export default function ChatPanel() {
   }, [addAttachment])
 
   const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'
+
+  if (isChatCollapsed) {
+    return (
+      <div style={{ width: 44, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRight: '1px solid var(--border)', background: 'var(--topbar-bg)' }}>
+        <button
+          onClick={() => setIsChatCollapsed(false)}
+          title="Expand chat"
+          style={{
+            marginTop: 12, width: 30, height: 30,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+            borderRadius: 8, cursor: 'pointer', color: 'var(--text-secondary)',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M5 2L0 7l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.45" />
+          </svg>
+        </button>
+        <div style={{ marginTop: 16, opacity: 0.3, color: 'var(--text-primary)' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M15 12a2 2 0 0 1-2 2H5l-3 2.5V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          </svg>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

@@ -249,7 +249,7 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
@@ -568,7 +568,12 @@ export default function TreePanel() {
 
   // ── Full panel ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ width: panelWidth, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border)', background: 'var(--tree-bg)', height: '100vh', position: 'relative' }}>
+    <div style={{
+      ...(isChatCollapsed
+        ? { flex: 1, minWidth: 0 }
+        : { width: panelWidth, flexShrink: 0 }),
+      display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border)', background: 'var(--tree-bg)', height: '100vh', position: 'relative',
+    }}>
 
       {/* Resize handle */}
       <div

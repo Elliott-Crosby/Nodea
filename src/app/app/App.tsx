@@ -131,6 +131,8 @@ export interface AppContextType {
   setIsSettingsOpen: (b: boolean) => void
   isUpgradeOpen: boolean
   setIsUpgradeOpen: (b: boolean) => void
+  isChatCollapsed: boolean
+  setIsChatCollapsed: (b: boolean) => void
   handleSend: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
   handleNodeClick: (nodeId: string) => Promise<void>
   switchConversation: (id: string) => Promise<void>
@@ -258,6 +260,7 @@ export default function App() {
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
   const [isUpgradeOpen, setIsUpgradeOpen]  = useState(false)
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false)
   const [settingsInitialSection, setSettingsInitialSection] = useState<string | null>(null)
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
@@ -921,6 +924,7 @@ export default function App() {
     input, setInput, isLoading,
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     isUpgradeOpen, setIsUpgradeOpen,
+    isChatCollapsed, setIsChatCollapsed,
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
@@ -937,7 +941,10 @@ export default function App() {
     <AppContext.Provider value={ctx}>
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{
+          flex: isChatCollapsed ? '0 0 44px' : 1,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0,
+        }}>
           <ChatPanel />
         </div>
         <TreePanel />
