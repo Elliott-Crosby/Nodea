@@ -479,8 +479,7 @@ export default function TreePanel() {
   const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
-  const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
-  const [contentMode,     setContentMode]     = useState<'summary' | 'full'>('summary')
+  const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
   const [autoZoom,        setAutoZoom]        = useState(true)
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
   const [hoveredId,       setHoveredId]       = useState<string | null>(null)
@@ -609,12 +608,12 @@ export default function TreePanel() {
     return [...pairs, ghost]
   }, [pairs, showGhost, ghostAnchorPair])
 
-  const vSpacing      = contentMode === 'full' ? V_SPACING_FULL : V_SPACING
+  const vSpacing      = viewMode === 'full' ? V_SPACING_FULL : V_SPACING
   const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing), [displayPairs, vSpacing])
   const zoomMode      = getZoomMode(scale)
   const nodeW         = NODE_W[zoomMode]
-  const nodeH         = (contentMode === 'full' ? NODE_H_FULL : NODE_H)[zoomMode]
-  const nodeHMax      = (contentMode === 'full' ? NODE_H_FULL : NODE_H).detailed
+  const nodeH         = (viewMode === 'full' ? NODE_H_FULL : NODE_H)[zoomMode]
+  const nodeHMax      = (viewMode === 'full' ? NODE_H_FULL : NODE_H).detailed
 
   const { canvasW, canvasH } = useMemo(() => {
     if (pairPositions.size === 0) return { canvasW: 400, canvasH: 400 }
@@ -730,12 +729,13 @@ export default function TreePanel() {
     return () => clearTimeout(t)
   }, [lastSavedPairId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Re-fit when content mode changes (taller nodes shift the layout) ──────────
+  // ── Re-fit when view mode changes (full mode uses taller nodes) ──────────────
   useEffect(() => {
     if (pairs.length === 0) return
+    if (viewMode === 'outline') return
     const t = setTimeout(fitView, 80)
     return () => clearTimeout(t)
-  }, [contentMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Scroll-wheel: pinch (ctrlKey) = zoom, plain = pan ────────────────────────
   // Browsers report trackpad pinch as wheel + ctrlKey; plain two-finger scroll
@@ -911,13 +911,13 @@ export default function TreePanel() {
 
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Conversation Tree</span>
 
-        {/* Tree / Outline toggle */}
+        {/* Tree / Outline / Full toggle */}
         <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: 8, padding: 2, gap: 2, flexShrink: 0 }}>
-          {(['tree', 'outline'] as const).map(mode => (
+          {(['tree', 'outline', 'full'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              title={mode === 'tree' ? 'Tree view' : 'Outline view'}
+              title={mode === 'tree' ? 'Tree view (summaries)' : mode === 'outline' ? 'Outline view' : 'Full view (raw user + AI text)'}
               style={{
                 width: 26, height: 22,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -938,11 +938,27 @@ export default function TreePanel() {
                   <line x1="6" y1="6.5" x2="2.25" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
                   <line x1="6" y1="6.5" x2="9.75" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
                 </svg>
-              ) : (
+              ) : mode === 'outline' ? (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <line x1="1" y1="3" x2="11" y2="3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
                   <line x1="3" y1="6.5" x2="11" y2="6.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
                   <line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                </svg>
+              ) : (
+                /* Full view: tree shape with taller / fuller nodes */
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="4" y="0.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="4.8" y1="2"   x2="7.2" y2="2"   stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <line x1="4.8" y1="3.2" x2="6.5" y2="3.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <rect x="0.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="1.3" y1="9"    x2="3.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <line x1="1.3" y1="10.2" x2="3"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <rect x="7.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="8.3" y1="9"    x2="10.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <line x1="8.3" y1="10.2" x2="10"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+                  <line x1="6" y1="4.5" x2="6" y2="6" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="6" y1="6" x2="2.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
+                  <line x1="6" y1="6" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
                 </svg>
               )}
             </button>
@@ -1074,7 +1090,7 @@ export default function TreePanel() {
                       }}
                     >
                       {/* Detailed — summary mode: generated title + summary + attachment row */}
-                      {zoomMode === 'detailed' && contentMode === 'summary' && (
+                      {zoomMode === 'detailed' && viewMode === 'tree' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1122,7 +1138,7 @@ export default function TreePanel() {
                       )}
 
                       {/* Detailed — full mode: raw user prompt (bold, top) + raw AI reply (regular, bottom) */}
-                      {zoomMode === 'detailed' && contentMode === 'full' && (
+                      {zoomMode === 'detailed' && viewMode === 'full' && (
                         <div style={{ padding: '10px 11px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <div
                             style={{
@@ -1189,7 +1205,7 @@ export default function TreePanel() {
                       )}
 
                       {/* Compact — summary mode: title + one-line summary, paperclip+count if attached */}
-                      {zoomMode === 'compact' && contentMode === 'summary' && (
+                      {zoomMode === 'compact' && viewMode === 'tree' && (
                         <div style={{ padding: '7px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                             <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -1214,7 +1230,7 @@ export default function TreePanel() {
                       )}
 
                       {/* Compact — full mode: clamped user text on top, clamped AI text on bottom */}
-                      {zoomMode === 'compact' && contentMode === 'full' && (
+                      {zoomMode === 'compact' && viewMode === 'full' && (
                         <div style={{ padding: '8px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0, flex: '1 1 0' }}>
                             <div
@@ -1259,7 +1275,7 @@ export default function TreePanel() {
                       )}
 
                       {/* Mini — summary mode: title only, paperclip dot if attached */}
-                      {zoomMode === 'mini' && contentMode === 'summary' && (
+                      {zoomMode === 'mini' && viewMode === 'tree' && (
                         <div style={{ padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             {title}
@@ -1274,7 +1290,7 @@ export default function TreePanel() {
                       )}
 
                       {/* Mini — full mode: one line of user, one line of AI */}
-                      {zoomMode === 'mini' && contentMode === 'full' && (
+                      {zoomMode === 'mini' && viewMode === 'full' && (
                         <div style={{ padding: '6px 8px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <div style={{ flex: 1, fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1411,7 +1427,7 @@ export default function TreePanel() {
       )}
 
       {/* Hover popover */}
-      {hoveredId && hoverPos && viewMode === 'tree' && (() => {
+      {hoveredId && hoverPos && viewMode !== 'outline' && (() => {
         const pair = pairs.find(p => p.id === hoveredId)
         if (!pair) return null
         const title         = generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
@@ -1472,7 +1488,7 @@ export default function TreePanel() {
       })()}
 
       {/* Zoom toolbar */}
-      {pairs.length > 0 && viewMode === 'tree' && (
+      {pairs.length > 0 && viewMode !== 'outline' && (
         <div style={{ position: 'absolute', bottom: 72, left: 12, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 10 }}>
           {([
             { title: 'Zoom in',  action: () => setScale(s => Math.min(2, +(s + 0.15).toFixed(2))),    icon: <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg> },
@@ -1503,35 +1519,6 @@ export default function TreePanel() {
               <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="1.2" />
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 1.8" />
             </svg>
-          </button>
-
-          {/* Content-mode toggle: summary ↔ full transcript */}
-          <button
-            onClick={() => { setContentMode(m => m === 'summary' ? 'full' : 'summary'); track('tree_content_mode_toggled', { mode: contentMode === 'summary' ? 'full' : 'summary' }) }}
-            title={contentMode === 'summary' ? 'Showing summaries (click for full text)' : 'Showing full text (click for summaries)'}
-            style={{
-              width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: contentMode === 'full' ? 'var(--accent)' : 'var(--modal-bg)',
-              border: `1px solid ${contentMode === 'full' ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 7, cursor: 'pointer',
-              color: contentMode === 'full' ? 'white' : 'var(--text-secondary)',
-              boxShadow: 'var(--shadow-sm)', transition: 'background 0.15s, color 0.15s, border-color 0.15s',
-            }}
-          >
-            {contentMode === 'summary' ? (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <line x1="2" y1="3.5" x2="10" y2="3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                <line x1="2" y1="7"   x2="8"  y2="7"   stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.55" />
-                <line x1="2" y1="9.5" x2="6"  y2="9.5" stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.55" />
-              </svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <line x1="2" y1="2.5"  x2="10" y2="2.5"  stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                <line x1="2" y1="4.6"  x2="10" y2="4.6"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
-                <line x1="2" y1="6.7"  x2="9"  y2="6.7"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
-                <line x1="2" y1="8.8"  x2="10" y2="8.8"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
-              </svg>
-            )}
           </button>
 
           {/* Add sticky note */}
