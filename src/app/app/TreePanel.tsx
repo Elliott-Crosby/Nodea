@@ -14,8 +14,10 @@ const MAX_WIDTH          = 700
 const DEFAULT_WIDTH      = 320
 const MIN_READABLE_SCALE = 0.65
 
-const NODE_W = { detailed: 240, compact: 190, mini: 150 } as const
-const NODE_H = { detailed: 86,  compact: 52,  mini:  40  } as const
+const NODE_W      = { detailed: 240, compact: 190, mini: 150 } as const
+const NODE_H      = { detailed: 86,  compact: 52,  mini:  40  } as const
+const NODE_H_FULL = { detailed: 220, compact: 140, mini:  90  } as const
+const V_SPACING_FULL = 320
 
 // ── Colour palette ─────────────────────────────────────────────────────────────
 const PALETTE = [
@@ -29,12 +31,33 @@ const PALETTE = [
   { id: 'violet',  label: 'Violet',  hex: '#8b5cf6' },
 ]
 
+// ── Sticky-note constants ──────────────────────────────────────────────────────
+const STICKY_MIN_W       = 140
+const STICKY_MIN_H       = 90
+const STICKY_DEFAULT_W   = 190
+const STICKY_DEFAULT_H   = 150
+const STICKY_HEADER_H    = 26
+const STICKY_BG          = '#FEF9A7'
+const STICKY_HEADER_LINE = 'rgba(0,0,0,0.06)'
+const STICKY_TEXT        = '#2C1810'
+const STICKY_BTN         = '#7a5c2e'
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Pair {
   id:           string
   userNode:     DbNode
   aiNode:       DbNode | null
   parentPairId: string | null
+}
+
+interface StickyNote {
+  id:        string
+  x:         number   // canvas-space (transforms with pan/zoom)
+  y:         number
+  w:         number
+  h:         number
+  text:      string
+  collapsed: boolean
 }
 
 type ZoomMode = 'detailed' | 'compact' | 'mini'
@@ -74,6 +97,30 @@ function generateSummary(aiResponse: string, _userPrompt: string): string {
 
   const firstSentence = stripped.match(/^[^.!?]+[.!?]/)?.[0]?.trim() ?? stripped
   return firstSentence.length > 120 ? firstSentence.slice(0, 117) + '…' : firstSentence
+}
+
+// Strip the inline attachment marker that prefixes some user content, so the
+// node shows only the typed text (attachments are surfaced separately).
+const ATT_MARK_OPEN  = '<<<NODEA_ATT_V1\n'
+const ATT_MARK_CLOSE = '\nNODEA_ATT_V1>>>\n'
+function stripAttachmentMarker(content: string): string {
+  if (!content.startsWith(ATT_MARK_OPEN)) return content
+  const idx = content.indexOf(ATT_MARK_CLOSE, ATT_MARK_OPEN.length)
+  return idx < 0 ? content : content.slice(idx + ATT_MARK_CLOSE.length)
+}
+
+// Render-friendly plaintext from markdown, preserving paragraph breaks so the
+// full AI reply reads naturally inside a tree node.
+function stripMarkdownPlain(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, '[code block]')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*[-*+>]\s+/gm, '')
+    .trim()
 }
 
 // File-type badge for the tiny attachment chips shown on each tree node.
@@ -156,7 +203,7 @@ function buildPairs(dbNodes: DbNode[]): Pair[] {
   return pairs
 }
 
-function computePairLayout(pairs: Pair[]): Map<string, { x: number; y: number }> {
+function computePairLayout(pairs: Pair[], vSpacing: number = V_SPACING): Map<string, { x: number; y: number }> {
   const childrenMap = new Map<string | null, Pair[]>()
   for (const pair of pairs) {
     const k = pair.parentPairId
@@ -171,12 +218,12 @@ function computePairLayout(pairs: Pair[]): Map<string, { x: number; y: number }>
     if (children.length === 0) {
       const x = leafIdx * H_SPACING
       leafIdx++
-      positions.set(id, { x, y: depth * V_SPACING })
+      positions.set(id, { x, y: depth * vSpacing })
       return x
     }
     const xs = children.map(c => walk(c.id, depth + 1))
     const x  = (xs[0] + xs[xs.length - 1]) / 2
-    positions.set(id, { x, y: depth * V_SPACING })
+    positions.set(id, { x, y: depth * vSpacing })
     return x
   }
 
@@ -247,12 +294,193 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
   )
 }
 
+// ── Sticky note card ───────────────────────────────────────────────────────────
+function StickyNoteCard({
+  note, scale, shouldFocus, onUpdate, onDelete, onFront,
+}: {
+  note:        StickyNote
+  scale:       number
+  shouldFocus: boolean
+  onUpdate:    (patch: Partial<StickyNote>) => void
+  onDelete:    () => void
+  onFront:     () => void
+}) {
+  const [hover, setHover] = useState(false)
+  const textareaRef       = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (shouldFocus) textareaRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function startDrag(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.stopPropagation()
+    onFront()
+    const sx = e.clientX, sy = e.clientY
+    const nx = note.x,    ny = note.y
+    function move(ev: PointerEvent) {
+      onUpdate({ x: nx + (ev.clientX - sx) / scale, y: ny + (ev.clientY - sy) / scale })
+    }
+    function up() {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  function startResize(e: React.PointerEvent) {
+    e.stopPropagation()
+    onFront()
+    const sx = e.clientX, sy = e.clientY
+    const w0 = note.w,    h0 = note.h
+    function move(ev: PointerEvent) {
+      onUpdate({
+        w: Math.max(STICKY_MIN_W, w0 + (ev.clientX - sx) / scale),
+        h: Math.max(STICKY_MIN_H, h0 + (ev.clientY - sy) / scale),
+      })
+    }
+    function up() {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  return (
+    <div
+      data-sticky="true"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        position:    'absolute',
+        left:        note.x,
+        top:         note.y,
+        width:       note.w,
+        height:      note.collapsed ? STICKY_HEADER_H : note.h,
+        background:  STICKY_BG,
+        boxShadow:   '0 2px 6px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.12)',
+        borderRadius: 3,
+        overflow:    'hidden',
+        display:     'flex',
+        flexDirection: 'column',
+        userSelect:  'none',
+        zIndex:      50,
+      }}
+    >
+      {/* Drag header + collapse / delete */}
+      <div
+        data-sticky="true"
+        onPointerDown={startDrag}
+        style={{
+          height:        STICKY_HEADER_H,
+          flexShrink:    0,
+          display:       'flex',
+          alignItems:    'center',
+          justifyContent: 'flex-end',
+          padding:       '0 2px 0 4px',
+          cursor:        'move',
+          borderBottom:  note.collapsed ? 'none' : `1px solid ${STICKY_HEADER_LINE}`,
+        }}
+      >
+        <button
+          data-sticky="true"
+          onClick={(e) => { e.stopPropagation(); onUpdate({ collapsed: !note.collapsed }) }}
+          title={note.collapsed ? 'Expand' : 'Collapse'}
+          style={{
+            width: 22, height: 22, border: 'none', background: 'transparent',
+            cursor: 'pointer', color: STICKY_BTN, padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: hover ? 1 : 0.55, transition: 'opacity 0.12s',
+          }}
+        >
+          {note.collapsed ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4"
+                strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <line x1="2" y1="5" x2="8" y2="5" stroke="currentColor"
+                strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
+        <button
+          data-sticky="true"
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          title="Delete"
+          style={{
+            width: 22, height: 22, border: 'none', background: 'transparent',
+            cursor: 'pointer', color: STICKY_BTN, padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: hover ? 1 : 0.55, transition: 'opacity 0.12s',
+          }}
+        >
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+            <path d="M1 1 L8 8 M8 1 L1 8" stroke="currentColor"
+              strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Body */}
+      {!note.collapsed && (
+        <>
+          <textarea
+            ref={textareaRef}
+            data-sticky="true"
+            value={note.text}
+            onChange={(e) => onUpdate({ text: e.target.value })}
+            onPointerDown={(e) => { e.stopPropagation(); onFront() }}
+            placeholder="Take a note…"
+            style={{
+              flex:        1,
+              border:      'none',
+              outline:     'none',
+              background:  'transparent',
+              padding:     '6px 10px 14px 10px',
+              fontSize:    12.5,
+              fontFamily:  'system-ui, -apple-system, "Segoe UI", sans-serif',
+              color:       STICKY_TEXT,
+              resize:      'none',
+              boxSizing:   'border-box',
+              lineHeight:  1.45,
+            }}
+          />
+          <div
+            data-sticky="true"
+            onPointerDown={startResize}
+            title="Resize"
+            style={{
+              position: 'absolute',
+              right:    0,
+              bottom:   0,
+              width:    14,
+              height:   14,
+              cursor:   'nwse-resize',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" style={{ position: 'absolute', right: 1, bottom: 1, opacity: 0.4 }}>
+              <line x1="13" y1="6"  x2="6"  y2="13" stroke={STICKY_TEXT} strokeWidth="1" />
+              <line x1="13" y1="10" x2="10" y2="13" stroke={STICKY_TEXT} strokeWidth="1" />
+            </svg>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline'>('tree')
+  const [contentMode,     setContentMode]     = useState<'summary' | 'full'>('summary')
   const [autoZoom,        setAutoZoom]        = useState(true)
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
   const [hoveredId,       setHoveredId]       = useState<string | null>(null)
@@ -275,6 +503,76 @@ export default function TreePanel() {
   const isResizing     = useRef(false)
   const resizeOrigin   = useRef({ x: 0, w: DEFAULT_WIDTH })
   const initialFitDone = useRef(false)
+
+  // ── Sticky notes ──────────────────────────────────────────────────────────────
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([])
+  const lastAddedStickyRef            = useRef<string | null>(null)
+
+  // Load notes from localStorage when the active conversation changes.
+  useEffect(() => {
+    if (!activeConvId) { setStickyNotes([]); return }
+    try {
+      const saved = localStorage.getItem(`nodea_sticky_${activeConvId}`)
+      setStickyNotes(saved ? JSON.parse(saved) : [])
+    } catch { setStickyNotes([]) }
+  }, [activeConvId])
+
+  // Helper: update sticky state AND persist in the same call so we never race
+  // with the conv-switch load effect (a separate "persist on every change"
+  // useEffect would fire with stale state right after activeConvId changes).
+  const mutateStickies = useCallback(
+    (updater: (prev: StickyNote[]) => StickyNote[]) => {
+      setStickyNotes(prev => {
+        const next = updater(prev)
+        if (activeConvId) {
+          try { localStorage.setItem(`nodea_sticky_${activeConvId}`, JSON.stringify(next)) } catch {}
+        }
+        return next
+      })
+    },
+    [activeConvId]
+  )
+
+  const addStickyNote = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const cw  = el.clientWidth
+    const ch  = el.clientHeight
+    // Place at viewport center, converted from screen → canvas coords.
+    const cx  = (cw / 2 - panRef.current.x) / scaleRef.current
+    const cy  = (ch / 2 - panRef.current.y) / scaleRef.current
+    const id  = `sticky_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    mutateStickies(prev => [...prev, {
+      id,
+      x: Math.round(cx - STICKY_DEFAULT_W / 2),
+      y: Math.round(cy - STICKY_DEFAULT_H / 2),
+      w: STICKY_DEFAULT_W,
+      h: STICKY_DEFAULT_H,
+      text: '',
+      collapsed: false,
+    }])
+    lastAddedStickyRef.current = id
+    track('sticky_note_added')
+  }, [mutateStickies])
+
+  const updateSticky = useCallback((id: string, patch: Partial<StickyNote>) => {
+    mutateStickies(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
+  }, [mutateStickies])
+
+  const deleteSticky = useCallback((id: string) => {
+    mutateStickies(prev => prev.filter(s => s.id !== id))
+  }, [mutateStickies])
+
+  // Move the clicked sticky to the end of the array so it renders on top.
+  const bringStickyToFront = useCallback((id: string) => {
+    mutateStickies(prev => {
+      const idx = prev.findIndex(s => s.id === id)
+      if (idx < 0 || idx === prev.length - 1) return prev
+      const next = [...prev]
+      next.push(next.splice(idx, 1)[0])
+      return next
+    })
+  }, [mutateStickies])
 
   const pairs         = useMemo(() => buildPairs(allDbNodes), [allDbNodes])
   const activePairIds = useMemo(() => getActivePairIds(pairs, selectedNodeId), [pairs, selectedNodeId])
@@ -311,10 +609,12 @@ export default function TreePanel() {
     return [...pairs, ghost]
   }, [pairs, showGhost, ghostAnchorPair])
 
-  const pairPositions = useMemo(() => computePairLayout(displayPairs), [displayPairs])
+  const vSpacing      = contentMode === 'full' ? V_SPACING_FULL : V_SPACING
+  const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing), [displayPairs, vSpacing])
   const zoomMode      = getZoomMode(scale)
   const nodeW         = NODE_W[zoomMode]
-  const nodeH         = NODE_H[zoomMode]
+  const nodeH         = (contentMode === 'full' ? NODE_H_FULL : NODE_H)[zoomMode]
+  const nodeHMax      = (contentMode === 'full' ? NODE_H_FULL : NODE_H).detailed
 
   const { canvasW, canvasH } = useMemo(() => {
     if (pairPositions.size === 0) return { canvasW: 400, canvasH: 400 }
@@ -322,9 +622,9 @@ export default function TreePanel() {
     const ys = Array.from(pairPositions.values()).map(p => p.y)
     return {
       canvasW: Math.max(...xs) + LAYOUT_W + 80,
-      canvasH: Math.max(...ys) + NODE_H.detailed + 80,
+      canvasH: Math.max(...ys) + nodeHMax + 80,
     }
-  }, [pairPositions])
+  }, [pairPositions, nodeHMax])
 
   // ── Fit view ──────────────────────────────────────────────────────────────────
   const fitView = useCallback(() => {
@@ -339,7 +639,7 @@ export default function TreePanel() {
     const bx0  = Math.min(...ps.map(p => p.x))
     const bx1  = Math.max(...ps.map(p => p.x)) + LAYOUT_W
     const by0  = Math.min(...ps.map(p => p.y))
-    const by1  = Math.max(...ps.map(p => p.y)) + NODE_H.detailed
+    const by1  = Math.max(...ps.map(p => p.y)) + nodeHMax
     const bw   = bx1 - bx0 + hPad * 2
     const bh   = by1 - by0
 
@@ -349,7 +649,7 @@ export default function TreePanel() {
 
     setScale(s)
     setPan({ x: (cw - (bx1 - bx0) * s) / 2 - bx0 * s, y: 24 - by0 * s })
-  }, [pairPositions])
+  }, [pairPositions, nodeHMax])
 
   // ── Fit active branch ─────────────────────────────────────────────────────────
   const fitBranch = useCallback(() => {
@@ -367,7 +667,7 @@ export default function TreePanel() {
     const bx0  = Math.min(...poses.map(p => p.x))
     const bx1  = Math.max(...poses.map(p => p.x)) + LAYOUT_W
     const by0  = Math.min(...poses.map(p => p.y))
-    const by1  = Math.max(...poses.map(p => p.y)) + NODE_H.detailed
+    const by1  = Math.max(...poses.map(p => p.y)) + nodeHMax
     const bw   = bx1 - bx0 + hPad * 2
     const bh   = by1 - by0
 
@@ -380,7 +680,7 @@ export default function TreePanel() {
       x: (cw - (bx1 - bx0) * s) / 2 - bx0 * s,
       y: (ch - (by1 - by0) * s) / 2 - by0 * s,
     })
-  }, [activePairIds, pairPositions, fitView])
+  }, [activePairIds, pairPositions, fitView, nodeHMax])
 
   // ── Smart zoom to newly-saved node ────────────────────────────────────────────
   const smartZoomToNode = useCallback((pairId: string, chainLen: number) => {
@@ -393,7 +693,7 @@ export default function TreePanel() {
     const ch = el.clientHeight
 
     // Scale: fit the full chain height comfortably, clamped to readable range
-    const chainH = Math.max(1, chainLen - 1) * V_SPACING + NODE_H.detailed
+    const chainH = Math.max(1, chainLen - 1) * vSpacing + nodeHMax
     const sByH   = (ch * 0.85) / chainH
     const s      = Math.max(MIN_READABLE_SCALE, Math.min(1.1, sByH))
 
@@ -405,9 +705,9 @@ export default function TreePanel() {
     setScale(s)
     setPan({
       x: cw / 2 - (pos.x + LAYOUT_W / 2) * s,
-      y: targetY  - (pos.y + NODE_H.detailed / 2) * s,
+      y: targetY  - (pos.y + nodeHMax / 2) * s,
     })
-  }, [pairPositions])
+  }, [pairPositions, vSpacing, nodeHMax])
 
   useEffect(() => {
     if (pairs.length > 0) {
@@ -430,11 +730,20 @@ export default function TreePanel() {
     return () => clearTimeout(t)
   }, [lastSavedPairId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Re-fit when content mode changes (taller nodes shift the layout) ──────────
+  useEffect(() => {
+    if (pairs.length === 0) return
+    const t = setTimeout(fitView, 80)
+    return () => clearTimeout(t)
+  }, [contentMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Scroll-wheel: plain = zoom, Ctrl = pan ────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     function onWheel(e: WheelEvent) {
+      // Let sticky-note textareas handle their own scrolling natively.
+      if ((e.target as HTMLElement).closest('[data-sticky]')) return
       e.preventDefault()
       if (e.ctrlKey) {
         // Ctrl+scroll → pan up/down (and left/right if deltaX present)
@@ -498,7 +807,8 @@ export default function TreePanel() {
 
   // ── Canvas drag / pan ─────────────────────────────────────────────────────────
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest('[data-node]')) return
+    const t = e.target as HTMLElement
+    if (t.closest('[data-node]') || t.closest('[data-sticky]')) return
     isDragging.current = true
     setDragging(true)
     dragOrigin.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
@@ -706,6 +1016,8 @@ export default function TreePanel() {
                 const aiMeta  = nodeSummaries[pair.id]
                 const title   = aiMeta?.title   || generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
                 const summary = aiMeta?.summary || (pair.aiNode ? generateSummary(pair.aiNode.content, pair.userNode.content) : '')
+                const userTextFull = stripAttachmentMarker(pair.userNode.content).trim()
+                const aiTextFull   = pair.aiNode ? stripMarkdownPlain(pair.aiNode.content) : ''
                 const attachments    = pair.userNode.attachments ?? []
                 const hasAttachments = attachments.length > 0
 
@@ -759,8 +1071,8 @@ export default function TreePanel() {
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
-                      {/* Detailed: title + summary + attachment row */}
-                      {zoomMode === 'detailed' && (
+                      {/* Detailed — summary mode: generated title + summary + attachment row */}
+                      {zoomMode === 'detailed' && contentMode === 'summary' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -807,8 +1119,75 @@ export default function TreePanel() {
                         </div>
                       )}
 
-                      {/* Compact: title + one-line summary, paperclip+count if attached */}
-                      {zoomMode === 'compact' && (
+                      {/* Detailed — full mode: raw user prompt (bold, top) + raw AI reply (regular, bottom) */}
+                      {zoomMode === 'detailed' && contentMode === 'full' && (
+                        <div style={{ padding: '10px 11px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div
+                            style={{
+                              flex: '1 1 0',
+                              minHeight: 0,
+                              fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4,
+                              overflow: 'hidden',
+                              display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: hasAttachments ? 4 : 5,
+                              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                            }}
+                          >
+                            {userTextFull || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>(empty)</span>}
+                          </div>
+                          {aiTextFull && (
+                            <>
+                              <div style={{ borderTop: '1px dashed var(--border)', flexShrink: 0 }} />
+                              <div
+                                style={{
+                                  flex: '1 1 0',
+                                  minHeight: 0,
+                                  fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45,
+                                  overflow: 'hidden',
+                                  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: hasAttachments ? 4 : 6,
+                                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                }}
+                              >
+                                {aiTextFull}
+                              </div>
+                            </>
+                          )}
+                          {hasAttachments && (
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                              {attachments.slice(0, 2).map((a, i) => {
+                                const b = attachmentBadge(a.type)
+                                return (
+                                  <div key={i} style={{
+                                    display: 'flex', alignItems: 'center', gap: 3,
+                                    padding: '1px 4px 1px 1px', borderRadius: 4,
+                                    background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+                                    maxWidth: 100, overflow: 'hidden', flexShrink: 1,
+                                  }}>
+                                    <div style={{
+                                      width: 18, height: 11, borderRadius: 2.5, background: b.bg,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                    }}>
+                                      <span style={{ fontSize: b.label.length > 3 ? 6 : 7, fontWeight: 700, color: 'white', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                                        {b.label}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>
+                                      {shortFilename(a.name, 14)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                              {attachments.length > 2 && (
+                                <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>
+                                  +{attachments.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Compact — summary mode: title + one-line summary, paperclip+count if attached */}
+                      {zoomMode === 'compact' && contentMode === 'summary' && (
                         <div style={{ padding: '7px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                             <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -832,8 +1211,53 @@ export default function TreePanel() {
                         </div>
                       )}
 
-                      {/* Mini: title only, paperclip dot if attached */}
-                      {zoomMode === 'mini' && (
+                      {/* Compact — full mode: clamped user text on top, clamped AI text on bottom */}
+                      {zoomMode === 'compact' && contentMode === 'full' && (
+                        <div style={{ padding: '8px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0, flex: '1 1 0' }}>
+                            <div
+                              style={{
+                                flex: 1, minWidth: 0,
+                                fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.35,
+                                overflow: 'hidden',
+                                display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
+                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                              }}
+                            >
+                              {userTextFull || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>(empty)</span>}
+                            </div>
+                            {hasAttachments && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}>
+                                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+                                  <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
+                                    stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                </svg>
+                                {attachments.length > 1 && attachments.length}
+                              </span>
+                            )}
+                          </div>
+                          {aiTextFull && (
+                            <>
+                              <div style={{ borderTop: '1px dashed var(--border)', flexShrink: 0 }} />
+                              <div
+                                style={{
+                                  flex: '1 1 0',
+                                  minHeight: 0,
+                                  fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.4,
+                                  overflow: 'hidden',
+                                  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
+                                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                }}
+                              >
+                                {aiTextFull}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mini — summary mode: title only, paperclip dot if attached */}
+                      {zoomMode === 'mini' && contentMode === 'summary' && (
                         <div style={{ padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             {title}
@@ -843,6 +1267,28 @@ export default function TreePanel() {
                               <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
                                 stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                             </svg>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mini — full mode: one line of user, one line of AI */}
+                      {zoomMode === 'mini' && contentMode === 'full' && (
+                        <div style={{ padding: '6px 8px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div style={{ flex: 1, fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {userTextFull || '(empty)'}
+                            </div>
+                            {hasAttachments && (
+                              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                                <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
+                                  stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                              </svg>
+                            )}
+                          </div>
+                          {aiTextFull && (
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {aiTextFull}
+                            </div>
                           )}
                         </div>
                       )}
@@ -874,6 +1320,19 @@ export default function TreePanel() {
                   </div>
                 )
               })}
+
+              {/* ── Sticky notes (canvas-space, render above tree nodes) ── */}
+              {stickyNotes.map((note) => (
+                <StickyNoteCard
+                  key={note.id}
+                  note={note}
+                  scale={scale}
+                  shouldFocus={lastAddedStickyRef.current === note.id}
+                  onUpdate={(patch) => updateSticky(note.id, patch)}
+                  onDelete={() => deleteSticky(note.id)}
+                  onFront={() => bringStickyToFront(note.id)}
+                />
+              ))}
             </div>
           )}
 
@@ -1041,6 +1500,58 @@ export default function TreePanel() {
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="1.2" />
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 1.8" />
+            </svg>
+          </button>
+
+          {/* Content-mode toggle: summary ↔ full transcript */}
+          <button
+            onClick={() => { setContentMode(m => m === 'summary' ? 'full' : 'summary'); track('tree_content_mode_toggled', { mode: contentMode === 'summary' ? 'full' : 'summary' }) }}
+            title={contentMode === 'summary' ? 'Showing summaries (click for full text)' : 'Showing full text (click for summaries)'}
+            style={{
+              width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: contentMode === 'full' ? 'var(--accent)' : 'var(--modal-bg)',
+              border: `1px solid ${contentMode === 'full' ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 7, cursor: 'pointer',
+              color: contentMode === 'full' ? 'white' : 'var(--text-secondary)',
+              boxShadow: 'var(--shadow-sm)', transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+            }}
+          >
+            {contentMode === 'summary' ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <line x1="2" y1="3.5" x2="10" y2="3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <line x1="2" y1="7"   x2="8"  y2="7"   stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.55" />
+                <line x1="2" y1="9.5" x2="6"  y2="9.5" stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.55" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <line x1="2" y1="2.5"  x2="10" y2="2.5"  stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <line x1="2" y1="4.6"  x2="10" y2="4.6"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
+                <line x1="2" y1="6.7"  x2="9"  y2="6.7"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
+                <line x1="2" y1="8.8"  x2="10" y2="8.8"  stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.85" />
+              </svg>
+            )}
+          </button>
+
+          {/* Add sticky note */}
+          <button
+            onClick={addStickyNote}
+            title="Add sticky note"
+            style={{
+              width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--modal-bg)', border: '1px solid var(--border)',
+              borderRadius: 7, cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              boxShadow: 'var(--shadow-sm)', transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--modal-bg)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 1.5 H8.5 L11 4 V11.5 H2 Z"
+                stroke="currentColor" strokeWidth="1.1" fill="#FEF9A7" strokeLinejoin="round" />
+              <path d="M8.5 1.5 V4 H11" stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinejoin="round" />
+              <line x1="6.5" y1="6.5" x2="6.5" y2="9.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+              <line x1="5"   y1="8"   x2="8"   y2="8"   stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
             </svg>
           </button>
         </div>
