@@ -737,7 +737,9 @@ export default function TreePanel() {
     return () => clearTimeout(t)
   }, [contentMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Scroll-wheel: plain = zoom, Ctrl = pan ────────────────────────────────────
+  // ── Scroll-wheel: pinch (ctrlKey) = zoom, plain = pan ────────────────────────
+  // Browsers report trackpad pinch as wheel + ctrlKey; plain two-finger scroll
+  // and mouse wheel arrive without it.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -746,10 +748,7 @@ export default function TreePanel() {
       if ((e.target as HTMLElement).closest('[data-sticky]')) return
       e.preventDefault()
       if (e.ctrlKey) {
-        // Ctrl+scroll → pan up/down (and left/right if deltaX present)
-        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
-      } else {
-        // Plain scroll → zoom centred on cursor
+        // Pinch (or Ctrl+wheel) → zoom centred on cursor
         const rect  = el!.getBoundingClientRect()
         const mx    = e.clientX - rect.left
         const my    = e.clientY - rect.top
@@ -759,6 +758,9 @@ export default function TreePanel() {
         const ratio = next / cur
         setScale(next)
         setPan(p => ({ x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) }))
+      } else {
+        // Plain scroll → pan (like normal webpage scrolling)
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
       }
     }
     el.addEventListener('wheel', onWheel, { passive: false })
