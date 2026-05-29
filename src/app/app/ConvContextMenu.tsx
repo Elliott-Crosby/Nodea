@@ -5,7 +5,7 @@
 // Rename / Edit, Delete.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ProjectIcon, colorById } from './projectConstants'
+import { ProjectIcon, colorById, PROJECT_COLORS } from './projectConstants'
 import type { Conversation } from './App'
 import type { ChatProject } from './chatProjectTypes'
 
@@ -17,6 +17,7 @@ interface Props {
   isPro: boolean
   onMove: (projectId: string) => void
   onRemove: () => void
+  onColor: (color: string | null) => void
   onEdit: () => void
   onDelete: () => void
   onUpgradeRequired: () => void
@@ -28,10 +29,10 @@ const SUBMENU_WIDTH = 210
 
 export default function ConvContextMenu({
   x, y, conv, projects, isPro,
-  onMove, onRemove, onEdit, onDelete, onUpgradeRequired, onClose,
+  onMove, onRemove, onColor, onEdit, onDelete, onUpgradeRequired, onClose,
 }: Props) {
   const elRef = useRef<HTMLDivElement | null>(null)
-  const [submenu, setSubmenu] = useState(false)
+  const [submenu, setSubmenu] = useState<'project' | 'color' | null>(null)
   const [pos, setPos] = useState({ x, y })
 
   // Ref callback that fires on attach — measures the DOM and clamps the menu
@@ -86,8 +87,8 @@ export default function ConvContextMenu({
       {/* Move to project (submenu) */}
       <div
         style={{ position: 'relative' }}
-        onMouseEnter={() => setSubmenu(true)}
-        onMouseLeave={() => setSubmenu(false)}
+        onMouseEnter={() => setSubmenu('project')}
+        onMouseLeave={() => setSubmenu(null)}
       >
         <button
           type="button"
@@ -106,7 +107,7 @@ export default function ConvContextMenu({
           </svg>
         </button>
 
-        {submenu && (
+        {submenu === 'project' && (
           <div
             style={{
               position: 'absolute',
@@ -162,6 +163,92 @@ export default function ConvContextMenu({
                 </button>
               )
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Color (submenu) */}
+      <div
+        style={{ position: 'relative' }}
+        onMouseEnter={() => setSubmenu('color')}
+        onMouseLeave={() => setSubmenu(null)}
+      >
+        <button
+          type="button"
+          style={{ ...itemStyle, justifyContent: 'space-between' }}
+          onMouseEnter={(e) => hov(e, true)}
+          onMouseLeave={(e) => hov(e, false)}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                width: 15, height: 15, borderRadius: '50%', flexShrink: 0,
+                background: conv.color ? colorById(conv.color).hex : 'transparent',
+                border: conv.color ? 'none' : '1.6px solid var(--text-muted)',
+              }}
+            />
+            Color
+          </span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.5 }}>
+            <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {submenu === 'color' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: -5,
+              [submenuRight ? 'right' : 'left']: MENU_WIDTH - 4,
+              width: 168,
+              background: 'var(--modal-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 11,
+              boxShadow: 'var(--shadow-lg)',
+              padding: 10,
+            }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              <button
+                type="button"
+                title="No color"
+                onClick={() => { onColor(null); onClose() }}
+                style={{
+                  width: 24, height: 24, borderRadius: '50%', padding: 0, cursor: 'pointer',
+                  background: 'transparent',
+                  border: !conv.color ? '2.5px solid var(--text-primary)' : '1.5px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <path d="M2 11L11 2" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              {PROJECT_COLORS.map((p) => {
+                const active = conv.color === p.id
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    title={p.label}
+                    onClick={() => { onColor(p.id); onClose() }}
+                    style={{
+                      width: 24, height: 24, borderRadius: '50%', padding: 0, cursor: 'pointer',
+                      background: p.hex,
+                      border: active ? '2.5px solid var(--text-primary)' : `1.5px solid ${p.hex}55`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: active ? `0 0 0 2px var(--modal-bg), 0 0 0 4px ${p.hex}` : 'none',
+                    }}
+                  >
+                    {active && (
+                      <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5l2.2 2.5L8 2.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

@@ -29,6 +29,8 @@ export interface Conversation {
   created_at: string
   /** Nullable FK into chat_projects. Null = unfiled. */
   chat_project_id: string | null
+  /** Optional per-conversation color id (ROYGBIV palette). Null = no tint. */
+  color?: string | null
 }
 
 export interface AttachmentItem {
@@ -135,6 +137,8 @@ export interface AppContextType {
   input: string
   setInput: (s: string) => void
   isLoading: boolean
+  /** Conversation ids with an AI reply still streaming (incl. backgrounded ones). */
+  inFlightConvIds: Set<string>
   isSearchOpen: boolean
   setIsSearchOpen: (b: boolean) => void
   isSettingsOpen: boolean
@@ -182,7 +186,7 @@ export interface AppContextType {
   openConvContext: (conv: Conversation, x: number, y: number) => void
   openProjectContext: (project: ChatProject, x: number, y: number) => void
   assignConvToProject: (convId: string, projectId: string | null) => Promise<void>
-  requestNewChatInProject: (projectId: string) => Promise<void>
+  requestNewChatInProject: (projectId: string, initialMessage?: string) => Promise<void>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -278,7 +282,10 @@ export default function App() {
   const [selectedNodeId,setSelectedNodeId]  = useState<string | null>(null)
   const [isCurrentLoaded, setIsCurrentLoaded] = useState(false)
   const [input,         setInputState]      = useState('')
-  const [isLoading,     setIsLoading]       = useState(false)
+  // Conversations with an in-flight AI response. The state mirror drives the
+  // sidebar "generating" indicator; the ref below is the synchronous source of
+  // truth read from async closures and cleanup guards.
+  const [inFlightConvIds, setInFlightConvIds] = useState<Set<string>>(() => new Set())
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
   const [isUpgradeOpen, setIsUpgradeOpen]  = useState(false)
@@ -321,14 +328,36 @@ export default function App() {
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
   const chatInputRef      = useRef<HTMLTextAreaElement | null>(null)
+  // The prompt typed on a project's "start a new chat" input, stashed by
+  // requestNewChatInProject and delivered into the composer once the new
+  // conversation has loaded (see the effect below handleSend).
+  const pendingProjectMsgRef = useRef<string | null>(null)
   // Mirror of activeConvId, readable from async closures (saveNodePair) so we
   // can tell if the user has navigated away by the time a save resolves.
   const activeConvIdRef   = useRef<string | null>(null)
+  // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
+  // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
+  const inFlightRef       = useRef<Set<string>>(new Set())
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
 
   useEffect(() => { activeConvIdRef.current = activeConvId }, [activeConvId])
+
+  // Mark/unmark a conversation as generating. The ref updates synchronously for
+  // guards; the state mirror re-renders the sidebar indicator.
+  const markInFlight = useCallback((id: string) => {
+    inFlightRef.current.add(id)
+    setInFlightConvIds(new Set(inFlightRef.current))
+  }, [])
+  const clearInFlight = useCallback((id: string) => {
+    inFlightRef.current.delete(id)
+    setInFlightConvIds(new Set(inFlightRef.current))
+  }, [])
+
+  // Only the conversation currently on screen drives the composer/tree "busy"
+  // state — others generate quietly in the background.
+  const isLoading = activeConvId !== null && inFlightConvIds.has(activeConvId)
 
   // Global, persistent input draft — survives conv switches and reloads.
   const setInput = useCallback((s: string) => {
@@ -480,16 +509,18 @@ export default function App() {
   // the "Message sent but could not be saved to history" error.
   const deleteIfEmpty = useCallback((): string | null => {
     if (!activeConvId || !isCurrentLoaded) return null
+    // Never delete a conversation that's still generating a reply: it may have
+    // just been backgrounded by this very switch, and its response is on the way.
+    if (inFlightRef.current.has(activeConvId)) return null
     if (allDbNodes.length > 0) return null
     if (messages.length > 0) return null
-    if (isLoading) return null
     const oldId = activeConvId
     setConversations((prev) => prev.filter((c) => c.id !== oldId))
     supabase.from('projects').delete().eq('id', oldId).then(({ error }) => {
       if (error) console.error('Auto-delete empty conv failed', error)
     })
     return oldId
-  }, [activeConvId, isCurrentLoaded, allDbNodes, messages, isLoading, supabase])
+  }, [activeConvId, isCurrentLoaded, allDbNodes, messages, supabase])
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -720,8 +751,9 @@ export default function App() {
   }, [conversations, reloadChatProjects])
 
   // ── New chat inside a project: create then assign in one shot ──────────────
-  const requestNewChatInProject = useCallback(async (projectId: string) => {
+  const requestNewChatInProject = useCallback(async (projectId: string, initialMessage?: string) => {
     if (!isPro) { setIsUpgradeOpen(true); return }
+    const seed = initialMessage?.trim()
     // Create the conversation through the existing route.
     const res = await fetch('/api/projects', {
       method: 'POST',
@@ -743,6 +775,9 @@ export default function App() {
     setChatProjects((prev) => prev.map((p) =>
       p.id === projectId ? { ...p, chat_count: p.chat_count + 1 } : p,
     ))
+    // Stash before loading so the delivery effect sees it the moment the new
+    // conversation finishes loading into the chat view.
+    pendingProjectMsgRef.current = seed && seed.length > 0 ? seed : null
     setView('chat')
     await loadConversation(newConv.id, newConv.name)
     track('conversation_created', { in_project: true })
@@ -856,6 +891,14 @@ export default function App() {
     if (id === activeConvId) setConvName(trimmed)
   }, [supabase, activeConvId])
 
+  // ── Set conversation color ────────────────────────────────────────────────
+  const setConvColor = useCallback(async (id: string, color: string | null) => {
+    setConversations((prev) => prev.map((c) => c.id === id ? { ...c, color } : c))
+    const { error } = await supabase.from('projects').update({ color }).eq('id', id)
+    if (error) console.error('Set color failed', error)
+    else track('conversation_color_changed', { color: color ?? 'none' })
+  }, [supabase])
+
   // ── Delete conversation (Task 4) ──────────────────────────────────────────
   const deleteConversation = useCallback(async (id: string) => {
     await supabase.from('nodes').delete().eq('project_id', id)
@@ -883,11 +926,15 @@ export default function App() {
 
   // ── Save a user+assistant node pair after a response ─────────────────────
   const saveNodePair = useCallback(
-    async (userContent: string, assistantContent: string, attachments?: AttachmentItem[]) => {
-      const pid = activeConvId
-      if (!pid) return
+    async (
+      pid: string,
+      parentId: string | null,
+      userContent: string,
+      assistantContent: string,
+      attachments?: AttachmentItem[],
+    ): Promise<string | null> => {
+      if (!pid) return null
 
-      const parentId = lastNodeIdRef.current
       const attachmentMeta: NodeAttachment[] =
         attachments?.map((a) => ({ name: a.name, type: a.type, url: a.dataUrl })) ?? []
 
@@ -918,7 +965,7 @@ export default function App() {
         // If the user already navigated away from this conv (and likely caused
         // it to be auto-deleted), suppress the banner — they've moved on.
         if (activeConvIdRef.current === pid) setSaveError(true)
-        return
+        return null
       }
 
       const { data: asst, error: ae } = await supabase
@@ -929,19 +976,28 @@ export default function App() {
       if (ae || !asst) {
         console.error('assistant node save failed', ae)
         if (activeConvIdRef.current === pid) setSaveError(true)
-        return
+        return null
       }
 
-      lastNodeIdRef.current = asst.id
-      setSelectedNodeId(asst.id)
+      // Persist this conversation's branch tip regardless of what's on screen,
+      // so returning to it later restores the right path.
       localStorage.setItem(`lastNodeId_${pid}`, asst.id)
-      setLastSavedPairId(asst.id)
-      // Ensure the in-memory node has the attachments field populated (so the
-      // tree picks them up immediately, even before a reload).
-      const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
-      setAllDbNodes((prev) => [...prev, userNodeWithAtt, asst as DbNode])
+
+      // Only fold the new pair into the live view when its conversation is still
+      // the one on screen; otherwise these nodes would leak into whatever the
+      // user switched to (wrong tree, wrong selection, wrong parent on next send).
+      if (activeConvIdRef.current === pid) {
+        lastNodeIdRef.current = asst.id
+        setSelectedNodeId(asst.id)
+        setLastSavedPairId(asst.id)
+        // Ensure the in-memory node has the attachments field populated (so the
+        // tree picks them up immediately, even before a reload).
+        const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
+        setAllDbNodes((prev) => [...prev, userNodeWithAtt, asst as DbNode])
+      }
+      return asst.id
     },
-    [supabase, activeConvId]
+    [supabase]
   )
 
   // ── Send a message ────────────────────────────────────────────────────────
@@ -951,6 +1007,12 @@ export default function App() {
       const hasText = input.trim().length > 0
       const hasAttachments = pendingAttachments.length > 0
       if ((!hasText && !hasAttachments) || isLoading) return
+
+      // Pin this send to the conversation (and branch parent) it started in.
+      // If the user switches away before the reply lands, it still saves here
+      // instead of following whatever conversation becomes active.
+      const targetConvId = activeConvId
+      const parentId     = lastNodeIdRef.current
 
       setChatError(null)
       setSaveError(false)
@@ -969,7 +1031,7 @@ export default function App() {
       setMessages(nextMessages)
       setInput('')
       setPendingAttachments([])
-      setIsLoading(true)
+      if (targetConvId) markInFlight(targetConvId)
 
       track('message_sent', {
         has_attachment: pendingAttachments.length > 0,
@@ -1082,11 +1144,9 @@ export default function App() {
           }
           streamDone = true
         }
-        if (full.trim()) {
-          const isFirstPair = lastNodeIdRef.current === null
-          await saveNodePair(userContent, full, attachmentsSnapshot)
-          // lastNodeIdRef is now the new assistant node id (pair key)
-          const newPairId = lastNodeIdRef.current
+        if (full.trim() && targetConvId) {
+          const isFirstPair = parentId === null
+          const newPairId = await saveNodePair(targetConvId, parentId, userContent, full, attachmentsSnapshot)
 
           // Fire-and-forget: cross-chat memory extraction (Pro only, server-gated).
           // The route returns {saved: []} for free users so we never need to
@@ -1099,7 +1159,11 @@ export default function App() {
             }).then((r) => r.ok ? r.json() : null).then((data) => {
               const saved = (data?.saved ?? []) as string[]
               if (saved.length === 0) return
-              setMemorySavedByMsgId((prev) => ({ ...prev, [assistantId]: saved }))
+              // The badge keys off a session message id, so only apply it while
+              // that conversation is still on screen.
+              if (activeConvIdRef.current === targetConvId) {
+                setMemorySavedByMsgId((prev) => ({ ...prev, [assistantId]: saved }))
+              }
             }).catch(() => {})
           }
 
@@ -1112,20 +1176,23 @@ export default function App() {
             }).then(r => r.ok ? r.json() : null).then(data => {
               if (!data) return
               const meta = { title: data.title ?? '', summary: data.summary ?? '' }
-              setNodeSummaries(prev => ({ ...prev, [newPairId]: meta }))
+              // Persist regardless (keyed by node id, restored on reload); only
+              // touch live state if its conversation is still showing.
               localStorage.setItem(`node_meta_v1_${newPairId}`, JSON.stringify(meta))
+              if (activeConvIdRef.current === targetConvId) {
+                setNodeSummaries(prev => ({ ...prev, [newPairId]: meta }))
+              }
             }).catch(() => {})
           }
 
           // Fire-and-forget: auto-title the conversation on its first message
-          if (isFirstPair && activeConvId) {
-            const convId = activeConvId
+          if (isFirstPair) {
             fetch('/api/autotitle', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userPrompt: userContent, type: 'conversation' }),
             }).then(r => r.ok ? r.json() : null).then(data => {
-              if (data?.title) renameConversation(convId, data.title)
+              if (data?.title) renameConversation(targetConvId, data.title)
             }).catch(() => {})
           }
         }
@@ -1136,7 +1203,10 @@ export default function App() {
         // pool — Pro users and per-message size caps don't get fixed by upgrading.
         if (err instanceof RateLimitError && !isPro && err.limitType === 'daily') {
           setIsUpgradeOpen(true)
-        } else {
+        } else if (activeConvIdRef.current === targetConvId) {
+          // Only restore the failed prompt + error into the composer if the user
+          // is still on the conversation it came from — otherwise we'd dump it
+          // onto whatever they switched to.
           setInput(userContent)
           // Restore the *local* (data: URL) snapshot so the chips still have a
           // preview thumbnail to render after a failed send.
@@ -1148,11 +1218,27 @@ export default function App() {
           )
         }
       } finally {
-        setIsLoading(false)
+        if (targetConvId) clearInFlight(targetConvId)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, isPro]
+    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, isPro, markInFlight, clearInFlight]
   )
+
+  // ── Deliver a project's "start a new chat" prompt ─────────────────────────
+  // requestNewChatInProject stashes the typed prompt in pendingProjectMsgRef.
+  // Once the freshly created conversation has loaded into the chat view, drop
+  // it into the composer and submit — otherwise the prompt is lost and the
+  // empty conversation gets auto-deleted by deleteIfEmpty on the next nav.
+  useEffect(() => {
+    const pending = pendingProjectMsgRef.current
+    if (!pending) return
+    if (view !== 'chat' || !isCurrentLoaded || isLoading) return
+    pendingProjectMsgRef.current = null
+    setInput(pending)
+    requestAnimationFrame(() => {
+      chatInputRef.current?.form?.requestSubmit()
+    })
+  }, [view, isCurrentLoaded, isLoading, activeConvId, setInput])
 
   // ── Click a tree node ─────────────────────────────────────────────────────
   const handleNodeClick = useCallback(
@@ -1230,7 +1316,7 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
-    input, setInput, isLoading,
+    input, setInput, isLoading, inFlightConvIds,
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     isUpgradeOpen, setIsUpgradeOpen,
     isChatCollapsed, setIsChatCollapsed,
@@ -1297,7 +1383,7 @@ export default function App() {
             conversations={conversations}
             onBack={openProjectsLanding}
             onOpenConv={(id) => { setActiveConvId(id); setView('chat'); switchConversation(id) }}
-            onNewChat={() => requestNewChatInProject(activeChatProject.id)}
+            onNewChat={(msg) => requestNewChatInProject(activeChatProject.id, msg)}
             onConvContext={(conv, x, y) => openConvContext(conv, x, y)}
             onEdit={() => setProjectModalState({ mode: 'edit', project: activeChatProject })}
             onDelete={() => setDeleteProjectState(activeChatProject)}
@@ -1346,6 +1432,7 @@ export default function App() {
           isPro={isPro}
           onMove={(pid) => assignConvToProject(convMenu.conv.id, pid)}
           onRemove={() => assignConvToProject(convMenu.conv.id, null)}
+          onColor={(color) => setConvColor(convMenu.conv.id, color)}
           onEdit={() => setEditConvState(convMenu.conv)}
           onDelete={() => deleteConversation(convMenu.conv.id)}
           onUpgradeRequired={() => { setConvMenu(null); setIsUpgradeOpen(true) }}

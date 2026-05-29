@@ -737,29 +737,39 @@ export default function TreePanel() {
     return () => clearTimeout(t)
   }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Scroll-wheel: pinch (ctrlKey) = zoom, plain = pan ────────────────────────
-  // Browsers report trackpad pinch as wheel + ctrlKey; plain two-finger scroll
-  // and mouse wheel arrive without it.
+  // ── Scroll-wheel: zoom (mouse wheel / pinch) vs pan (trackpad scroll) ─────────
+  // Browsers report trackpad pinch as wheel + ctrlKey. A physical mouse wheel
+  // fires in line mode, or as large vertical-only integer pixel steps (~100px);
+  // a trackpad two-finger scroll sends small, often fractional deltas that
+  // frequently carry a horizontal component. We zoom on the former, pan on the
+  // latter so mouse users zoom while trackpad users keep natural panning.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+    function isMouseWheel(e: WheelEvent) {
+      if (e.deltaMode !== 0) return true // line/page mode → physical wheel
+      return e.deltaX === 0 && Math.abs(e.deltaY) >= 100 && Number.isInteger(e.deltaY)
+    }
+    function zoomAtCursor(e: WheelEvent) {
+      const rect  = el!.getBoundingClientRect()
+      const mx    = e.clientX - rect.left
+      const my    = e.clientY - rect.top
+      const f     = e.deltaY < 0 ? 1.10 : 0.91
+      const cur   = scaleRef.current
+      const next  = Math.max(0.25, Math.min(2.5, cur * f))
+      const ratio = next / cur
+      setScale(next)
+      setPan(p => ({ x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) }))
+    }
     function onWheel(e: WheelEvent) {
       // Let sticky-note textareas handle their own scrolling natively.
       if ((e.target as HTMLElement).closest('[data-sticky]')) return
       e.preventDefault()
-      if (e.ctrlKey) {
-        // Pinch (or Ctrl+wheel) → zoom centred on cursor
-        const rect  = el!.getBoundingClientRect()
-        const mx    = e.clientX - rect.left
-        const my    = e.clientY - rect.top
-        const f     = e.deltaY < 0 ? 1.10 : 0.91
-        const cur   = scaleRef.current
-        const next  = Math.max(0.25, Math.min(2.5, cur * f))
-        const ratio = next / cur
-        setScale(next)
-        setPan(p => ({ x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) }))
+      if (e.ctrlKey || isMouseWheel(e)) {
+        // Trackpad pinch, Ctrl+wheel, or mouse wheel → zoom centred on cursor
+        zoomAtCursor(e)
       } else {
-        // Plain scroll → pan (like normal webpage scrolling)
+        // Trackpad two-finger scroll → pan (like normal webpage scrolling)
         setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
       }
     }

@@ -13,9 +13,9 @@ const STORAGE_KEY   = 'nodea:sidebarWidth'
 
 export default function Sidebar() {
   const {
-    conversations, activeConvId, switchConversation, createConversation,
+    conversations, activeConvId, inFlightConvIds, switchConversation, createConversation,
     setIsSettingsOpen, signOut, userEmail, userName, isAdmin, isPro,
-    renameConversation, deleteConversation,
+    renameConversation,
     setIsUpgradeOpen,
     // ── Projects feature ──
     chatProjects, activeChatProjectId, view,
@@ -28,7 +28,6 @@ export default function Sidebar() {
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [dropTargetProject, setDropTargetProject] = useState<string | null>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
@@ -78,7 +77,6 @@ export default function Sidebar() {
   function startEdit(id: string, name: string) {
     setEditingId(id)
     setEditingName(name)
-    setConfirmDeleteId(null)
     setTimeout(() => editInputRef.current?.select(), 0)
   }
 
@@ -91,12 +89,6 @@ export default function Sidebar() {
   }
 
   function cancelEdit() { setEditingId(null) }
-  function confirmDelete(id: string) { setConfirmDeleteId(id); setEditingId(null) }
-  function cancelDelete() { setConfirmDeleteId(null) }
-  async function doDelete(id: string) {
-    setConfirmDeleteId(null)
-    await deleteConversation(id)
-  }
 
   // ── Drop target factory for pinned projects ───────────────────────────────
   function dropHandlers(projectId: string) {
@@ -410,9 +402,9 @@ export default function Sidebar() {
                 key={conv.id}
                 conv={conv}
                 isActive={conv.id === activeConvId}
+                isGenerating={inFlightConvIds.has(conv.id)}
                 isHovered={hoveredId === conv.id}
                 isEditing={editingId === conv.id}
-                isConfirmingDelete={confirmDeleteId === conv.id}
                 editingName={editingName}
                 editInputRef={editInputRef}
                 setHovered={setHoveredId}
@@ -421,9 +413,6 @@ export default function Sidebar() {
                 onDoubleClick={() => startEdit(conv.id, conv.name)}
                 onCommitEdit={() => commitEdit(conv.id)}
                 onCancelEdit={cancelEdit}
-                onConfirmDelete={() => confirmDelete(conv.id)}
-                onDoDelete={() => doDelete(conv.id)}
-                onCancelDelete={cancelDelete}
                 onContext={(x, y) => openConvContext(conv, x, y)}
                 projects={chatProjects}
                 collapsed={collapsed}
@@ -452,9 +441,9 @@ export default function Sidebar() {
             key={conv.id}
             conv={conv}
             isActive={conv.id === activeConvId}
+            isGenerating={inFlightConvIds.has(conv.id)}
             isHovered={hoveredId === conv.id}
             isEditing={editingId === conv.id}
-            isConfirmingDelete={confirmDeleteId === conv.id}
             editingName={editingName}
             editInputRef={editInputRef}
             setHovered={setHoveredId}
@@ -463,9 +452,6 @@ export default function Sidebar() {
             onDoubleClick={() => startEdit(conv.id, conv.name)}
             onCommitEdit={() => commitEdit(conv.id)}
             onCancelEdit={cancelEdit}
-            onConfirmDelete={() => confirmDelete(conv.id)}
-            onDoDelete={() => doDelete(conv.id)}
-            onCancelDelete={cancelDelete}
             onContext={(x, y) => openConvContext(conv, x, y)}
             projects={chatProjects}
             collapsed={collapsed}
@@ -659,9 +645,9 @@ import type { Conversation } from './App'
 interface ConvRowProps {
   conv: Conversation
   isActive: boolean
+  isGenerating: boolean
   isHovered: boolean
   isEditing: boolean
-  isConfirmingDelete: boolean
   editingName: string
   editInputRef: React.RefObject<HTMLInputElement | null>
   setHovered: (id: string | null) => void
@@ -670,9 +656,6 @@ interface ConvRowProps {
   onDoubleClick: () => void
   onCommitEdit: () => void
   onCancelEdit: () => void
-  onConfirmDelete: () => void
-  onDoDelete: () => void
-  onCancelDelete: () => void
   onContext: (x: number, y: number) => void
   projects: ChatProject[]
   collapsed: boolean
@@ -680,17 +663,18 @@ interface ConvRowProps {
 
 function ConvRow(props: ConvRowProps) {
   const {
-    conv, isActive, isHovered, isEditing, isConfirmingDelete,
+    conv, isActive, isGenerating, isHovered, isEditing,
     editingName, editInputRef, setHovered, setEditingName,
     onClick, onDoubleClick, onCommitEdit, onCancelEdit,
-    onConfirmDelete, onDoDelete, onCancelDelete, onContext,
-    projects, collapsed,
+    onContext, projects, collapsed,
   } = props
 
   const project = conv.chat_project_id
     ? projects.find((p) => p.id === conv.chat_project_id) ?? null
     : null
-  const c = project ? colorById(project.color) : null
+  // The conversation's own color (if set) overrides any project-derived color.
+  const ownColor = conv.color ? colorById(conv.color) : null
+  const c = ownColor ?? (project ? colorById(project.color) : null)
 
   return (
     <div
@@ -698,6 +682,9 @@ function ConvRow(props: ConvRowProps) {
       onMouseLeave={() => setHovered(null)}
       style={{ position: 'relative' }}
     >
+      {collapsed && isGenerating && (
+        <span className="conv-gen-dot conv-gen-dot--collapsed" aria-label="Generating" />
+      )}
       {isEditing && !collapsed ? (
         <div style={{ padding: '4px 10px' }}>
           <input
@@ -720,38 +707,6 @@ function ConvRow(props: ConvRowProps) {
               outline: 'none',
             }}
           />
-        </div>
-      ) : isConfirmingDelete && !collapsed ? (
-        <div style={{
-          padding: '6px 10px',
-          background: 'var(--bg-subtle)',
-          borderLeft: '2.5px solid var(--color-error)',
-        }}>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Delete &ldquo;{conv.name}&rdquo;?
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              onClick={onDoDelete}
-              style={{
-                padding: '3px 10px', borderRadius: 5, border: 'none',
-                background: 'var(--color-error)', color: '#fff',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              Delete
-            </button>
-            <button
-              onClick={onCancelDelete}
-              style={{
-                padding: '3px 10px', borderRadius: 5,
-                border: '1px solid var(--border)', background: 'transparent',
-                color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       ) : (
         <div
@@ -790,7 +745,8 @@ function ConvRow(props: ConvRowProps) {
           onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-subtle)' }}
           onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = isActive ? 'var(--accent-bg)' : 'transparent' }}
         >
-          {/* Icon: project glyph (in project color) if tagged, else chat bubble */}
+          {/* Icon: project glyph if tagged, else chat bubble — tinted by the
+              conversation's own color when set, otherwise the project color. */}
           {project && c ? (
             <ProjectIcon
               name={project.icon}
@@ -800,8 +756,8 @@ function ConvRow(props: ConvRowProps) {
               style={{ flexShrink: 0 }}
             />
           ) : (
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: isActive ? 1 : 0.6 }}>
-              <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5l-3 2V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: ownColor ? 1 : (isActive ? 1 : 0.6) }}>
+              <path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5l-3 2V3a1 1 0 0 1 1-1z" stroke={ownColor ? ownColor.hex : 'currentColor'} strokeWidth="1.2" strokeLinejoin="round" />
             </svg>
           )}
           {!collapsed && (
@@ -809,10 +765,17 @@ function ConvRow(props: ConvRowProps) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                 {conv.name}
               </span>
+              {isGenerating && !isHovered && (
+                <span className="conv-gen-dot" aria-label="Generating" />
+              )}
               {isHovered && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onConfirmDelete() }}
-                  title="Delete conversation"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                    onContext(Math.max(8, r.right - 210), r.bottom + 4)
+                  }}
+                  title="Chat options"
                   style={{
                     flexShrink: 0,
                     width: 22, height: 22,
@@ -824,11 +787,13 @@ function ConvRow(props: ConvRowProps) {
                     color: 'var(--text-muted)',
                     padding: 0,
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-error)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error-bg)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                    <path d="M1 2.5h9M4 2.5V1.5h3v1M2 2.5l.5 7h6l.5-7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="currentColor">
+                    <circle cx="7" cy="2.5" r="1.3" />
+                    <circle cx="7" cy="7" r="1.3" />
+                    <circle cx="7" cy="11.5" r="1.3" />
                   </svg>
                 </button>
               )}
