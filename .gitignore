@@ -43,6 +43,10 @@ next-env.d.ts
 # claude code
 .claude/
 
+# supabase cli local state (linked-project.json, pooler-url, version stamps)
+supabase/.temp/
+supabase/.branches/
+
 # editors
 .vscode/
 .idea/

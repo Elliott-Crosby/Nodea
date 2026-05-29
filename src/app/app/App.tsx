@@ -11,6 +11,14 @@ import TreePanel from './TreePanel'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
 import UpgradeModal from './UpgradeModal'
+import ProjectsLanding from './ProjectsLanding'
+import ProjectPage from './ProjectPage'
+import ProjectModal from './ProjectModal'
+import DeleteProjectModal from './DeleteProjectModal'
+import EditConversationModal from './EditConversationModal'
+import ConvContextMenu from './ConvContextMenu'
+import { MAX_PINNED_PROJECTS } from './projectConstants'
+import type { ChatProject, ChatProjectInput, ProjectView } from './chatProjectTypes'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +27,8 @@ export interface Conversation {
   name: string
   user_id: string
   created_at: string
+  /** Nullable FK into chat_projects. Null = unfiled. */
+  chat_project_id: string | null
 }
 
 export interface AttachmentItem {
@@ -161,6 +171,18 @@ export interface AppContextType {
   settingsInitialSection: string | null
   setSettingsInitialSection: (s: string | null) => void
   memorySavedByMsgId: Record<string, string[]>
+  // ── Chat Projects feature ──
+  chatProjects: ChatProject[]
+  activeChatProjectId: string | null
+  view: ProjectView
+  openProjectsLanding: () => void
+  openProject: (id: string) => void
+  openChatView: (convId?: string) => void
+  openNewProjectModal: () => void
+  openConvContext: (conv: Conversation, x: number, y: number) => void
+  openProjectContext: (project: ChatProject, x: number, y: number) => void
+  assignConvToProject: (convId: string, projectId: string | null) => Promise<void>
+  requestNewChatInProject: (projectId: string) => Promise<void>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -277,6 +299,24 @@ export default function App() {
   // the local (session) message id, so the badge appears immediately after a
   // save and naturally disappears when the conv reloads from DB on switch.
   const [memorySavedByMsgId, setMemorySavedByMsgId] = useState<Record<string, string[]>>({})
+
+  // ─── Chat Projects feature state ──────────────────────────────────────────
+  const [chatProjects, setChatProjects] = useState<ChatProject[]>([])
+  const [activeChatProjectId, setActiveChatProjectId] = useState<string | null>(null)
+  const [view, setView] = useState<ProjectView>('chat')
+
+  // Modal state
+  const [projectModalState, setProjectModalState] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; project: ChatProject }
+    | null
+  >(null)
+  const [deleteProjectState, setDeleteProjectState] = useState<ChatProject | null>(null)
+  const [editConvState, setEditConvState] = useState<Conversation | null>(null)
+
+  // Context menus
+  const [convMenu, setConvMenu] = useState<{ conv: Conversation; x: number; y: number } | null>(null)
+  const [projectMenu, setProjectMenu] = useState<{ project: ChatProject; x: number; y: number } | null>(null)
 
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
@@ -487,13 +527,281 @@ export default function App() {
         return
       }
 
-      setConversations(projects as Conversation[])
+      const normalized: Conversation[] = (projects as Conversation[]).map((p) => ({
+        ...p,
+        chat_project_id: p.chat_project_id ?? null,
+      }))
+      setConversations(normalized)
       const lastId = localStorage.getItem('lastConvId')
-      const initial = (projects as Conversation[]).find((p) => p.id === lastId) ?? projects[0]
+      const initial = normalized.find((p) => p.id === lastId) ?? normalized[0]
       await loadConversation(initial.id, initial.name)
     }
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load chat projects (Pro feature; gracefully tolerant for free users) ──
+  // The list endpoint is open to everyone (so an existing free user with
+  // projects from a former Pro plan still sees them, read-only). Mutations
+  // are gated server-side.
+  const reloadChatProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat-projects')
+      if (!res.ok) return
+      const { projects } = await res.json() as { projects: ChatProject[] }
+      setChatProjects(projects ?? [])
+    } catch {
+      // The DB migration may not have run yet — ignore.
+    }
+  }, [])
+
+  useEffect(() => {
+    reloadChatProjects()
+  }, [reloadChatProjects])
+
+  // ── Project + view helpers ────────────────────────────────────────────────
+  const openProjectsLanding = useCallback(() => {
+    if (!isPro) {
+      setIsUpgradeOpen(true)
+      track('upgrade_clicked', { source: 'sidebar_projects' })
+      return
+    }
+    setActiveChatProjectId(null)
+    setView('projects')
+  }, [isPro])
+
+  const openProject = useCallback((id: string) => {
+    setActiveChatProjectId(id)
+    setView('project')
+  }, [])
+
+  const openChatView = useCallback((convId?: string) => {
+    if (convId) setActiveConvId(convId)
+    setView('chat')
+  }, [])
+
+  const openNewProjectModal = useCallback(() => {
+    if (!isPro) {
+      setIsUpgradeOpen(true)
+      return
+    }
+    setProjectModalState({ mode: 'create' })
+  }, [isPro])
+
+  const openConvContext = useCallback((conv: Conversation, x: number, y: number) => {
+    setProjectMenu(null)
+    setConvMenu({ conv, x, y })
+  }, [])
+
+  const openProjectContext = useCallback((project: ChatProject, x: number, y: number) => {
+    setConvMenu(null)
+    setProjectMenu({ project, x, y })
+  }, [])
+
+  // ── Save / update project (create or edit) ─────────────────────────────────
+  const saveProject = useCallback(async (data: ChatProjectInput) => {
+    if (!projectModalState) return
+    if (projectModalState.mode === 'create') {
+      const res = await fetch('/api/chat-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.status === 403) {
+        setProjectModalState(null)
+        setIsUpgradeOpen(true)
+        return
+      }
+      if (!res.ok) {
+        console.error('[saveProject] create failed', res.status)
+        return
+      }
+      const { project } = await res.json() as { project: ChatProject }
+      setChatProjects((prev) => [...prev, project])
+      setProjectModalState(null)
+      track('chat_project_created')
+      trackEvent('chat_project_created')
+    } else {
+      const target = projectModalState.project
+      const res = await fetch(`/api/chat-projects/${target.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        console.error('[saveProject] update failed', res.status)
+        return
+      }
+      const { project } = await res.json() as { project: ChatProject }
+      setChatProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, ...project } : p)))
+      setProjectModalState(null)
+    }
+  }, [projectModalState])
+
+  // ── Delete project ─────────────────────────────────────────────────────────
+  const confirmDeleteProject = useCallback(async (deleteConvs: boolean) => {
+    if (!deleteProjectState) return
+    const pid = deleteProjectState.id
+    const res = await fetch(
+      `/api/chat-projects/${pid}?deleteConversations=${deleteConvs ? '1' : '0'}`,
+      { method: 'DELETE' },
+    )
+    if (!res.ok) {
+      console.error('[deleteProject]', res.status)
+      return
+    }
+    setChatProjects((prev) => prev.filter((p) => p.id !== pid))
+    if (deleteConvs) {
+      // Drop the affected conversations from the in-memory list too.
+      setConversations((prev) => prev.filter((c) => c.chat_project_id !== pid))
+      // If the user was viewing one of them, switch to whatever's left.
+      const stillExists = conversations.some((c) => c.id === activeConvId && c.chat_project_id !== pid)
+      if (!stillExists) {
+        const fallback = conversations.find((c) => c.chat_project_id !== pid)
+        if (fallback) {
+          await loadConversation(fallback.id, fallback.name)
+        } else {
+          setActiveConvId(null)
+          setMessages([])
+          setAllDbNodes([])
+        }
+      }
+    } else {
+      // Keep conversations, just unparent them in the in-memory list.
+      setConversations((prev) => prev.map((c) =>
+        c.chat_project_id === pid ? { ...c, chat_project_id: null } : c,
+      ))
+    }
+    if (activeChatProjectId === pid) {
+      setActiveChatProjectId(null)
+      setView('projects')
+    }
+    setDeleteProjectState(null)
+    track('chat_project_deleted')
+  }, [deleteProjectState, conversations, activeConvId, activeChatProjectId, loadConversation])
+
+  // ── Assign / detach a conversation to/from a project ───────────────────────
+  const assignConvToProject = useCallback(async (convId: string, projectId: string | null) => {
+    // Optimistic update
+    setConversations((prev) => prev.map((c) =>
+      c.id === convId ? { ...c, chat_project_id: projectId } : c,
+    ))
+    // Bump the chat_count locally so pinned-project rows feel instant.
+    setChatProjects((prev) => prev.map((p) => {
+      const prevConv = conversations.find((c) => c.id === convId)
+      let delta = 0
+      if (prevConv?.chat_project_id === p.id) delta -= 1
+      if (projectId === p.id) delta += 1
+      if (delta === 0) return p
+      return { ...p, chat_count: Math.max(0, p.chat_count + delta) }
+    }))
+
+    const res = await fetch(`/api/conversations/${convId}/project`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_project_id: projectId }),
+    })
+    if (res.status === 403) {
+      // Revert optimistic change on Pro-gate failure.
+      await reloadChatProjects()
+      // Reload the affected conversation row too.
+      const prevConv = conversations.find((c) => c.id === convId)
+      if (prevConv) {
+        setConversations((prev) => prev.map((c) =>
+          c.id === convId ? { ...c, chat_project_id: prevConv.chat_project_id ?? null } : c,
+        ))
+      }
+      setIsUpgradeOpen(true)
+      return
+    }
+    if (!res.ok) {
+      console.error('[assignConvToProject]', res.status)
+      await reloadChatProjects()
+    }
+  }, [conversations, reloadChatProjects])
+
+  // ── New chat inside a project: create then assign in one shot ──────────────
+  const requestNewChatInProject = useCallback(async (projectId: string) => {
+    if (!isPro) { setIsUpgradeOpen(true); return }
+    // Create the conversation through the existing route.
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'New Conversation' }),
+    })
+    if (!res.ok) return
+    const { project } = await res.json() as { project: Conversation }
+    const newConv: Conversation = { ...project, chat_project_id: projectId }
+    deleteIfEmpty()
+    setConversations((prev) => [...prev, newConv])
+    // Tag the new conversation with the project.
+    await fetch(`/api/conversations/${newConv.id}/project`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_project_id: projectId }),
+    }).catch(() => {})
+    // Bump chat_count on the in-memory project.
+    setChatProjects((prev) => prev.map((p) =>
+      p.id === projectId ? { ...p, chat_count: p.chat_count + 1 } : p,
+    ))
+    setView('chat')
+    await loadConversation(newConv.id, newConv.name)
+    track('conversation_created', { in_project: true })
+    trackEvent('conversation_created', { in_project: true })
+  }, [isPro, deleteIfEmpty, loadConversation])
+
+  // ── Toggle pin on a project ────────────────────────────────────────────────
+  const toggleProjectPin = useCallback(async (projectId: string) => {
+    const target = chatProjects.find((p) => p.id === projectId)
+    if (!target) return
+    // Enforce the cap client-side too so we don't even fire the request.
+    if (!target.pinned) {
+      const pinnedCount = chatProjects.filter((p) => p.pinned).length
+      if (pinnedCount >= MAX_PINNED_PROJECTS) {
+        // Silently no-op for now — the UI surface for this lives on the
+        // landing page where the user has context for the cap.
+        return
+      }
+    }
+    setChatProjects((prev) => prev.map((p) =>
+      p.id === projectId ? { ...p, pinned: !p.pinned } : p,
+    ))
+    await fetch(`/api/chat-projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned: !target.pinned }),
+    }).catch(() => {})
+  }, [chatProjects])
+
+  // ── Save an edit-conversation modal (name + project assignment) ────────────
+  // We call Supabase directly for the rename rather than going through
+  // renameConversation (which is declared later in this file and would create
+  // a temporal dead-zone reference inside this useCallback).
+  const saveConvEdit = useCallback(async (
+    convId: string,
+    changes: { name: string; chat_project_id: string | null },
+  ) => {
+    const conv = conversations.find((c) => c.id === convId)
+    if (!conv) return
+
+    const trimmed = changes.name.trim()
+    if (trimmed && trimmed !== conv.name) {
+      const { error } = await supabase
+        .from('projects')
+        .update({ name: trimmed })
+        .eq('id', convId)
+      if (!error) {
+        setConversations((prev) => prev.map((c) =>
+          c.id === convId ? { ...c, name: trimmed } : c,
+        ))
+        if (convId === activeConvId) setConvName(trimmed)
+      }
+    }
+
+    if (changes.chat_project_id !== (conv.chat_project_id ?? null)) {
+      await assignConvToProject(convId, changes.chat_project_id)
+    }
+    setEditConvState(null)
+  }, [conversations, supabase, activeConvId, assignConvToProject])
 
   // ── Cmd/Ctrl+K — open search (Task 2) ────────────────────────────────────
   useEffect(() => {
@@ -531,8 +839,9 @@ export default function App() {
     if (!res.ok) return
     const { project } = await res.json()
     deleteIfEmpty()
-    setConversations((prev) => [...prev, project])
-    await loadConversation(project.id, project.name)
+    const newConv: Conversation = { ...project, chat_project_id: project.chat_project_id ?? null }
+    setConversations((prev) => [...prev, newConv])
+    await loadConversation(newConv.id, newConv.name)
     track('conversation_created')
     trackEvent('conversation_created')
   }, [deleteIfEmpty, loadConversation])
@@ -935,23 +1244,233 @@ export default function App() {
     highlightedMessageId,
     settingsInitialSection, setSettingsInitialSection,
     memorySavedByMsgId,
+    // ── Chat Projects ──
+    chatProjects, activeChatProjectId, view,
+    openProjectsLanding, openProject, openChatView,
+    openNewProjectModal,
+    openConvContext, openProjectContext,
+    assignConvToProject, requestNewChatInProject,
   }
+
+  const activeChatProject = activeChatProjectId
+    ? chatProjects.find((p) => p.id === activeChatProjectId) ?? null
+    : null
+
+  // Drag-target id for ProjectsLanding cards. Kept local; the Sidebar manages
+  // its own. We expose minimal setters via callbacks below.
+  const [landingDropTarget, setLandingDropTarget] = useState<string | null>(null)
 
   return (
     <AppContext.Provider value={ctx}>
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <Sidebar />
-        <div style={{
-          flex: isChatCollapsed ? '0 0 44px' : 1,
-          display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0,
-        }}>
-          <ChatPanel />
-        </div>
-        <TreePanel />
+        {view === 'chat' && (
+          <>
+            <div style={{
+              flex: isChatCollapsed ? '0 0 44px' : 1,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0,
+            }}>
+              <ChatPanel />
+            </div>
+            <TreePanel />
+          </>
+        )}
+        {view === 'projects' && (
+          <ProjectsLanding
+            projects={chatProjects}
+            conversations={conversations}
+            dropTarget={landingDropTarget}
+            onOpen={openProject}
+            onCreate={openNewProjectModal}
+            onContext={(p, x, y) => openProjectContext(p, x, y)}
+            onDragOverProject={setLandingDropTarget}
+            onDragLeaveProject={(id) => setLandingDropTarget((t) => (t === id ? null : t))}
+            onDropOnProject={(projectId, convId) => {
+              setLandingDropTarget(null)
+              assignConvToProject(convId, projectId)
+            }}
+          />
+        )}
+        {view === 'project' && activeChatProject && (
+          <ProjectPage
+            project={activeChatProject}
+            conversations={conversations}
+            onBack={openProjectsLanding}
+            onOpenConv={(id) => { setActiveConvId(id); setView('chat'); switchConversation(id) }}
+            onNewChat={() => requestNewChatInProject(activeChatProject.id)}
+            onConvContext={(conv, x, y) => openConvContext(conv, x, y)}
+            onEdit={() => setProjectModalState({ mode: 'edit', project: activeChatProject })}
+            onDelete={() => setDeleteProjectState(activeChatProject)}
+          />
+        )}
       </div>
+
+      {/* Existing modals */}
       {isSearchOpen  && <SearchModal />}
       {isSettingsOpen && <SettingsModal />}
       {isUpgradeOpen && <UpgradeModal />}
+
+      {/* Projects modals */}
+      {projectModalState && (
+        <ProjectModal
+          editing={projectModalState.mode === 'edit' ? projectModalState.project : null}
+          onClose={() => setProjectModalState(null)}
+          onSave={saveProject}
+        />
+      )}
+      {deleteProjectState && (
+        <DeleteProjectModal
+          project={deleteProjectState}
+          onClose={() => setDeleteProjectState(null)}
+          onConfirm={confirmDeleteProject}
+        />
+      )}
+      {editConvState && (
+        <EditConversationModal
+          conv={editConvState}
+          projects={chatProjects}
+          isPro={isPro}
+          onClose={() => setEditConvState(null)}
+          onSave={(changes) => saveConvEdit(editConvState.id, changes)}
+          onUpgradeRequired={() => { setEditConvState(null); setIsUpgradeOpen(true) }}
+        />
+      )}
+
+      {/* Context menus */}
+      {convMenu && (
+        <ConvContextMenu
+          x={convMenu.x}
+          y={convMenu.y}
+          conv={convMenu.conv}
+          projects={chatProjects}
+          isPro={isPro}
+          onMove={(pid) => assignConvToProject(convMenu.conv.id, pid)}
+          onRemove={() => assignConvToProject(convMenu.conv.id, null)}
+          onEdit={() => setEditConvState(convMenu.conv)}
+          onDelete={() => deleteConversation(convMenu.conv.id)}
+          onUpgradeRequired={() => { setConvMenu(null); setIsUpgradeOpen(true) }}
+          onClose={() => setConvMenu(null)}
+        />
+      )}
+      {projectMenu && (
+        <ProjectActionMenu
+          x={projectMenu.x}
+          y={projectMenu.y}
+          project={projectMenu.project}
+          onOpen={() => openProject(projectMenu.project.id)}
+          onTogglePin={() => toggleProjectPin(projectMenu.project.id)}
+          onEdit={() => setProjectModalState({ mode: 'edit', project: projectMenu.project })}
+          onDelete={() => setDeleteProjectState(projectMenu.project)}
+          onClose={() => setProjectMenu(null)}
+        />
+      )}
     </AppContext.Provider>
+  )
+}
+
+// ─── ProjectActionMenu — right-click menu for a project chip / card ──────────
+// (Lightweight, scoped to App so we don't add another file for ~50 lines.)
+
+interface ProjectActionMenuProps {
+  x: number
+  y: number
+  project: ChatProject
+  onOpen: () => void
+  onTogglePin: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onClose: () => void
+}
+
+function ProjectActionMenu({
+  x, y, project, onOpen, onTogglePin, onEdit, onDelete, onClose,
+}: ProjectActionMenuProps) {
+  const elRef = useRef<HTMLDivElement | null>(null)
+  const [pos, setPos] = useState({ x, y })
+
+  // Ref-callback measurement: clamp the menu inside the viewport without
+  // setting state inside an effect (avoids `react-hooks/set-state-in-effect`).
+  const measureRef = useCallback((el: HTMLDivElement | null) => {
+    elRef.current = el
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const nx = Math.min(x, window.innerWidth  - r.width  - 8)
+    const ny = Math.min(y, window.innerHeight - r.height - 8)
+    if (nx !== x || ny !== y) setPos({ x: nx, y: ny })
+  }, [x, y])
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (elRef.current && !elRef.current.contains(e.target as Node)) onClose()
+    }
+    function key(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('contextmenu', close)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('contextmenu', close)
+      window.removeEventListener('keydown', key)
+    }
+  }, [onClose])
+
+  const item = {
+    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+    padding: '8px 12px', fontSize: 13,
+    color: 'var(--text-secondary)',
+    background: 'transparent', border: 'none',
+    cursor: 'pointer', textAlign: 'left' as const, borderRadius: 7,
+  }
+  const hov = (e: React.MouseEvent<HTMLButtonElement>, on: boolean) => {
+    e.currentTarget.style.background = on ? 'var(--bg-subtle)' : 'transparent'
+  }
+
+  return (
+    <div
+      ref={measureRef}
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        left: pos.x, top: pos.y, zIndex: 1200, width: 184,
+        background: 'var(--modal-bg)',
+        border: '1px solid var(--border)',
+        borderRadius: 11,
+        boxShadow: 'var(--shadow-lg)',
+        padding: 5,
+      }}
+    >
+      <button type="button" style={item} onClick={() => { onOpen(); onClose() }} onMouseEnter={(e) => hov(e, true)} onMouseLeave={(e) => hov(e, false)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+        Open project
+      </button>
+      <button type="button" style={item} onClick={() => { onTogglePin(); onClose() }} onMouseEnter={(e) => hov(e, true)} onMouseLeave={(e) => hov(e, false)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+          <path d="M9 4h6l-1 6 3 3v2h-5v5l-1 1-1-1v-5H4v-2l3-3z" />
+        </svg>
+        {project.pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+      </button>
+      <button type="button" style={item} onClick={() => { onEdit(); onClose() }} onMouseEnter={(e) => hov(e, true)} onMouseLeave={(e) => hov(e, false)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+          <path d="M4 20h4l10-10-4-4L4 16z" />
+          <path d="M13.5 6.5l4 4" />
+        </svg>
+        Edit
+      </button>
+      <div style={{ height: 1, background: 'var(--border)', margin: '5px 8px' }} />
+      <button
+        type="button"
+        style={{ ...item, color: 'var(--color-error)' }}
+        onClick={() => { onDelete(); onClose() }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error-bg)')}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+        </svg>
+        Delete
+      </button>
+    </div>
   )
 }
