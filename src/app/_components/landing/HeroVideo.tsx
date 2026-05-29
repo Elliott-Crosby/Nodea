@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Play, Volume2, GitBranch, Layers, X } from 'lucide-react'
+import { Play, GitBranch, Layers, X } from 'lucide-react'
 
 const VIDEO_ID = 'QJrIkAfZxrE'
 
@@ -22,10 +22,10 @@ export default function HeroVideo() {
     }
   }, [open])
 
-  const previewSrc =
+  const posterSrc = `https://i.ytimg.com/vi/${VIDEO_ID}/maxresdefault.jpg`
+  const modalSrc =
     `https://www.youtube-nocookie.com/embed/${VIDEO_ID}` +
-    `?autoplay=1&mute=1&loop=1&playlist=${VIDEO_ID}&controls=0&modestbranding=1` +
-    `&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1`
+    `?autoplay=1&rel=0&modestbranding=1&playsinline=1&vq=hd1080&hd=1`
 
   return (
     <section className="ln-split">
@@ -69,20 +69,22 @@ export default function HeroVideo() {
               setOpen(true)
             }
           }}
-          aria-label="Play Nodea demo with sound"
+          aria-label="Play Nodea demo"
         >
           <div className="ln-split-aspect">
-            <iframe
+            <img
               className="ln-split-media"
-              src={previewSrc}
-              title=""
-              tabIndex={-1}
+              src={posterSrc}
+              alt=""
               aria-hidden="true"
-              allow="autoplay; encrypted-media"
+              draggable={false}
             />
             <span className="ln-split-scrim" aria-hidden="true" />
+            <span className="ln-split-play" aria-hidden="true">
+              <Play size={28} fill="currentColor" />
+            </span>
             <span className="ln-split-sound">
-              <Volume2 size={15} /> Tap for sound
+              <Play size={13} fill="currentColor" /> Watch demo
             </span>
           </div>
         </div>
@@ -100,7 +102,7 @@ export default function HeroVideo() {
               <X size={16} /> Close · Esc
             </button>
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              src={modalSrc}
               title="Nodea — branching AI chat canvas"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
