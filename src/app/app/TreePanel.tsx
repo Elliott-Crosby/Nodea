@@ -20,11 +20,13 @@ const NODE_H = { detailed: 86,  compact: 52,  mini:  40  } as const
 // ── Colour palette ─────────────────────────────────────────────────────────────
 const PALETTE = [
   { id: 'default', label: 'Default', hex: ''        },
-  { id: 'violet',  label: 'Violet',  hex: '#8b5cf6' },
-  { id: 'blue',    label: 'Blue',    hex: '#3b82f6' },
-  { id: 'green',   label: 'Green',   hex: '#22c55e' },
   { id: 'red',     label: 'Red',     hex: '#ef4444' },
   { id: 'orange',  label: 'Orange',  hex: '#f97316' },
+  { id: 'yellow',  label: 'Yellow',  hex: '#eab308' },
+  { id: 'green',   label: 'Green',   hex: '#22c55e' },
+  { id: 'blue',    label: 'Blue',    hex: '#3b82f6' },
+  { id: 'indigo',  label: 'Indigo',  hex: '#6366f1' },
+  { id: 'violet',  label: 'Violet',  hex: '#8b5cf6' },
 ]
 
 // ── Types ──────────────────────────────────────────────────────────────────────
