@@ -67,6 +67,7 @@ export default function ProjectPage({
   const [menuOpen, setMenuOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Fetch one tree per conversation, in parallel. Each tree is cached in
   // state so re-renders don't re-fetch.
@@ -114,6 +115,15 @@ export default function ProjectPage({
       window.removeEventListener('keydown', key)
     }
   }, [menuOpen])
+
+  // Grow the new-chat input with its content, mirroring the chat composer.
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }
+  useEffect(() => {
+    if (inputRef.current) autoResize(inputRef.current)
+  }, [draft])
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -244,14 +254,23 @@ export default function ProjectPage({
           }}>
             <ProjectIcon name={project.icon} size={12} color={c.hex} />
           </span>
-          <input
+          <textarea
+            ref={inputRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            rows={1}
+            onChange={(e) => { setDraft(e.target.value); autoResize(e.target) }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                e.currentTarget.closest('form')?.requestSubmit()
+              }
+            }}
             placeholder={`Start a new chat in ${project.name}…`}
             style={{
               flex: 1, border: 'none', outline: 'none',
               background: 'transparent', fontSize: 14,
               color: 'var(--text-primary)', fontFamily: 'inherit',
+              resize: 'none', lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
             }}
           />
           <button
