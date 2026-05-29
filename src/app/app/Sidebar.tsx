@@ -1,9 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp } from './App'
 import { trackEvent } from '@/lib/track-event'
+
+const MIN_WIDTH     = 200
+const MAX_WIDTH     = 480
+const DEFAULT_WIDTH = 260
+const STORAGE_KEY   = 'nodea:sidebarWidth'
 
 export default function Sidebar() {
   const {
@@ -13,11 +18,52 @@ export default function Sidebar() {
   } = useApp()
 
   const [collapsed, setCollapsed] = useState(false)
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const isResizing   = useRef(false)
+  const resizeOrigin = useRef({ x: 0, w: DEFAULT_WIDTH })
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const n = parseInt(saved, 10)
+      if (Number.isFinite(n)) setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n)))
+    }
+  }, [])
+
+  const [resizing, setResizing] = useState(false)
+
+  function onResizeMouseDown(e: React.MouseEvent) {
+    e.preventDefault()
+    isResizing.current   = true
+    resizeOrigin.current = { x: e.clientX, w: panelWidth }
+    setResizing(true)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    let finalWidth = panelWidth
+    function onMove(ev: MouseEvent) {
+      if (!isResizing.current) return
+      const delta = ev.clientX - resizeOrigin.current.x
+      finalWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeOrigin.current.w + delta))
+      setPanelWidth(finalWidth)
+    }
+    function onUp() {
+      isResizing.current = false
+      setResizing(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try { window.localStorage.setItem(STORAGE_KEY, String(finalWidth)) } catch {}
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   const initial = (userName || userEmail || 'U').charAt(0).toUpperCase()
 
@@ -56,8 +102,9 @@ export default function Sidebar() {
 
   return (
     <div
+      data-sidebar-root
       style={{
-        width: collapsed ? 54 : 260,
+        width: collapsed ? 54 : panelWidth,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -65,9 +112,31 @@ export default function Sidebar() {
         borderRight: '1px solid var(--border)',
         height: '100vh',
         overflow: 'hidden',
-        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        position: 'relative',
+        transition: resizing ? 'none' : 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
       }}
     >
+      {/* ── Resize handle (only when expanded) ── */}
+      {!collapsed && (
+        <div
+          onMouseDown={onResizeMouseDown}
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            width: 5,
+            height: '100%',
+            cursor: 'col-resize',
+            zIndex: 20,
+            background: 'transparent',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--accent)'; (e.currentTarget as HTMLDivElement).style.opacity = '0.35' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; (e.currentTarget as HTMLDivElement).style.opacity = '1' }}
+          title="Drag to resize"
+        />
+      )}
+
       {/* ── Logo + collapse toggle ── */}
       <div
         style={{
