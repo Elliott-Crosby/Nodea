@@ -976,7 +976,7 @@ export default function TreePanel() {
         </div>
 
         <span style={{ fontSize: 11, background: 'var(--bg-muted)', color: 'var(--text-muted)', borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>
-          {allDbNodes.length}
+          {pairs.length}
         </span>
       </div>
 

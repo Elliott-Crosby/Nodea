@@ -30,6 +30,7 @@ interface Props {
 interface NodeRow {
   id: string
   parent_id: string | null
+  role: 'user' | 'assistant'
 }
 
 interface TreeMap {
@@ -80,7 +81,7 @@ export default function ProjectPage({
       const results = await Promise.all(missing.map(async (cv) => {
         const { data, error } = await supabase
           .from('nodes')
-          .select('id, parent_id')
+          .select('id, parent_id, role')
           .eq('project_id', cv.id)
           .order('created_at', { ascending: true })
         if (error || !data) return [cv.id, null] as const
@@ -520,10 +521,28 @@ function SettingsMenu({
 
 // ─── Tree builder ────────────────────────────────────────────────────────────
 
+// Collapse the raw user/assistant rows into prompt+answer pairs, mirroring the
+// full canvas (buildPairs in TreePanel) so the count, branch count and thumbnail
+// shape all treat one exchange as a single node.
 function buildMiniTree(rows: NodeRow[]): MiniTree {
-  const nodes: { id: string; parent: string | null }[] = rows.map((r) => ({
-    id: r.id, parent: r.parent_id ?? null,
-  }))
+  const nodeMap = new Map(rows.map((r) => [r.id, r]))
+  const nodes: { id: string; parent: string | null }[] = []
+  const pairedUserIds = new Set<string>()
+
+  for (const node of rows) {
+    if (node.role !== 'assistant') continue
+    const userParent = node.parent_id ? nodeMap.get(node.parent_id) : null
+    if (!userParent || userParent.role !== 'user') continue
+    pairedUserIds.add(userParent.id)
+    const gp = userParent.parent_id ? nodeMap.get(userParent.parent_id) : null
+    nodes.push({ id: node.id, parent: gp?.role === 'assistant' ? gp.id : null })
+  }
+  for (const node of rows) {
+    if (node.role !== 'user' || pairedUserIds.has(node.id)) continue
+    const parent = node.parent_id ? nodeMap.get(node.parent_id) : null
+    nodes.push({ id: node.id, parent: parent?.role === 'assistant' ? parent.id : null })
+  }
+
   const childCount = new Map<string | null, number>()
   for (const n of nodes) {
     childCount.set(n.parent, (childCount.get(n.parent) ?? 0) + 1)
