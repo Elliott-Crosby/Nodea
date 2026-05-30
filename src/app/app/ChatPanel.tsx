@@ -765,19 +765,38 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
 export default function ChatPanel() {
   const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed } = useApp()
   const bottomRef    = useRef<HTMLDivElement>(null)
+  const scrollRef    = useRef<HTMLDivElement>(null)
+  // Whether to keep pinning the view to the latest output. Set false the moment
+  // the user scrolls away from the bottom so streaming can't yank them back down.
+  const stickToBottom = useRef(true)
   const dragCounter  = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
   const [fileError,  setFileError]  = useState<string | null>(null)
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottom.current = distanceFromBottom < 80
+  }, [])
+
+  // Re-pin to bottom whenever the user switches conversations.
+  useEffect(() => {
+    stickToBottom.current = true
+  }, [activeConvId])
 
   useEffect(() => {
     if (highlightedMessageId) {
       const el = document.querySelector('[data-highlighted-msg="true"]')
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    } else {
-      // During streaming this fires every rAF tick; 'smooth' would queue
-      // animations and visibly lag. Use instant scroll while streaming.
-      bottomRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' })
+      return
     }
+    // Only follow new output if the user is parked at the bottom. If they've
+    // scrolled up to read, leave their position alone.
+    if (!stickToBottom.current) return
+    // During streaming this fires every rAF tick; 'smooth' would queue
+    // animations and visibly lag. Use instant scroll while streaming.
+    bottomRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' })
   }, [messages, highlightedMessageId, isLoading])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -919,6 +938,8 @@ export default function ChatPanel() {
       )}
 
       <div
+        ref={scrollRef}
+        onScroll={handleScroll}
         style={{
           flex: 1, overflowY: 'auto', padding: '24px 24px',
           display: 'flex', flexDirection: 'column', gap: 20,
