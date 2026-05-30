@@ -1,16 +1,6 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
-
-function buildDayMap(days: number): Map<string, number> {
-  const map = new Map<string, number>()
-  const now = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setUTCDate(d.getUTCDate() - i)
-    map.set(d.toISOString().slice(0, 10), 0)
-  }
-  return map
-}
+import { resolveTz, buildDayMap, windowStartUtc, dayInTz } from '@/lib/analytics-time'
 
 export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
@@ -25,10 +15,9 @@ export async function GET(req: Request) {
 
   const url  = new URL(req.url)
   const days = Math.min(90, Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10)))
+  const tz   = resolveTz(url.searchParams.get('tz'))
 
-  const since = new Date()
-  since.setUTCDate(since.getUTCDate() - (days - 1))
-  since.setUTCHours(0, 0, 0, 0)
+  const since = windowStartUtc(days, tz)
 
   // ── Page views ──────────────────────────────────────────────────────────────
   const { data: rows, error } = await service
@@ -43,7 +32,7 @@ export async function GET(req: Request) {
     return Response.json({ error: `Database error: ${error.message}` }, { status: 500 })
   }
 
-  const pvMap      = buildDayMap(days)
+  const pvMap      = buildDayMap(days, tz)
   const visitorMap = new Map<string, Set<string>>()
   pvMap.forEach((_, day) => visitorMap.set(day, new Set()))
 
@@ -53,7 +42,7 @@ export async function GET(req: Request) {
   const sessionDurs:   Map<string, number>    = new Map() // session_id → total duration ms
 
   for (const row of rows ?? []) {
-    const day = (row.created_at as string).slice(0, 10)
+    const day = dayInTz(new Date(row.created_at as string), tz)
     if (pvMap.has(day)) {
       pvMap.set(day, pvMap.get(day)! + 1)
       const sid = row.session_id as string | null

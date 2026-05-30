@@ -1,7 +1,8 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
+import { resolveTz, todayStartUtc, windowStartUtc } from '@/lib/analytics-time'
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
@@ -12,13 +13,9 @@ export async function GET() {
   const service = createServiceSupabaseClient()
   if (!service) return new Response('Service client unavailable', { status: 500 })
 
-  const now = new Date()
-  const todayStart = new Date(now)
-  todayStart.setUTCHours(0, 0, 0, 0)
-
-  const weekStart = new Date(now)
-  weekStart.setUTCDate(weekStart.getUTCDate() - 6)
-  weekStart.setUTCHours(0, 0, 0, 0)
+  const tz = resolveTz(new URL(req.url).searchParams.get('tz'))
+  const todayStart = todayStartUtc(tz)
+  const weekStart = windowStartUtc(7, tz)
 
   const [
     { count: totalUsers },

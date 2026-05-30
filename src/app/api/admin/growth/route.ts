@@ -1,16 +1,6 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
-
-function buildDayMap(days: number): Map<string, number> {
-  const map = new Map<string, number>()
-  const now = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setUTCDate(d.getUTCDate() - i)
-    map.set(d.toISOString().slice(0, 10), 0)
-  }
-  return map
-}
+import { resolveTz, buildDayMap, windowStartUtc, dayInTz } from '@/lib/analytics-time'
 
 export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
@@ -25,25 +15,24 @@ export async function GET(req: Request) {
 
   const url  = new URL(req.url)
   const days = Math.min(90, Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10)))
+  const tz   = resolveTz(url.searchParams.get('tz'))
 
-  const since = new Date()
-  since.setUTCDate(since.getUTCDate() - (days - 1))
-  since.setUTCHours(0, 0, 0, 0)
+  const since = windowStartUtc(days, tz)
 
   const [{ data: userRows }, { data: projectRows }] = await Promise.all([
     service.from('user_profiles').select('created_at').gte('created_at', since.toISOString()),
     service.from('projects').select('created_at').gte('created_at', since.toISOString()),
   ])
 
-  const userDayMap = buildDayMap(days)
+  const userDayMap = buildDayMap(days, tz)
   for (const row of userRows ?? []) {
-    const day = (row.created_at as string).slice(0, 10)
+    const day = dayInTz(new Date(row.created_at as string), tz)
     if (userDayMap.has(day)) userDayMap.set(day, userDayMap.get(day)! + 1)
   }
 
-  const projDayMap = buildDayMap(days)
+  const projDayMap = buildDayMap(days, tz)
   for (const row of projectRows ?? []) {
-    const day = (row.created_at as string).slice(0, 10)
+    const day = dayInTz(new Date(row.created_at as string), tz)
     if (projDayMap.has(day)) projDayMap.set(day, projDayMap.get(day)! + 1)
   }
 

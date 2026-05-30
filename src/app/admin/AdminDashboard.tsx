@@ -509,17 +509,13 @@ function GrowthSection({ initialUsersByDay, initialProjectsByDay }: {
   const [loading,       setLoading]       = useState(false)
 
   useEffect(() => {
-    if (days === 30) {
-      setUsersByDay(initialUsersByDay)
-      setProjectsByDay(initialProjectsByDay)
-      return
-    }
     setLoading(true)
-    fetch(`/api/admin/growth?days=${days}`)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    fetch(`/api/admin/growth?days=${days}&tz=${encodeURIComponent(tz)}`)
       .then(r => r.json())
       .then(d => { setUsersByDay(d.usersByDay); setProjectsByDay(d.projectsByDay) })
       .finally(() => setLoading(false))
-  }, [days]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [days])
 
   return (
     <>
@@ -569,7 +565,8 @@ function TrafficSection() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetch(`/api/admin/traffic?days=${days}`)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    fetch(`/api/admin/traffic?days=${days}&tz=${encodeURIComponent(tz)}`)
       .then(r => r.json())
       .then(d => { if (d.error) setError(d.error); else setData(d) })
       .catch(() => setError('Network error loading traffic data.'))
