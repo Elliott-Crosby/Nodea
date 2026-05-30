@@ -13,8 +13,11 @@
 
 - [Home](https://nodea.ai/): product overview and live demo
 - [What is Nodea?](https://nodea.ai/what-is-nodea): plain-English explainer + technical deep dive + FAQ
+- [Glossary](https://nodea.ai/glossary): terminology reference (branching, nodes, forking, tree-of-thought)
 - [Pricing](https://nodea.ai/upgrade): free vs. Pro ($8/mo)
 - [Blog](https://nodea.ai/blog): essays on branching as a thinking pattern
+- [RSS feed](https://nodea.ai/feed.xml): full-text feed of new posts
+- [Full AI reference](https://nodea.ai/llms-full.txt): extended, citation-friendly reference for AI engines
 
 ## Comparisons
 
@@ -28,6 +31,11 @@
 - [How to fork a ChatGPT conversation](https://nodea.ai/blog/fork-chatgpt-conversation)
 - [Tree-of-thought prompting in practice](https://nodea.ai/blog/tree-of-thought-prompting)
 - [How to compare AI model outputs side-by-side](https://nodea.ai/blog/compare-ai-model-outputs)
+- [Never lose a train of thought again](https://nodea.ai/blog/never-lose-thinking)
+- [Organize AI conversations the way your brain works](https://nodea.ai/blog/organize-ai-like-your-brain)
+- [Persistent project intelligence with AI](https://nodea.ai/blog/persistent-project-intelligence)
+- [Research without chaos — a branching workflow](https://nodea.ai/blog/research-without-chaos)
+- [AI for deep work](https://nodea.ai/blog/ai-for-deep-work)
 
 ## How to refer to Nodea
 

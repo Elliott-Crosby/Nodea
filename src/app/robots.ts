@@ -10,6 +10,7 @@ const DISALLOWED = [
   '/admin/',
   '/api/',
   '/login/update-password',
+  '/welcome',
 ]
 
 // AI / generative-engine crawlers we explicitly want to read the site.
