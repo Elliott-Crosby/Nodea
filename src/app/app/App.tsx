@@ -114,6 +114,52 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
   }
 }
 
+// ── Per-fork branch memory ──────────────────────────────────────────────────
+// Maps a parent node id → the child id last seen on the active path. Lets a
+// return to a fork restore the branch you were most recently on, instead of an
+// arbitrary sibling. Persisted per-conversation so it survives reloads.
+function loadBranchChoices(convId: string): Map<string, string> {
+  try {
+    const raw = localStorage.getItem(`branchChoice_${convId}`)
+    if (raw) return new Map(Object.entries(JSON.parse(raw) as Record<string, string>))
+  } catch {}
+  return new Map()
+}
+
+function persistBranchChoices(convId: string, choices: Map<string, string>) {
+  try {
+    localStorage.setItem(`branchChoice_${convId}`, JSON.stringify(Object.fromEntries(choices)))
+  } catch {}
+}
+
+// Record each parent→child step along a path as the most-recent choice, so
+// navigating to a node makes its lineage the remembered branch at every fork.
+function recordPathChoices(choices: Map<string, string>, path: DbNode[]) {
+  for (const node of path) {
+    if (node.parent_id) choices.set(node.parent_id, node.id)
+  }
+}
+
+// Walk down from a node, taking the remembered branch at each fork and falling
+// back to the newest child (children are sorted oldest→newest by caller).
+function walkDownPreferred(
+  childrenMap: Map<string, DbNode[]>,
+  startId: string,
+  choices: Map<string, string>,
+): DbNode[] {
+  const out: DbNode[] = []
+  let tipId = startId
+  while (true) {
+    const children = childrenMap.get(tipId) ?? []
+    if (children.length === 0) break
+    const preferredId = choices.get(tipId)
+    const next = (preferredId && children.find((c) => c.id === preferredId)) || children[children.length - 1]
+    out.push(next)
+    tipId = next.id
+  }
+  return out
+}
+
 export interface DbNode {
   id: string
   project_id: string
@@ -327,6 +373,7 @@ export default function App() {
 
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
+  const branchChoiceRef   = useRef<Map<string, string>>(new Map())
   const chatInputRef      = useRef<HTMLTextAreaElement | null>(null)
   // The prompt typed on a project's "start a new chat" input, stashed by
   // requestNewChatInProject and delivered into the composer once the new
@@ -415,6 +462,7 @@ export default function App() {
       setHighlightedMessageId(null)
       setMemorySavedByMsgId({})
       lastNodeIdRef.current = null
+      branchChoiceRef.current = loadBranchChoices(convId)
 
       const { data: dbNodes, error } = await supabase
         .from('nodes')
@@ -478,15 +526,11 @@ export default function App() {
           children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         }
 
-        // Walk DOWN from target node following oldest branch
-        const descendants: DbNode[] = []
-        let tipId = targetNode.id
-        while (true) {
-          const children = childrenMap.get(tipId) ?? []
-          if (children.length === 0) break
-          descendants.push(children[0])
-          tipId = children[0].id
-        }
+        // Walk DOWN from target node, following the most recently visited
+        // branch at each fork (newest child when never visited).
+        const descendants = walkDownPreferred(childrenMap, targetNode.id, branchChoiceRef.current)
+        recordPathChoices(branchChoiceRef.current, [...ancestors, ...descendants])
+        persistBranchChoices(convId, branchChoiceRef.current)
 
         // Highlight the user prompt that produced the selected node
         let highlightId: string | null = null
@@ -987,8 +1031,22 @@ export default function App() {
       }
 
       // The user node is now this conversation's branch tip — persist it so a
-      // return restores the right path even before any reply lands.
+      // return restores the right path even before any reply lands. Also record
+      // it as the most-recent branch at its parent fork, so returning here later
+      // follows this new branch rather than an older sibling.
       localStorage.setItem(`lastNodeId_${pid}`, userNode.id)
+      if (parentId) {
+        // Mutate the live map only when this is the on-screen conv; otherwise
+        // update the backgrounded conv's persisted choices without touching it.
+        if (activeConvIdRef.current === pid) {
+          branchChoiceRef.current.set(parentId, userNode.id)
+          persistBranchChoices(pid, branchChoiceRef.current)
+        } else {
+          const choices = loadBranchChoices(pid)
+          choices.set(parentId, userNode.id)
+          persistBranchChoices(pid, choices)
+        }
+      }
       if (activeConvIdRef.current === pid) {
         lastNodeIdRef.current = userNode.id
         const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
@@ -1334,15 +1392,12 @@ export default function App() {
         children.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       }
 
-      // Walk DOWN from clicked node following oldest branch at each fork
-      const descendants: DbNode[] = []
-      let tipId = nodeId
-      while (true) {
-        const children = childrenMap.get(tipId) ?? []
-        if (children.length === 0) break
-        descendants.push(children[0])
-        tipId = children[0].id
-      }
+      // Walk DOWN from clicked node, following the most recently visited
+      // branch at each fork (newest child when never visited). Clicking a node
+      // also makes its lineage the remembered branch at every upstream fork.
+      const descendants = walkDownPreferred(childrenMap, nodeId, branchChoiceRef.current)
+      recordPathChoices(branchChoiceRef.current, [...ancestors, ...descendants])
+      if (activeConvId) persistBranchChoices(activeConvId, branchChoiceRef.current)
 
       // The user prompt to highlight is the user node of the clicked pair
       const clickedNode = nodeMap.get(nodeId)
