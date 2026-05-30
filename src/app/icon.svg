@@ -1,13 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="6" fill="#16131f"/>
-  <text
-    x="16"
-    y="25"
-    text-anchor="middle"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-style="italic"
-    font-size="26"
-    fill="#e8e4f0"
-    letter-spacing="-1"
-  >N</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="nodea-bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9168ea"/>
+      <stop offset="1" stop-color="#6d34d4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#nodea-bg)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M512 320 V510 L350 690 M512 510 L674 690"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="512" cy="312" r="58"/>
+    <circle cx="345" cy="694" r="58"/>
+    <circle cx="679" cy="694" r="58"/>
+  </g>
 </svg>
