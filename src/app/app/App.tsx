@@ -332,8 +332,9 @@ export default function App() {
   // requestNewChatInProject and delivered into the composer once the new
   // conversation has loaded (see the effect below handleSend).
   const pendingProjectMsgRef = useRef<string | null>(null)
-  // Mirror of activeConvId, readable from async closures (saveNodePair) so we
-  // can tell if the user has navigated away by the time a save resolves.
+  // Mirror of activeConvId, readable from async closures (saveUserNode /
+  // saveAssistantNode) so we can tell if the user has navigated away by the
+  // time a save resolves.
   const activeConvIdRef   = useRef<string | null>(null)
   // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
   // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
@@ -515,12 +516,21 @@ export default function App() {
     if (allDbNodes.length > 0) return null
     if (messages.length > 0) return null
     const oldId = activeConvId
+    const oldConv = conversations.find((c) => c.id === oldId)
     setConversations((prev) => prev.filter((c) => c.id !== oldId))
+    // Keep the in-memory project chat_count honest. It's recomputed from real
+    // rows on the next load, but if we reap a conv mid-session without
+    // decrementing, the project shows a phantom chat ("2 chats, nothing there").
+    if (oldConv?.chat_project_id) {
+      setChatProjects((prev) => prev.map((p) =>
+        p.id === oldConv.chat_project_id ? { ...p, chat_count: Math.max(0, p.chat_count - 1) } : p,
+      ))
+    }
     supabase.from('projects').delete().eq('id', oldId).then(({ error }) => {
       if (error) console.error('Auto-delete empty conv failed', error)
     })
     return oldId
-  }, [activeConvId, isCurrentLoaded, allDbNodes, messages, supabase])
+  }, [activeConvId, isCurrentLoaded, allDbNodes, messages, conversations, supabase])
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -924,15 +934,19 @@ export default function App() {
     }
   }, [supabase, activeConvId, conversations, loadConversation])
 
-  // ── Save a user+assistant node pair after a response ─────────────────────
-  const saveNodePair = useCallback(
+  // ── Save the user's message immediately ───────────────────────────────────
+  // Persist the user node the moment the message is sent — BEFORE the model
+  // call — so the conversation has real content and survives a switch-away even
+  // if the reply is slow, errors out, or the user navigates elsewhere. The
+  // assistant node is appended later by saveAssistantNode. Pinned to its origin
+  // conversation (pid); live view is only touched while that conv is on screen.
+  const saveUserNode = useCallback(
     async (
       pid: string,
       parentId: string | null,
       userContent: string,
-      assistantContent: string,
       attachments?: AttachmentItem[],
-    ): Promise<string | null> => {
+    ): Promise<DbNode | null> => {
       if (!pid) return null
 
       const attachmentMeta: NodeAttachment[] =
@@ -962,15 +976,39 @@ export default function App() {
       }
       if (ue || !userNode) {
         console.error('user node save failed', ue)
-        // If the user already navigated away from this conv (and likely caused
-        // it to be auto-deleted), suppress the banner — they've moved on.
         if (activeConvIdRef.current === pid) setSaveError(true)
         return null
       }
 
+      // The user node is now this conversation's branch tip — persist it so a
+      // return restores the right path even before any reply lands.
+      localStorage.setItem(`lastNodeId_${pid}`, userNode.id)
+      if (activeConvIdRef.current === pid) {
+        lastNodeIdRef.current = userNode.id
+        const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
+        setAllDbNodes((prev) => [...prev, userNodeWithAtt])
+      }
+      return userNode as DbNode
+    },
+    [supabase]
+  )
+
+  // ── Save the assistant's reply ────────────────────────────────────────────
+  // Appended once the stream completes, as a child of the already-persisted
+  // user node. Pinned to its origin conversation (pid) so a backgrounded reply
+  // still lands in the right place; live view is only touched while that conv
+  // is on screen.
+  const saveAssistantNode = useCallback(
+    async (
+      pid: string,
+      userNodeId: string,
+      assistantContent: string,
+    ): Promise<string | null> => {
+      if (!pid || !userNodeId) return null
+
       const { data: asst, error: ae } = await supabase
         .from('nodes')
-        .insert({ project_id: pid, parent_id: userNode.id, role: 'assistant', content: assistantContent, position_x: 0, position_y: 0 })
+        .insert({ project_id: pid, parent_id: userNodeId, role: 'assistant', content: assistantContent, position_x: 0, position_y: 0 })
         .select()
         .single()
       if (ae || !asst) {
@@ -979,21 +1017,12 @@ export default function App() {
         return null
       }
 
-      // Persist this conversation's branch tip regardless of what's on screen,
-      // so returning to it later restores the right path.
       localStorage.setItem(`lastNodeId_${pid}`, asst.id)
-
-      // Only fold the new pair into the live view when its conversation is still
-      // the one on screen; otherwise these nodes would leak into whatever the
-      // user switched to (wrong tree, wrong selection, wrong parent on next send).
       if (activeConvIdRef.current === pid) {
         lastNodeIdRef.current = asst.id
         setSelectedNodeId(asst.id)
         setLastSavedPairId(asst.id)
-        // Ensure the in-memory node has the attachments field populated (so the
-        // tree picks them up immediately, even before a reload).
-        const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
-        setAllDbNodes((prev) => [...prev, userNodeWithAtt, asst as DbNode])
+        setAllDbNodes((prev) => [...prev, asst as DbNode])
       }
       return asst.id
     },
@@ -1052,6 +1081,9 @@ export default function App() {
       // (data: URL) snapshot, then upgrades to Storage-URL attachments once
       // the upload step completes below.
       let attachmentsSnapshot = localAttachmentsSnapshot
+      // Set once the user message is persisted (before the model call); the
+      // assistant reply is then saved as this node's child after the stream.
+      let savedUserNodeId: string | null = null
 
       try {
         // Upload any newly-attached files (data: URLs) to Supabase Storage so
@@ -1077,6 +1109,14 @@ export default function App() {
           setMessages((prev) => prev.map((m) =>
             m.id === userMsg.id ? { ...m, attachments: uploaded } : m
           ))
+        }
+
+        // Persist the user's message NOW — before the model call — so the
+        // conversation has content and won't be auto-deleted if the reply is
+        // slow, errors out, or the user switches away before it lands.
+        if (targetConvId) {
+          const savedUser = await saveUserNode(targetConvId, parentId, userContent, attachmentsSnapshot)
+          savedUserNodeId = savedUser?.id ?? null
         }
 
         // Send messages with the post-upload attachments (URLs, not data:).
@@ -1144,9 +1184,9 @@ export default function App() {
           }
           streamDone = true
         }
-        if (full.trim() && targetConvId) {
+        if (full.trim() && targetConvId && savedUserNodeId) {
           const isFirstPair = parentId === null
-          const newPairId = await saveNodePair(targetConvId, parentId, userContent, full, attachmentsSnapshot)
+          const newPairId = await saveAssistantNode(targetConvId, savedUserNodeId, full)
 
           // Fire-and-forget: cross-chat memory extraction (Pro only, server-gated).
           // The route returns {saved: []} for free users so we never need to
@@ -1198,19 +1238,18 @@ export default function App() {
         }
       } catch (err) {
         console.error('Chat error', err)
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId))
+        // The user's message is already persisted (saveUserNode, above), so keep
+        // it on screen and in the conversation — only drop the empty assistant
+        // bubble we optimistically added. The conversation stays put.
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId))
         // Only surface the upgrade modal for free users who exhausted the daily
         // pool — Pro users and per-message size caps don't get fixed by upgrading.
         if (err instanceof RateLimitError && !isPro && err.limitType === 'daily') {
           setIsUpgradeOpen(true)
         } else if (activeConvIdRef.current === targetConvId) {
-          // Only restore the failed prompt + error into the composer if the user
-          // is still on the conversation it came from — otherwise we'd dump it
-          // onto whatever they switched to.
-          setInput(userContent)
-          // Restore the *local* (data: URL) snapshot so the chips still have a
-          // preview thumbnail to render after a failed send.
-          if (localAttachmentsSnapshot) setPendingAttachments(localAttachmentsSnapshot)
+          // Surface the error inline. We no longer restore the prompt to the
+          // composer because the message itself is already saved — the user can
+          // see it in the thread and retry from there.
           setChatError(
             err instanceof Error
               ? err.message
@@ -1221,7 +1260,7 @@ export default function App() {
         if (targetConvId) clearInFlight(targetConvId)
       }
     },
-    [input, isLoading, messages, saveNodePair, pendingAttachments, activeConvId, renameConversation, isPro, markInFlight, clearInFlight]
+    [input, isLoading, messages, saveUserNode, saveAssistantNode, pendingAttachments, activeConvId, renameConversation, isPro, markInFlight, clearInFlight]
   )
 
   // ── Deliver a project's "start a new chat" prompt ─────────────────────────

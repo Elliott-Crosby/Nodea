@@ -588,7 +588,7 @@ export default function TreePanel() {
   useEffect(() => { if (input.trim()) lastInputRef.current = input }, [input])
 
   // Anchor the ghost to the pair from when the user was typing.
-  // A ref survives selectedNodeId changing mid-stream (saveNodePair calls setSelectedNodeId
+  // A ref survives selectedNodeId changing mid-stream (saveAssistantNode calls setSelectedNodeId
   // after the stream ends, which would wrongly move the ghost to the new pair).
   const ghostAnchorRef = useRef<typeof selectedPair>(undefined)
   if (input.trim() && selectedPair) ghostAnchorRef.current = selectedPair  // update while typing
