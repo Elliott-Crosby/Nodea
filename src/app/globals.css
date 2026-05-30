@@ -89,6 +89,13 @@
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* Conversation context menu — "Move to project" rows.
+   The current project is clickable to detach; on hover the trailing checkmark
+   swaps to a red ✕ to signal "click to remove from this project". */
+.conv-proj-item--current .conv-proj-remove { display: none; }
+.conv-proj-item--current:hover .conv-proj-check { display: none; }
+.conv-proj-item--current:hover .conv-proj-remove { display: block; }
+
 /* Sidebar "generating" indicator — pulsing ring dot on busy conversations */
 @keyframes convGenPulse {
   0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent); }

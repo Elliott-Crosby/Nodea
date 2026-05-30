@@ -112,7 +112,7 @@ export default function ConvContextMenu({
             style={{
               position: 'absolute',
               top: -5,
-              [submenuRight ? 'right' : 'left']: MENU_WIDTH - 4,
+              [submenuRight ? 'right' : 'left']: MENU_WIDTH - 14,
               width: SUBMENU_WIDTH,
               background: 'var(--modal-bg)',
               border: '1px solid var(--border)',
@@ -133,20 +133,16 @@ export default function ConvContextMenu({
                 <button
                   key={p.id}
                   type="button"
-                  disabled={current}
+                  className={current ? 'conv-proj-item conv-proj-item--current' : 'conv-proj-item'}
+                  title={current ? 'Click to remove from this project' : undefined}
                   onClick={() => {
-                    if (current) return
+                    if (current) { onRemove(); onClose(); return }
                     if (!isPro) { onUpgradeRequired(); return }
                     onMove(p.id)
                     onClose()
                   }}
-                  style={{
-                    ...itemStyle,
-                    opacity: current ? 0.5 : 1,
-                    cursor: current ? 'default' : 'pointer',
-                    justifyContent: 'space-between',
-                  }}
-                  onMouseEnter={(e) => { if (!current) hov(e, true) }}
+                  style={{ ...itemStyle, justifyContent: 'space-between' }}
+                  onMouseEnter={(e) => hov(e, true)}
                   onMouseLeave={(e) => hov(e, false)}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
@@ -156,9 +152,15 @@ export default function ConvContextMenu({
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
                   </span>
                   {current && (
-                    <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
-                      <path d="M1.5 5.5l2.2 2.5 4.8-5.5" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <span className="conv-proj-current" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {/* Checkmark by default; swaps to an ✕ on hover to signal "click to remove". */}
+                      <svg className="conv-proj-check" width="11" height="11" viewBox="0 0 10 10" fill="none">
+                        <path d="M1.5 5.5l2.2 2.5 4.8-5.5" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <svg className="conv-proj-remove" width="11" height="11" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 2l6 6M8 2l-6 6" stroke="var(--color-error)" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    </span>
                   )}
                 </button>
               )
@@ -199,7 +201,7 @@ export default function ConvContextMenu({
             style={{
               position: 'absolute',
               top: -5,
-              [submenuRight ? 'right' : 'left']: MENU_WIDTH - 4,
+              [submenuRight ? 'right' : 'left']: MENU_WIDTH - 14,
               width: 168,
               background: 'var(--modal-bg)',
               border: '1px solid var(--border)',
