@@ -332,6 +332,12 @@ export default function App() {
   // requestNewChatInProject and delivered into the composer once the new
   // conversation has loaded (see the effect below handleSend).
   const pendingProjectMsgRef = useRef<string | null>(null)
+  // Content for a programmatic send (the project "start a new chat" prompt),
+  // set synchronously right before form.requestSubmit(). handleSend reads this
+  // instead of `input` so delivery never depends on React having committed the
+  // setInput() that precedes the submit — otherwise the rAF-driven submit can
+  // race ahead of the state update and send an empty message.
+  const forcedSendRef = useRef<string | null>(null)
   // Mirror of activeConvId, readable from async closures (saveUserNode /
   // saveAssistantNode) so we can tell if the user has navigated away by the
   // time a save resolves.
@@ -1033,7 +1039,14 @@ export default function App() {
   const handleSend = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      const hasText = input.trim().length > 0
+      // A programmatic send (project "start a new chat") passes its prompt via
+      // forcedSendRef, set synchronously just before requestSubmit(). Consume it
+      // here so we don't read a not-yet-committed `input`. Normal sends leave it
+      // null and fall back to the live input value.
+      const forced = forcedSendRef.current
+      forcedSendRef.current = null
+      const resolvedInput = forced ?? input
+      const hasText = resolvedInput.trim().length > 0
       const hasAttachments = pendingAttachments.length > 0
       if ((!hasText && !hasAttachments) || isLoading) return
 
@@ -1047,7 +1060,7 @@ export default function App() {
       setSaveError(false)
       setHighlightedMessageId(null)
 
-      const userContent             = input.trim()
+      const userContent             = resolvedInput.trim()
       const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
       const now                      = Date.now()
       const userMsg: ChatMessage = {
@@ -1273,9 +1286,17 @@ export default function App() {
     if (!pending) return
     if (view !== 'chat' || !isCurrentLoaded || isLoading) return
     pendingProjectMsgRef.current = null
+    // Show the prompt in the composer as a fallback: if the form isn't mounted
+    // yet and the programmatic submit can't fire, the text stays put so the
+    // user can send it manually rather than losing it.
     setInput(pending)
     requestAnimationFrame(() => {
-      chatInputRef.current?.form?.requestSubmit()
+      const form = chatInputRef.current?.form
+      if (!form) return
+      // Set synchronously right before submit so handleSend reads it directly
+      // (see forcedSendRef) instead of the still-async `input` state.
+      forcedSendRef.current = pending
+      form.requestSubmit()
     })
   }, [view, isCurrentLoaded, isLoading, activeConvId, setInput])
 
