@@ -52,7 +52,7 @@ const productJsonLd = {
     'Branching AI chat canvas built on Anthropic Claude. Fork any reply, compare branches side-by-side, never lose context.',
   brand: { '@type': 'Brand', name: 'Nodea' },
   url: `${SITE_URL}/upgrade`,
-  image: `${SITE_URL}/opengraph-image`,
+  image: `${SITE_URL}/og/primary.png`,
   category: 'AI chat application',
   offers: [
     {
@@ -62,7 +62,7 @@ const productJsonLd = {
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/login`,
-      image: `${SITE_URL}/opengraph-image`,
+      image: `${SITE_URL}/og/primary.png`,
       description: '25,000 daily / 450,000 monthly tokens. Claude Haiku 4.5 + Sonnet 4.6. Unlimited branches.',
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
@@ -74,7 +74,7 @@ const productJsonLd = {
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/upgrade`,
-      image: `${SITE_URL}/opengraph-image`,
+      image: `${SITE_URL}/og/primary.png`,
       description: '50,000 daily / 1,000,000 monthly tokens. Adds Claude Opus 4.7. Smarter model routing. Early access to new features.',
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,

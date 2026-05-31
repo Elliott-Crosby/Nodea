@@ -41,6 +41,26 @@ const DEFAULT_TITLE = 'Nodea — Branching AI Chat Canvas'
 const DEFAULT_DESC =
   'Nodea is a branching AI chat canvas. Fork any reply, compare branches side-by-side, and never lose context. Built on Claude. Free during beta — no credit card.'
 
+// Ordered social-preview images. The first is the default card shown by every
+// platform; the rest are alternates Open Graph crawlers may offer (e.g. the
+// linear-vs-canvas comparison). Twitter only renders one, so it gets the first.
+const OG_IMAGES = [
+  {
+    url: '/og/primary.png',
+    width: 2400,
+    height: 1260,
+    type: 'image/png',
+    alt: 'Nodea — Branching AI Chat Canvas. Fork any reply, compare branches side-by-side, and never lose context.',
+  },
+  {
+    url: '/og/secondary.png',
+    width: 2400,
+    height: 1260,
+    type: 'image/png',
+    alt: 'Same model, better thinking — a linear chat buries earlier ideas in scroll, while the Nodea canvas keeps every branch so you can compare and keep the best.',
+  },
+]
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -77,11 +97,13 @@ export const metadata: Metadata = {
     description: DEFAULT_DESC,
     url: SITE_URL,
     locale: 'en_US',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: DEFAULT_TITLE,
     description: DEFAULT_DESC,
+    images: [OG_IMAGES[0]],
   },
   robots: {
     index: true,
@@ -163,7 +185,7 @@ const SOFTWARE_JSONLD = {
   operatingSystem: 'Web',
   url: SITE_URL,
   description: DEFAULT_DESC,
-  image: `${SITE_URL}/opengraph-image`,
+  image: `${SITE_URL}/og/primary.png`,
   offers: [
     {
       '@type': 'Offer',
@@ -172,7 +194,7 @@ const SOFTWARE_JSONLD = {
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/login`,
-      image: `${SITE_URL}/opengraph-image`,
+      image: `${SITE_URL}/og/primary.png`,
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
     },
@@ -183,7 +205,7 @@ const SOFTWARE_JSONLD = {
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/upgrade`,
-      image: `${SITE_URL}/opengraph-image`,
+      image: `${SITE_URL}/og/primary.png`,
       hasMerchantReturnPolicy: DIGITAL_RETURN_POLICY,
       shippingDetails: DIGITAL_SHIPPING,
     },
