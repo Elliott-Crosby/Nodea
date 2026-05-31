@@ -1225,6 +1225,8 @@
 }
 .ln-split-ctas { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .ln-split-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.ln-split-ph { display: inline-flex; border-radius: 10px; }
+.ln-split-ph img { display: block; }
 .ln-split-chip {
   display: inline-flex;
   align-items: center;
