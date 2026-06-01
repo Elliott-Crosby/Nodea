@@ -54,6 +54,18 @@ export interface NodeAttachment {
   url?: string  // Supabase Storage URL — present once the file has been uploaded
 }
 
+// The ‹ n/m › prompt-version indicator. A user node's "versions" are its
+// siblings — the other user nodes forked from the same parent (i.e. the edits).
+export interface PromptVersionInfo {
+  /** 0-based position of this prompt among its siblings (oldest → newest). */
+  index: number
+  /** Total number of sibling prompts (always ≥ 2 when this is non-null). */
+  total: number
+  /** Id of the previous / next sibling user node, or null at the ends. */
+  prevId: string | null
+  nextId: string | null
+}
+
 // ─── Attachment persistence ──────────────────────────────────────────────────
 // We embed attachment metadata at the top of the node's `content` column with
 // these markers, so attachments survive across branches without depending on
@@ -195,6 +207,10 @@ export interface AppContextType {
   setIsChatCollapsed: (b: boolean) => void
   handleSend: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
   handleNodeClick: (nodeId: string) => Promise<void>
+  /** Edit a prior user prompt: forks a new version from its parent and regenerates the reply. */
+  editUserMessage: (userNodeId: string, newText: string) => Promise<void>
+  /** Sibling-version info for a user prompt (the ‹ n/m › arrows), or null when it's the only version. */
+  promptVersionInfo: (userNodeId: string) => PromptVersionInfo | null
   switchConversation: (id: string) => Promise<void>
   createConversation: () => Promise<void>
   renameConversation: (id: string, name: string) => Promise<void>
@@ -1115,65 +1131,29 @@ export default function App() {
     [supabase]
   )
 
-  // ── Send a message ────────────────────────────────────────────────────────
-  const handleSend = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      // A programmatic send (project "start a new chat") passes its prompt via
-      // forcedSendRef, set synchronously just before requestSubmit(). Consume it
-      // here so we don't read a not-yet-committed `input`. Normal sends leave it
-      // null and fall back to the live input value.
-      const forced = forcedSendRef.current
-      forcedSendRef.current = null
-      const resolvedInput = forced ?? input
-      const hasText = resolvedInput.trim().length > 0
-      const hasAttachments = pendingAttachments.length > 0
-      if ((!hasText && !hasAttachments) || isLoading) return
+  // ── Shared generation core ────────────────────────────────────────────────
+  // The fetch → stream → persist tail shared by a normal send (handleSend) and
+  // an edited prompt (editUserMessage). The caller owns the optimistic UI
+  // (appending the user bubble, clearing the composer, marking in-flight); this
+  // owns the upload, the model call, the typewriter paint, saving the assistant
+  // node, and the fire-and-forget follow-ups. Pinned to `targetConvId` so a
+  // reply that lands after the user navigates away still saves to the right place.
+  const generateReply = useCallback(
+    async (p: {
+      targetConvId: string | null
+      parentId: string | null
+      userContent: string
+      attachments: AttachmentItem[] | undefined
+      nextMessages: ChatMessage[]
+      userMsgId: string
+      assistantId: string
+      autoTitleConversation: boolean
+    }) => {
+      const { targetConvId, parentId, userContent, nextMessages, userMsgId, assistantId } = p
 
-      // Pin this send to the conversation (and branch parent) it started in.
-      // If the user switches away before the reply lands, it still saves here
-      // instead of following whatever conversation becomes active.
-      const targetConvId = activeConvId
-      const parentId     = lastNodeIdRef.current
-
-      setChatError(null)
-      setSaveError(false)
-      setHighlightedMessageId(null)
-
-      const userContent             = resolvedInput.trim()
-      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
-      const now                      = Date.now()
-      const userMsg: ChatMessage = {
-        id: now.toString(), role: 'user', content: userContent,
-        timestamp: now, attachments: localAttachmentsSnapshot,
-      }
-      const assistantId = (now + 1).toString()
-
-      const nextMessages = [...messages, userMsg]
-      setMessages(nextMessages)
-      setInput('')
-      setPendingAttachments([])
-      if (targetConvId) markInFlight(targetConvId)
-
-      track('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
-        attachment_count: pendingAttachments.length,
-        conversation_length: messages.length,
-      })
-      trackEvent('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
-        conversation_length: messages.length,
-      })
-      if (isBranchPointRef.current) {
-        track('branch_created')
-        trackEvent('branch_created')
-        isBranchPointRef.current = false
-      }
-
-      // The snapshot we'll actually send and persist. Starts as the local
-      // (data: URL) snapshot, then upgrades to Storage-URL attachments once
-      // the upload step completes below.
-      let attachmentsSnapshot = localAttachmentsSnapshot
+      // The snapshot we'll actually send and persist. Starts as the caller's
+      // snapshot (possibly data: URLs), then upgrades to Storage URLs on upload.
+      let attachmentsSnapshot = p.attachments
       // Set once the user message is persisted (before the model call); the
       // assistant reply is then saved as this node's child after the stream.
       let savedUserNodeId: string | null = null
@@ -1182,9 +1162,9 @@ export default function App() {
         // Upload any newly-attached files (data: URLs) to Supabase Storage so
         // (1) the chat API request stays well under the 4.5 MB serverless cap,
         // and (2) the URL persists across branches without bloating the DB.
-        if (localAttachmentsSnapshot?.some((a) => a.dataUrl.startsWith('data:'))) {
+        if (attachmentsSnapshot?.some((a) => a.dataUrl.startsWith('data:'))) {
           const uploaded = await Promise.all(
-            localAttachmentsSnapshot.map(async (a) => {
+            attachmentsSnapshot.map(async (a) => {
               if (!a.dataUrl.startsWith('data:')) return a  // already a URL
               const r = await fetch('/api/upload-attachment', {
                 method: 'POST',
@@ -1200,7 +1180,7 @@ export default function App() {
           // Reflect the URL-backed attachments in the on-screen message too,
           // so subsequent renders don't keep huge base64 blobs in memory.
           setMessages((prev) => prev.map((m) =>
-            m.id === userMsg.id ? { ...m, attachments: uploaded } : m
+            m.id === userMsgId ? { ...m, attachments: uploaded } : m
           ))
         }
 
@@ -1214,7 +1194,7 @@ export default function App() {
 
         // Send messages with the post-upload attachments (URLs, not data:).
         const messagesForApi = nextMessages.map((m) =>
-          m.id === userMsg.id ? { ...m, attachments: attachmentsSnapshot } : m
+          m.id === userMsgId ? { ...m, attachments: attachmentsSnapshot } : m
         )
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -1281,6 +1261,15 @@ export default function App() {
           const isFirstPair = parentId === null
           const newPairId = await saveAssistantNode(targetConvId, savedUserNodeId, full)
 
+          // Reconcile the optimistic user-message id to its real node id, so the
+          // prompt can be edited / version-navigated without waiting for a
+          // reload. (The assistant keeps its local id — the memory badge below
+          // keys off it.) Only touches the live view when still on this conv.
+          if (activeConvIdRef.current === targetConvId) {
+            const realUserId = savedUserNodeId
+            setMessages((prev) => prev.map((m) => (m.id === userMsgId ? { ...m, id: realUserId } : m)))
+          }
+
           // Fire-and-forget: cross-chat memory extraction (Pro only, server-gated).
           // The route returns {saved: []} for free users so we never need to
           // branch on plan here.
@@ -1319,7 +1308,8 @@ export default function App() {
           }
 
           // Fire-and-forget: auto-title the conversation on its first message
-          if (isFirstPair) {
+          // (a normal send only — editing an existing prompt leaves the title).
+          if (isFirstPair && p.autoTitleConversation) {
             fetch('/api/autotitle', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1353,7 +1343,154 @@ export default function App() {
         if (targetConvId) clearInFlight(targetConvId)
       }
     },
-    [input, isLoading, messages, saveUserNode, saveAssistantNode, pendingAttachments, activeConvId, renameConversation, isPro, markInFlight, clearInFlight]
+    [saveUserNode, saveAssistantNode, isPro, clearInFlight, renameConversation],
+  )
+
+  // ── Send a message ────────────────────────────────────────────────────────
+  const handleSend = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      // A programmatic send (project "start a new chat") passes its prompt via
+      // forcedSendRef, set synchronously just before requestSubmit(). Consume it
+      // here so we don't read a not-yet-committed `input`. Normal sends leave it
+      // null and fall back to the live input value.
+      const forced = forcedSendRef.current
+      forcedSendRef.current = null
+      const resolvedInput = forced ?? input
+      const hasText = resolvedInput.trim().length > 0
+      const hasAttachments = pendingAttachments.length > 0
+      if ((!hasText && !hasAttachments) || isLoading) return
+
+      // Pin this send to the conversation (and branch parent) it started in.
+      // If the user switches away before the reply lands, it still saves here
+      // instead of following whatever conversation becomes active.
+      const targetConvId = activeConvId
+      const parentId     = lastNodeIdRef.current
+
+      setChatError(null)
+      setSaveError(false)
+      setHighlightedMessageId(null)
+
+      const userContent             = resolvedInput.trim()
+      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
+      const now                      = Date.now()
+      const userMsg: ChatMessage = {
+        id: now.toString(), role: 'user', content: userContent,
+        timestamp: now, attachments: localAttachmentsSnapshot,
+      }
+      const assistantId = (now + 1).toString()
+
+      const nextMessages = [...messages, userMsg]
+      setMessages(nextMessages)
+      setInput('')
+      setPendingAttachments([])
+      if (targetConvId) markInFlight(targetConvId)
+
+      track('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        attachment_count: pendingAttachments.length,
+        conversation_length: messages.length,
+      })
+      trackEvent('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        conversation_length: messages.length,
+      })
+      if (isBranchPointRef.current) {
+        track('branch_created')
+        trackEvent('branch_created')
+        isBranchPointRef.current = false
+      }
+
+      // Hand off to the shared generation core: it owns the upload, the model
+      // call, the typewriter paint, persisting the assistant reply, and the
+      // fire-and-forget follow-ups. A normal send auto-titles a brand-new
+      // conversation on its first message.
+      await generateReply({
+        targetConvId,
+        parentId,
+        userContent,
+        attachments: localAttachmentsSnapshot,
+        nextMessages,
+        userMsgId: userMsg.id,
+        assistantId,
+        autoTitleConversation: true,
+      })
+    },
+    [input, isLoading, messages, pendingAttachments, activeConvId, markInFlight, generateReply, setInput],
+  )
+
+  // ── Edit a prior prompt (Claude/GPT-style) ────────────────────────────────
+  // Editing a user message doesn't overwrite it — in a branching canvas it
+  // forks a NEW version from the SAME parent, regenerates the reply, and makes
+  // that branch the active path. The original prompt and its replies stay in
+  // the tree, reachable via the version arrows (‹ n/m ›) or the tree panel.
+  const editUserMessage = useCallback(
+    async (userNodeId: string, newText: string) => {
+      if (!activeConvId) return
+      const trimmed = newText.trim()
+      const orig = allDbNodes.find((n) => n.id === userNodeId && n.role === 'user')
+      if (!orig) return
+
+      const { text: origText, attachments: origAtts } = parseUserContent(orig.content)
+      // Unchanged (or empty) text → no-op, so we don't spawn a duplicate branch.
+      if (!trimmed || trimmed === origText.trim()) return
+
+      const parentId = orig.parent_id
+
+      // Rebuild the context prefix: the path from the root down to the edited
+      // prompt's parent (inclusive). Everything below the edit is replaced by
+      // the new branch we're about to grow.
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      const prefix: DbNode[] = []
+      let cur: DbNode | undefined = parentId ? nodeMap.get(parentId) : undefined
+      while (cur) {
+        prefix.unshift(cur)
+        cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
+      }
+      const prefixMessages = prefix.map(dbNodeToMessage)
+
+      // Carry the original prompt's attachments onto the edited version. They're
+      // already Storage URLs, so generateReply's upload step passes them through.
+      const attachmentItems: AttachmentItem[] | undefined = origAtts.length > 0
+        ? origAtts.map((a) => ({ name: a.name, type: a.type, dataUrl: a.url ?? '' }))
+        : undefined
+
+      setChatError(null)
+      setSaveError(false)
+      setHighlightedMessageId(null)
+
+      const now = Date.now()
+      const userMsg: ChatMessage = {
+        id: now.toString(), role: 'user', content: trimmed,
+        timestamp: now, attachments: attachmentItems,
+      }
+      const assistantId = (now + 1).toString()
+      const nextMessages = [...prefixMessages, userMsg]
+      setMessages(nextMessages)
+
+      // Branch from the edited prompt's parent; clear any stale branch-point
+      // flag so the next normal send isn't mis-tagged.
+      lastNodeIdRef.current = parentId
+      isBranchPointRef.current = false
+      markInFlight(activeConvId)
+
+      track('prompt_edited')
+      track('branch_created')
+      trackEvent('prompt_edited')
+      trackEvent('branch_created')
+
+      await generateReply({
+        targetConvId: activeConvId,
+        parentId,
+        userContent: trimmed,
+        attachments: attachmentItems,
+        nextMessages,
+        userMsgId: userMsg.id,
+        assistantId,
+        autoTitleConversation: false,
+      })
+    },
+    [activeConvId, allDbNodes, markInFlight, generateReply],
   )
 
   // ── Deliver a project's "start a new chat" prompt ─────────────────────────
@@ -1445,6 +1582,29 @@ export default function App() {
     [supabase, activeConvId]
   )
 
+  // ── Prompt version info (sibling user nodes) ──────────────────────────────
+  // Backs the ‹ n/m › indicator under an edited prompt. A user node's
+  // "versions" are its siblings — the other user nodes sharing its parent (the
+  // other edits/forks from that point). Returns null when there's only one.
+  const promptVersionInfo = useCallback(
+    (userNodeId: string): PromptVersionInfo | null => {
+      const node = allDbNodes.find((n) => n.id === userNodeId)
+      if (!node || node.role !== 'user') return null
+      const siblings = allDbNodes
+        .filter((n) => n.role === 'user' && (n.parent_id ?? null) === (node.parent_id ?? null))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      if (siblings.length <= 1) return null
+      const index = siblings.findIndex((s) => s.id === userNodeId)
+      return {
+        index,
+        total: siblings.length,
+        prevId: index > 0 ? siblings[index - 1].id : null,
+        nextId: index < siblings.length - 1 ? siblings[index + 1].id : null,
+      }
+    },
+    [allDbNodes],
+  )
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -1457,7 +1617,7 @@ export default function App() {
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     isUpgradeOpen, setIsUpgradeOpen,
     isChatCollapsed, setIsChatCollapsed,
-    handleSend, handleNodeClick, switchConversation, createConversation,
+    handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
     nodeColors, setNodeColor, nodeSummaries, chatInputRef,

@@ -460,13 +460,43 @@ function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; 
   )
 }
 
+// ── Prompt-version arrow (‹ / ›) ───────────────────────────────────────────────
+function VersionArrow({ dir, disabled, onClick }: { dir: 'prev' | 'next'; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={dir === 'prev' ? 'Previous version' : 'Next version'}
+      style={{
+        width: 18, height: 18, padding: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'transparent', border: 'none', borderRadius: 5,
+        color: 'var(--text-muted)',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.3 : 1,
+      }}
+    >
+      <svg width="7" height="10" viewBox="0 0 7 10" fill="none">
+        {dir === 'prev'
+          ? <path d="M5 1L1.5 5 5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          : <path d="M2 1l3.5 4L2 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />}
+      </svg>
+    </button>
+  )
+}
+
 // ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
-  const { isLoading, memorySavedByMsgId } = useApp()
+  const { isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick } = useApp()
   const savedMemories = !msg.role || msg.role === 'assistant' ? memorySavedByMsgId[msg.id] : undefined
   const isUser = msg.role === 'user'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
   const [elapsed, setElapsed] = useState(0)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(msg.content)
+  const [hovered, setHovered] = useState(false)
+  const editRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!isEmptyStreaming) { setElapsed(0); return }
@@ -475,12 +505,36 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
     return () => clearInterval(id)
   }, [isEmptyStreaming])
 
+  // Focus + size the inline editor when it opens; drop the caret at the end.
+  useEffect(() => {
+    if (!editing) return
+    const el = editRef.current
+    if (!el) return
+    el.focus()
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 240)}px`
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [editing])
+
   const images = (msg.attachments ?? []).filter((a) => a.type.startsWith('image/'))
   const files  = (msg.attachments ?? []).filter((a) => !a.type.startsWith('image/'))
+
+  const versions = isUser ? promptVersionInfo(msg.id) : null
+  const canEdit  = isUser && !isLoading
+
+  const cancelEdit = () => { setEditing(false); setDraft(msg.content) }
+  const saveEdit = () => {
+    const t = draft.trim()
+    if (!t) return
+    setEditing(false)
+    void editUserMessage(msg.id, t)
+  }
 
   return (
     <div
       data-highlighted-msg={isHighlighted ? 'true' : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}
     >
       {!isUser && (
@@ -539,42 +593,154 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
           </div>
         )}
 
-        {(!isUser || msg.content) && (
+        {/* Assistant bubble (markdown / streaming placeholder) */}
+        {!isUser && (
           <div
             style={{
-              maxWidth: isUser ? '76%' : '100%',
-              marginLeft: isUser ? 'auto' : 0,
-              padding: isUser ? '9px 14px' : '12px 15px',
-              borderRadius: isUser ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-              background: isUser ? 'var(--user-bubble-bg)' : 'var(--ai-card-bg)',
-              border: isUser && isHighlighted
-                ? '1px solid var(--accent)'
-                : isUser ? '1px solid var(--user-bubble-border)' : '1px solid var(--ai-card-border)',
+              maxWidth: '100%',
+              padding: '12px 15px',
+              borderRadius: '4px 14px 14px 14px',
+              background: 'var(--ai-card-bg)',
+              border: '1px solid var(--ai-card-border)',
               fontSize: 13, lineHeight: 1.65,
               color: 'var(--text-primary)', wordBreak: 'break-word',
-              boxShadow: isUser && isHighlighted
-                ? '0 0 0 3px var(--accent-bg)'
-                : isUser ? 'none' : 'var(--shadow-sm)',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            {isUser ? (
-              <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
-            ) : (
-              msg.content
-                ? <MarkdownContent content={msg.content} />
-                : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    {isEmptyStreaming && elapsed > 1
-                      ? `${elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'}… ${elapsed}s`
-                      : 'Thinking…'}
-                  </span>
-            )}
+            {msg.content
+              ? <MarkdownContent content={msg.content} />
+              : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  {isEmptyStreaming && elapsed > 1
+                    ? `${elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'}… ${elapsed}s`
+                    : 'Thinking…'}
+                </span>}
           </div>
         )}
 
-        {isUser && msg.timestamp && (
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'right', marginTop: 3 }}>
-            {formatTime(msg.timestamp)}
+        {/* User prompt — inline editor (Claude/GPT-style) */}
+        {isUser && editing && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <textarea
+              ref={editRef}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 240)}px`
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+                else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
+              }}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--input-bg)', border: '1px solid var(--accent)',
+                borderRadius: 12, padding: '10px 13px',
+                fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)',
+                resize: 'none', outline: 'none', fontFamily: 'inherit',
+                maxHeight: 240, overflowY: 'auto',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 'auto' }}>
+                Saving forks a new version — your original is kept.
+              </span>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                  background: 'transparent', border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)', cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={!draft.trim()}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: draft.trim() ? 'var(--accent)' : 'var(--bg-muted)',
+                  border: 'none',
+                  color: draft.trim() ? '#fff' : 'var(--text-muted)',
+                  cursor: draft.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Save &amp; submit
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* User prompt — bubble with hover-revealed edit affordance */}
+        {isUser && !editing && msg.content && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', gap: 6 }}>
+            {canEdit && (
+              <button
+                type="button"
+                title="Edit message"
+                onClick={() => { setDraft(msg.content); setEditing(true) }}
+                style={{
+                  width: 26, height: 26, flexShrink: 0, marginBottom: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none', borderRadius: 7,
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                  opacity: hovered ? 1 : 0,
+                  pointerEvents: hovered ? 'auto' : 'none',
+                  transition: 'opacity 0.12s, background 0.12s, color 0.12s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <path d="M9.4 2.1l2.5 2.5L5 11.5l-3 .5.5-3 6.9-6.9z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+            <div
+              style={{
+                maxWidth: '76%',
+                padding: '9px 14px',
+                borderRadius: '14px 14px 4px 14px',
+                background: 'var(--user-bubble-bg)',
+                border: isHighlighted ? '1px solid var(--accent)' : '1px solid var(--user-bubble-border)',
+                fontSize: 13, lineHeight: 1.65,
+                color: 'var(--text-primary)', wordBreak: 'break-word',
+                boxShadow: isHighlighted ? '0 0 0 3px var(--accent-bg)' : 'none',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+            >
+              <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+            </div>
+          </div>
+        )}
+
+        {/* User prompt footer: version arrows (‹ n/m ›) + timestamp */}
+        {isUser && !editing && (msg.timestamp || versions) && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 4 }}>
+            {versions && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, color: 'var(--text-muted)' }}>
+                <VersionArrow
+                  dir="prev"
+                  disabled={!versions.prevId}
+                  onClick={() => { if (versions.prevId) void handleNodeClick(versions.prevId) }}
+                />
+                <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center' }}>
+                  {versions.index + 1}/{versions.total}
+                </span>
+                <VersionArrow
+                  dir="next"
+                  disabled={!versions.nextId}
+                  onClick={() => { if (versions.nextId) void handleNodeClick(versions.nextId) }}
+                />
+              </span>
+            )}
+            {msg.timestamp && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{formatTime(msg.timestamp)}</span>
+            )}
           </div>
         )}
 
