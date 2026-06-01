@@ -127,9 +127,16 @@
 }
 .ln-nav > .ln-container {
   width: 100%;
+  max-width: none;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 32px;
+}
+.ln-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
 }
 .ln-wordmark {
   font-family: var(--font-bricolage, sans-serif);
@@ -145,7 +152,6 @@
   align-items: center;
   gap: 4px;
   list-style: none;
-  flex: 1;
 }
 .ln-nav-links a,
 .ln-nav-links button {
@@ -171,7 +177,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
 }
 .ln-theme-btn {
   width: 34px;
