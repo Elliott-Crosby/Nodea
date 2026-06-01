@@ -173,6 +173,16 @@ export interface DbNode {
   attachments?: NodeAttachment[] | null
 }
 
+// A reversible node deletion. We snapshot the deleted rows (parent-first, so a
+// re-insert satisfies the parent→child link) plus where to re-focus, so Ctrl+Z
+// or the undo toast can put them back exactly where they were.
+interface UndoEntry {
+  id: string
+  convId: string
+  nodes: DbNode[]
+  focusId: string
+}
+
 export interface AppContextType {
   conversations: Conversation[]
   activeConvId: string | null
@@ -207,6 +217,8 @@ export interface AppContextType {
   isPro: boolean
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
+  /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
+  deleteNode: (pairId: string) => Promise<boolean>
   nodeSummaries: Record<string, { title: string; summary: string }>
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   pendingAttachments: AttachmentItem[]
@@ -371,6 +383,11 @@ export default function App() {
   const [convMenu, setConvMenu] = useState<{ conv: Conversation; x: number; y: number } | null>(null)
   const [projectMenu, setProjectMenu] = useState<{ project: ChatProject; x: number; y: number } | null>(null)
 
+  // Undo: drives the bottom toast after a node deletion. The full history lives
+  // in undoStackRef (a ref, so pushing/popping doesn't re-render); the toast
+  // only needs to know which entry it's currently offering to undo.
+  const [undoToast, setUndoToast] = useState<{ id: string } | null>(null)
+
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
   const branchChoiceRef   = useRef<Map<string, string>>(new Map())
@@ -392,6 +409,11 @@ export default function App() {
   // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
   // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
   const inFlightRef       = useRef<Set<string>>(new Set())
+  // Recent reversible deletions (most-recent last). Capped so Ctrl+Z only ever
+  // reaches back over "the last few actions", not the whole session.
+  const undoStackRef        = useRef<UndoEntry[]>([])
+  const undoSeqRef          = useRef(0)
+  const undoToastTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
@@ -966,6 +988,10 @@ export default function App() {
     if (error) { console.error('Delete failed', error); return }
 
     track('conversation_deleted')
+    // Drop any pending node-undo entries for this conversation — its rows are
+    // gone for good, so Ctrl+Z must not try to restore them into a dead project.
+    undoStackRef.current = undoStackRef.current.filter((e) => e.convId !== id)
+    setUndoToast((t) => (t && !undoStackRef.current.some((e) => e.id === t.id) ? null : t))
     const remaining = conversations.filter((c) => c.id !== id)
     setConversations(remaining)
 
@@ -1423,6 +1449,175 @@ export default function App() {
     [supabase, activeConvId]
   )
 
+  // Surface the "Node deleted — Undo" toast for 10s. A fresh deletion replaces
+  // any current toast (and its timer), so the toast always tracks the latest.
+  const showUndoToast = useCallback((id: string) => {
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current)
+    setUndoToast({ id })
+    undoToastTimerRef.current = setTimeout(() => {
+      setUndoToast((t) => (t && t.id === id ? null : t))
+      undoToastTimerRef.current = null
+    }, 10000)
+  }, [])
+
+  // Clear the toast timer on unmount so it can't fire into a dead component.
+  useEffect(() => () => { if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current) }, [])
+
+  // ── Delete a node (a prompt + its reply) ──────────────────────────────────
+  // `pairId` is a tree pair id, i.e. the assistant node's id (or the user
+  // node's id when no reply exists yet). We delete the user node and its
+  // assistant reply together, but ONLY if nothing is forked beneath them —
+  // a node with branches below stays put so its descendants aren't orphaned.
+  const deleteNode = useCallback(
+    async (pairId: string): Promise<boolean> => {
+      if (!activeConvId) return false
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      const anchor = nodeMap.get(pairId)
+      if (!anchor) return false
+
+      // Resolve the user node + assistant node that make up this pair.
+      let userNode: DbNode | undefined
+      let aiNode: DbNode | undefined
+      if (anchor.role === 'assistant') {
+        aiNode = anchor
+        userNode = anchor.parent_id ? nodeMap.get(anchor.parent_id) : undefined
+      } else {
+        userNode = anchor
+        aiNode = allDbNodes.find((n) => n.parent_id === anchor.id && n.role === 'assistant')
+      }
+      if (!userNode) return false
+
+      const ids = new Set<string>([userNode.id])
+      if (aiNode) ids.add(aiNode.id)
+
+      // Guard: refuse if anything is forked beneath this pair. "Below" = any
+      // node parented to one of our nodes that isn't itself part of the pair.
+      const hasBranches = allDbNodes.some(
+        (n) => n.parent_id != null && ids.has(n.parent_id) && !ids.has(n.id),
+      )
+      if (hasBranches) return false
+
+      // Snapshot before deleting (user-first so an undo re-insert keeps the
+      // assistant's parent link valid). Captured here while the rows are still
+      // in hand; pushed to the undo stack only once the delete succeeds.
+      const snapshot: DbNode[] = aiNode ? [userNode, aiNode] : [userNode]
+      const focusId = aiNode?.id ?? userNode.id
+      const convId  = activeConvId
+
+      const idList = [...ids]
+      const { error } = await supabase.from('nodes').delete().in('id', idList)
+      if (error) { console.error('Delete node failed', error); return false }
+
+      // Record the deletion so Ctrl+Z / the toast can restore it.
+      const entry: UndoEntry = { id: `undo_${++undoSeqRef.current}`, convId, nodes: snapshot, focusId }
+      undoStackRef.current = [...undoStackRef.current, entry].slice(-30)
+      showUndoToast(entry.id)
+
+      // Drop the deleted rows from local state and forget their derived data.
+      setAllDbNodes((prev) => prev.filter((n) => !ids.has(n.id)))
+      setNodeColors((prev) => {
+        const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
+      })
+      setNodeSummaries((prev) => {
+        const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
+      })
+      idList.forEach((id) => { try { localStorage.removeItem(`node_meta_v1_${id}`) } catch {} })
+
+      // Re-anchor the view. If we deleted what was selected, fall back to the
+      // prompt's parent (the reply above it); deleting a root with no parent
+      // empties the conversation. handleNodeClick re-reads the now-trimmed tree
+      // and rebuilds the active path, so it stays consistent either way.
+      const selectionDeleted = selectedNodeId != null && ids.has(selectedNodeId)
+      const target = selectionDeleted ? userNode.parent_id : selectedNodeId
+      if (target) {
+        await handleNodeClick(target)
+      } else if (selectionDeleted) {
+        setMessages([])
+        setSelectedNodeId(null)
+        setHighlightedMessageId(null)
+        lastNodeIdRef.current = null
+        try { localStorage.removeItem(`lastNodeId_${activeConvId}`) } catch {}
+      }
+      return true
+    },
+    [activeConvId, allDbNodes, selectedNodeId, supabase, handleNodeClick, showUndoToast],
+  )
+
+  // ── Undo a node deletion ──────────────────────────────────────────────────
+  // Re-inserts the snapshotted rows (preserving their ids/created_at so they
+  // land back in their original spot), then brings them into view. Defaults to
+  // the most recent deletion (Ctrl+Z); the toast passes a specific entry id.
+  const undoDelete = useCallback(
+    async (entryId?: string): Promise<void> => {
+      const stack = undoStackRef.current
+      if (stack.length === 0) return
+      const idx = entryId ? stack.findIndex((e) => e.id === entryId) : stack.length - 1
+      if (idx < 0) return
+      const entry = stack[idx]
+
+      // Pop it up front so a double Ctrl+Z can't restore the same rows twice.
+      undoStackRef.current = [...stack.slice(0, idx), ...stack.slice(idx + 1)]
+      setUndoToast((t) => (t && t.id === entry.id ? null : t))
+
+      // If the conversation itself is gone, there's nowhere to restore to.
+      const conv = conversations.find((c) => c.id === entry.convId)
+      if (!conv) return
+
+      for (const n of entry.nodes) {
+        const row: Record<string, unknown> = {
+          id: n.id, project_id: n.project_id, parent_id: n.parent_id,
+          role: n.role, content: n.content,
+          position_x: n.position_x, position_y: n.position_y, created_at: n.created_at,
+        }
+        if (n.color) row.color = n.color
+        if (n.attachments && n.attachments.length) row.attachments = n.attachments
+        let { error } = await supabase.from('nodes').insert(row)
+        // Older schemas may lack the attachments column — retry without it (the
+        // content still carries the inline attachment marker, so nothing is lost).
+        if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+          delete row.attachments
+          ;({ error } = await supabase.from('nodes').insert(row))
+        }
+        if (error) { console.error('Undo restore failed', error); return }
+      }
+
+      // Restore any per-node colour we had cleared on delete.
+      setNodeColors((prev) => {
+        const next = { ...prev }
+        for (const n of entry.nodes) { if (n.color) next[n.id] = n.color }
+        return next
+      })
+
+      // Bring the node back into view and select it. Same conversation → just
+      // re-walk the tree; a different one → load it (seeding the saved-node so
+      // loadConversation lands on the restored node).
+      if (entry.convId === activeConvId) {
+        await handleNodeClick(entry.focusId)
+      } else {
+        try { localStorage.setItem(`lastNodeId_${entry.convId}`, entry.focusId) } catch {}
+        deleteIfEmpty()
+        await loadConversation(entry.convId, conv.name)
+      }
+    },
+    [activeConvId, supabase, handleNodeClick, conversations, deleteIfEmpty, loadConversation],
+  )
+
+  // Ctrl/Cmd+Z restores the most recent node deletion — but never while the
+  // user is typing (that's the browser's own text undo), and only when there's
+  // something to undo (so we don't swallow the shortcut otherwise).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.key !== 'z' && e.key !== 'Z') || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (undoStackRef.current.length === 0) return
+      e.preventDefault()
+      void undoDelete()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undoDelete])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -1438,7 +1633,7 @@ export default function App() {
     handleSend, handleNodeClick, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
-    nodeColors, setNodeColor, nodeSummaries, chatInputRef,
+    nodeColors, setNodeColor, deleteNode, nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
@@ -1565,6 +1760,54 @@ export default function App() {
           onDelete={() => setDeleteProjectState(projectMenu.project)}
           onClose={() => setProjectMenu(null)}
         />
+      )}
+
+      {/* Undo toast — appears for 10s after a node deletion (Ctrl/Cmd+Z also works) */}
+      {undoToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--modal-bg)', color: 'var(--text-primary)',
+            border: '1px solid var(--border-strong)', borderRadius: 12,
+            boxShadow: 'var(--shadow-lg)', padding: '10px 12px 10px 16px',
+            zIndex: 10000, fontSize: 13.5, maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+            </svg>
+            Node deleted
+          </span>
+          <button
+            type="button"
+            onClick={() => undoDelete(undoToast.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--accent)', fontWeight: 600, fontSize: 13.5, padding: '3px 5px', borderRadius: 6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 14L4 9l5-5" />
+              <path d="M4 9h11a5 5 0 0 1 0 10h-2" />
+            </svg>
+            Undo
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setUndoToast(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', lineHeight: 0, borderRadius: 6 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       )}
     </AppContext.Provider>
   )
