@@ -103,3 +103,6 @@ export function ProjectIcon({
 export const MAX_PINNED_PROJECTS = 3
 export const MAX_NAME_LENGTH = 80
 export const MAX_DESCRIPTION_LENGTH = 280
+// Project memory is longer-form context (injected into the system prompt for
+// the project's chats), so it gets a more generous cap than the description.
+export const MAX_PROJECT_MEMORY_LENGTH = 2000

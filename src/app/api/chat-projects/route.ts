@@ -21,6 +21,7 @@ export interface ChatProjectListItem {
   id: string
   name: string
   description: string
+  memory: string
   icon: string
   color: string
   pinned: boolean
@@ -78,6 +79,7 @@ export async function GET() {
       id: p.id,
       name: p.name,
       description: p.description ?? '',
+      memory: p.memory ?? '',
       icon: p.icon,
       color: p.color,
       pinned: p.pinned,

@@ -7,6 +7,7 @@ import {
   VALID_ICON_KEYS,
   MAX_NAME_LENGTH,
   MAX_DESCRIPTION_LENGTH,
+  MAX_PROJECT_MEMORY_LENGTH,
   MAX_PINNED_PROJECTS,
 } from '@/lib/chat-projects'
 
@@ -36,6 +37,7 @@ export async function PATCH(
   const body = await req.json().catch(() => ({})) as Partial<{
     name: string
     description: string
+    memory: string
     icon: string
     color: string
     pinned: boolean
@@ -60,6 +62,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'description_too_long', max: MAX_DESCRIPTION_LENGTH }, { status: 400 })
     }
     updates.description = description
+  }
+
+  if (body.memory !== undefined) {
+    const memory = String(body.memory).trim()
+    if (memory.length > MAX_PROJECT_MEMORY_LENGTH) {
+      return NextResponse.json({ error: 'memory_too_long', max: MAX_PROJECT_MEMORY_LENGTH }, { status: 400 })
+    }
+    updates.memory = memory
   }
 
   if (body.icon !== undefined) {

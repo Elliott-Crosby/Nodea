@@ -728,6 +728,28 @@ export default function App() {
     }
   }, [projectModalState])
 
+  // ── Save a project's memory box (inline edit on the project page) ───────────
+  // Resolves on success and throws on failure so the box can keep edit mode
+  // open and surface that it didn't save. 403 means the plan no longer allows
+  // editing — open the upgrade flow before bubbling the error up.
+  const saveProjectMemory = useCallback(async (projectId: string, memory: string) => {
+    const res = await fetch(`/api/chat-projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memory }),
+    })
+    if (res.status === 403) {
+      setIsUpgradeOpen(true)
+      throw new Error('pro_required')
+    }
+    if (!res.ok) {
+      console.error('[saveProjectMemory] failed', res.status)
+      throw new Error('save_failed')
+    }
+    const { project } = await res.json() as { project: ChatProject }
+    setChatProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, ...project } : p)))
+  }, [])
+
   // ── Delete project ─────────────────────────────────────────────────────────
   const confirmDeleteProject = useCallback(async (deleteConvs: boolean) => {
     if (!deleteProjectState) return
@@ -1197,7 +1219,7 @@ export default function App() {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: messagesForApi }),
+          body: JSON.stringify({ messages: messagesForApi, conversationId: targetConvId }),
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
@@ -1502,6 +1524,7 @@ export default function App() {
             onConvContext={(conv, x, y) => openConvContext(conv, x, y)}
             onEdit={() => setProjectModalState({ mode: 'edit', project: activeChatProject })}
             onDelete={() => setDeleteProjectState(activeChatProject)}
+            onSaveMemory={(memory) => saveProjectMemory(activeChatProject.id, memory)}
           />
         )}
       </div>

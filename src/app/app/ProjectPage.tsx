@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { ProjectIcon, colorById } from './projectConstants'
+import { ProjectIcon, colorById, MAX_PROJECT_MEMORY_LENGTH } from './projectConstants'
 import TreeThumb, { TreeStat, type MiniTree } from './TreeThumb'
 import type { Conversation } from './App'
 import type { ChatProject } from './chatProjectTypes'
@@ -25,6 +25,9 @@ interface Props {
   onConvContext: (conv: Conversation, x: number, y: number) => void
   onEdit: () => void
   onDelete: () => void
+  /** Persist the project's memory box. Rejects on failure so the editor can
+   *  keep its draft and surface the error. */
+  onSaveMemory: (memory: string) => Promise<void>
 }
 
 interface NodeRow {
@@ -53,7 +56,7 @@ function formatTime(iso: string): string {
 
 export default function ProjectPage({
   project, conversations,
-  onBack, onOpenConv, onNewChat, onConvContext, onEdit, onDelete,
+  onBack, onOpenConv, onNewChat, onConvContext, onEdit, onDelete, onSaveMemory,
 }: Props) {
   const supabase = useMemo(() => createClient(), [])
   const c = colorById(project.color)
@@ -137,7 +140,7 @@ export default function ProjectPage({
       {/* Colored top strip echoing the project color */}
       <div style={{ height: 3, background: c.hex }} />
 
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 32px 48px' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 32px 48px' }}>
         {/* Breadcrumb */}
         <button
           type="button"
@@ -156,6 +159,11 @@ export default function ProjectPage({
           </svg>
           All projects
         </button>
+
+        {/* Two-column body — conversations on the left, project memory on the right (Claude-style) */}
+        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* ── Main column ── */}
+        <div style={{ flex: '1 1 520px', minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 24, position: 'relative' }}>
@@ -360,6 +368,19 @@ export default function ProjectPage({
             </div>
           </div>
         </div>
+        {/* end main column */}
+        </div>
+
+        {/* ── Right column: project memory (Claude-style sidebar) ── */}
+        <aside style={{
+          flex: '0 0 320px',
+          maxWidth: '100%',
+          position: 'sticky', top: 24,
+        }}>
+          <MemoryBox project={project} color={c} onSave={onSaveMemory} />
+        </aside>
+        {/* end two-column body */}
+        </div>
       </div>
     </div>
   )
@@ -515,6 +536,232 @@ function SettingsMenu({
         </svg>
         Delete project
       </button>
+    </div>
+  )
+}
+
+// ─── Memory box — editable per-project context ───────────────────────────────
+// A project's `memory` is injected into the system prompt for every chat in the
+// project (Pro-gated, server-side). Edited inline here: view → Edit → Save.
+
+function MemoryBox({
+  project, color, onSave,
+}: {
+  project: ChatProject
+  color: ReturnType<typeof colorById>
+  onSave: (memory: string) => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft]     = useState(project.memory ?? '')
+  const [saving, setSaving]   = useState(false)
+  const [failed, setFailed]   = useState(false)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
+  // Stay in sync with the saved value whenever we're not mid-edit (e.g. the
+  // project reloaded, or it was changed in another tab).
+  useEffect(() => {
+    if (!editing) setDraft(project.memory ?? '')
+  }, [project.memory, editing])
+
+  // Focus + place the caret at the end when entering edit mode.
+  useEffect(() => {
+    if (editing && taRef.current) {
+      const el = taRef.current
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    }
+  }, [editing])
+
+  function startEdit() {
+    setDraft(project.memory ?? '')
+    setFailed(false)
+    setEditing(true)
+  }
+  function cancel() {
+    setEditing(false)
+    setFailed(false)
+    setDraft(project.memory ?? '')
+  }
+  async function save() {
+    if (saving) return
+    setSaving(true)
+    setFailed(false)
+    try {
+      await onSave(draft.trim())
+      setEditing(false)
+    } catch {
+      setFailed(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const memory = (project.memory ?? '').trim()
+
+  return (
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 14,
+      background: 'var(--bg-subtle)',
+      padding: '15px 16px',
+    }}>
+      {/* Header: title · "Only you" pill · edit pencil */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: editing || memory ? 12 : 10 }}>
+        <span style={{
+          flex: 1, minWidth: 0,
+          fontSize: 14.5, fontWeight: 650,
+          color: 'var(--text-primary)', letterSpacing: '-0.01em',
+        }}>
+          Memory
+        </span>
+        {!editing && (
+          <>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px', borderRadius: 999,
+              fontSize: 11, fontWeight: 500,
+              color: 'var(--text-muted)',
+              background: 'var(--bg-muted)',
+              border: '1px solid var(--border)',
+              flexShrink: 0,
+            }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+              Only you
+            </span>
+            <button
+              type="button"
+              onClick={startEdit}
+              title={memory ? 'Edit memory' : 'Add memory'}
+              aria-label={memory ? 'Edit memory' : 'Add memory'}
+              style={{
+                width: 28, height: 28, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'transparent', border: 'none', borderRadius: 7,
+                cursor: 'pointer', color: 'var(--text-muted)',
+              }}
+              onMouseEnter={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'var(--bg-muted)'; b.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'transparent'; b.style.color = 'var(--text-muted)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 20h4l10-10-4-4L4 16z" />
+                <path d="M13.5 6.5l4 4" />
+              </svg>
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Body */}
+      {editing ? (
+        <>
+          <textarea
+            ref={taRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, MAX_PROJECT_MEMORY_LENGTH))}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); cancel() }
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save() }
+            }}
+            rows={7}
+            placeholder="Context Nodea should remember for every chat in this project — goals, preferences, tone, key facts…"
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 9,
+              fontSize: 13,
+              lineHeight: 1.55,
+              border: '1px solid var(--border)',
+              background: 'var(--input-bg)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+              minHeight: 150,
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 }}>
+            <span style={{ fontSize: 11, color: failed ? 'var(--color-error)' : 'var(--text-muted)' }}>
+              {failed
+                ? "Couldn't save — try again"
+                : `${draft.length} / ${MAX_PROJECT_MEMORY_LENGTH}`}
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={cancel}
+                disabled={saving}
+                style={{
+                  padding: '7px 13px', borderRadius: 8,
+                  fontSize: 12.5, fontWeight: 500,
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                style={{
+                  padding: '7px 15px', borderRadius: 8,
+                  fontSize: 12.5, fontWeight: 600,
+                  border: 'none',
+                  background: saving ? 'var(--bg-muted)' : color.hex,
+                  color: saving ? 'var(--text-muted)' : '#fff',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : memory ? (
+        <>
+          <p style={{
+            margin: 0,
+            fontSize: 12.5, lineHeight: 1.55,
+            color: 'var(--text-secondary)',
+            display: '-webkit-box',
+            WebkitLineClamp: 4,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'break-word',
+          }}>
+            {memory}
+          </p>
+          {project.updated_at && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>
+              Last updated {formatTime(project.updated_at)}
+            </div>
+          )}
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          style={{
+            width: '100%', textAlign: 'left',
+            padding: '11px 12px',
+            borderRadius: 9,
+            border: '1px dashed var(--border-strong)',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            fontSize: 12, lineHeight: 1.5,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')}
+        >
+          Add context Nodea should keep in mind for every chat in this project.
+        </button>
+      )}
     </div>
   )
 }

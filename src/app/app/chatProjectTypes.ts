@@ -6,6 +6,10 @@ export interface ChatProject {
   id: string
   name: string
   description: string
+  /** Free-form context the user writes for the assistant. Injected into the
+   *  system prompt for every conversation in this project. Editable inline on
+   *  the project page. Defaults to ''. */
+  memory: string
   icon: string
   color: string
   pinned: boolean

@@ -5,6 +5,7 @@ import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-
 import { isAdmin } from '@/lib/admin'
 import { selectChatModel, supportsWebSearch } from '@/lib/models'
 import { loadUserMemories, formatMemoryBlock } from '@/lib/memory'
+import { loadProjectMemoryForConversation, formatProjectMemoryBlock } from '@/lib/chat-projects'
 
 const BASE_SYSTEM_PROMPT =
   'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.'
@@ -83,7 +84,10 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const { messages } = await req.json() as { messages: IncomingMessage[] }
+  const { messages, conversationId } = await req.json() as {
+    messages: IncomingMessage[]
+    conversationId?: string
+  }
 
   const validMessages = messages.filter(msg => (msg.content ?? '').trim() || (msg.attachments ?? []).length > 0)
 
@@ -124,7 +128,14 @@ export async function POST(req: Request) {
   const memoryBlock = isPro
     ? formatMemoryBlock(await loadUserMemories(user.id, supabase))
     : ''
-  const systemPrompt = BASE_SYSTEM_PROMPT + memoryBlock
+  // Project memory: persistent context the user set on the project this
+  // conversation is filed under. Pro-gated, same as cross-chat memory.
+  const projectMemoryBlock = isPro && conversationId
+    ? formatProjectMemoryBlock(
+        await loadProjectMemoryForConversation(conversationId, user.id, supabase),
+      )
+    : ''
+  const systemPrompt = BASE_SYSTEM_PROMPT + memoryBlock + projectMemoryBlock
 
   const modelMessages = await Promise.all(validMessages.map(async (msg) => {
     if (msg.role !== 'user') {
