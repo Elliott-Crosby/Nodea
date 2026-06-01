@@ -10,15 +10,18 @@ export default function Nav() {
   return (
     <nav className="ln-nav">
       <div className="ln-container">
-        <Link href="/" className="ln-wordmark">Nodea</Link>
+        <div className="ln-nav-left">
+          <Link href="/" className="ln-wordmark">Nodea</Link>
 
-        <ul className="ln-nav-links">
-          <li><Link href="/what-is-nodea">What is Nodea</Link></li>
-          <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="#features">Features</a></li>
-          <li><Link href="/blog">Blog</Link></li>
-          <li><Link href="/upgrade">Pricing</Link></li>
-        </ul>
+          <ul className="ln-nav-links">
+            <li><Link href="/what-is-nodea">What is Nodea</Link></li>
+            <li><a href="#how-it-works">How it works</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><Link href="/blog">Blog</Link></li>
+            <li><Link href="/upgrade">Pricing</Link></li>
+            <li><Link href="/demo">Demo</Link></li>
+          </ul>
+        </div>
 
         <div className="ln-nav-actions">
           <button

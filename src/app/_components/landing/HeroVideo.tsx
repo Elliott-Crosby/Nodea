@@ -44,6 +44,9 @@ export default function HeroVideo() {
             <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
               Create your first canvas
             </Link>
+            <Link href="/demo" className="ln-btn ln-btn-outline ln-btn-lg">
+              Try it live →
+            </Link>
             <button
               type="button"
               className="ln-btn ln-btn-outline ln-btn-lg"
