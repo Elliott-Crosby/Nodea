@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import SocialLinks from './SocialLinks'
 
 export default function Footer() {
   return (
@@ -7,6 +8,7 @@ export default function Footer() {
         <div className="ln-footer-brand">
           <Link href="/" className="ln-wordmark" style={{ fontSize: 22 }}>Nodea</Link>
           <span className="ln-footer-tagline">Think in branches.</span>
+          <SocialLinks className="ln-footer-social" />
         </div>
 
         <nav className="ln-footer-links">

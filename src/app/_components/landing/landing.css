@@ -976,6 +976,105 @@
   .ln-footer-links { justify-content: center; }
 }
 
+/* ── Social link pills — Treatment B (footer) + U2 (under the hero demo) ──
+   The link set lives in SocialLinks.tsx. Styles use the global theme tokens
+   so the pills render correctly in light + dark wherever the footer appears. */
+.soc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.soc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, transform .15s;
+}
+.soc-pill svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+.soc-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.soc-count {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-left: 9px;
+  margin-left: 2px;
+  border-left: 1px solid var(--border);
+}
+.soc-pill.primary {
+  background: var(--accent-bg);
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--accent-text);
+}
+.soc-pill.primary .soc-count {
+  color: var(--accent-text);
+  border-left-color: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+.soc-pill.primary:hover {
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* Footer (B): sits under the tagline inside the brand block. */
+.ln-footer-social { margin-top: 10px; }
+
+/* Under the hero demo (U2): a column wrapper holds the two-column grid, with
+   the social row centered in the band beneath it. */
+.ln-split-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+.ln-split-inner > .ln-split-grid { width: 100%; }
+
+/* Larger, gently glowing social row centered below the hero. */
+.ln-hero-social {
+  position: relative;
+  justify-content: center;
+  gap: 14px;
+}
+.ln-hero-social::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(520px, 92%);
+  height: 140px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(60% 60% at 50% 50%,
+    color-mix(in oklab, var(--accent) 16%, transparent) 0%, transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+}
+.ln-hero-social .soc-pill {
+  position: relative;
+  z-index: 1;
+  height: 46px;
+  padding: 0 20px;
+  font-size: 15px;
+  border-radius: 12px;
+  gap: 10px;
+}
+.ln-hero-social .soc-pill svg { width: 18px; height: 18px; }
+.ln-hero-social .soc-count { font-size: 13px; padding-left: 11px; }
+.ln-hero-social .soc-pill.primary {
+  box-shadow: 0 4px 20px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
 /* ── Keyframes ───────────────────────────────────────────────── */
 @keyframes ln-fadeup {
   from { opacity: 0; transform: translateY(8px); }
