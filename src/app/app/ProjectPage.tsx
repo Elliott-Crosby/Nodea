@@ -72,6 +72,11 @@ export default function ProjectPage({
   const [draft, setDraft] = useState('')
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  // Below ~880px the 320px memory rail can't sit beside the conversations, so we
+  // stack it inline (above the conversation list) rather than letting flex-wrap
+  // push it off the bottom of the page where it looks like it's gone.
+  const screenRef = useRef<HTMLDivElement>(null)
+  const [narrow, setNarrow] = useState(false)
 
   // Fetch one tree per conversation, in parallel. Each tree is cached in
   // state so re-renders don't re-fetch.
@@ -129,6 +134,18 @@ export default function ProjectPage({
     if (inputRef.current) autoResize(inputRef.current)
   }, [draft])
 
+  // Track panel width so the memory rail can reflow inline instead of wrapping
+  // off the bottom of the page on narrower windows.
+  useEffect(() => {
+    const el = screenRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = (w: number) => setNarrow(w < 880)
+    measure(el.clientWidth)
+    const ro = new ResizeObserver((entries) => measure(entries[0]?.contentRect.width ?? el.clientWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     onNewChat(draft.trim() || undefined)
@@ -136,7 +153,7 @@ export default function ProjectPage({
   }
 
   return (
-    <div data-screen="project-page" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+    <div ref={screenRef} data-screen="project-page" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
       {/* Colored top strip echoing the project color */}
       <div style={{ height: 3, background: c.hex }} />
 
@@ -161,9 +178,9 @@ export default function ProjectPage({
         </button>
 
         {/* Two-column body — conversations on the left, project memory on the right (Claude-style) */}
-        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
         {/* ── Main column ── */}
-        <div style={{ flex: '1 1 520px', minWidth: 0 }}>
+        <div style={{ flex: '1 1 0%', minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 24, position: 'relative' }}>
@@ -298,6 +315,13 @@ export default function ProjectPage({
           </button>
         </form>
 
+        {/* Memory — stacked inline on narrow widths so it never gets buried */}
+        {narrow && (
+          <div style={{ marginBottom: 22 }}>
+            <MemoryBox project={project} color={c} onSave={onSaveMemory} />
+          </div>
+        )}
+
         {/* Conversation list */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, padding: '0 2px' }}>
           <span style={{
@@ -371,14 +395,15 @@ export default function ProjectPage({
         {/* end main column */}
         </div>
 
-        {/* ── Right column: project memory (Claude-style sidebar) ── */}
-        <aside style={{
-          flex: '0 0 320px',
-          maxWidth: '100%',
-          position: 'sticky', top: 24,
-        }}>
-          <MemoryBox project={project} color={c} onSave={onSaveMemory} />
-        </aside>
+        {/* ── Right column: project memory rail (Claude-style), wide screens only ── */}
+        {!narrow && (
+          <aside style={{
+            flex: '0 0 320px',
+            position: 'sticky', top: 24,
+          }}>
+            <MemoryBox project={project} color={c} onSave={onSaveMemory} />
+          </aside>
+        )}
         {/* end two-column body */}
         </div>
       </div>

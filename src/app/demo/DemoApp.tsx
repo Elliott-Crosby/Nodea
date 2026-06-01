@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { track } from '@vercel/analytics'
+import { Play, X, Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/lib/theme'
 import DemoTree from './DemoTree'
 import {
   SEED_NODES,
@@ -107,6 +109,12 @@ function autoResize(el: HTMLTextAreaElement) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px'
 }
 
+// Same product video as the landing page's "Watch demo".
+const DEMO_VIDEO_ID = 'QJrIkAfZxrE'
+const DEMO_VIDEO_SRC =
+  `https://www.youtube-nocookie.com/embed/${DEMO_VIDEO_ID}` +
+  `?autoplay=1&rel=0&modestbranding=1&playsinline=1&vq=hd1080&hd=1`
+
 const WALL_BENEFITS = [
   'Smarter models — Sonnet & Opus',
   'Full-length, in-depth answers',
@@ -116,6 +124,7 @@ const WALL_BENEFITS = [
 ]
 
 export default function DemoApp() {
+  const { theme, toggleTheme } = useTheme()
   const [nodes, setNodes]           = useState<DemoNode[]>(SEED_NODES)
   const [meta, setMeta]             = useState<Record<string, NodeMeta>>(SEED_META)
   const [selectedId, setSelectedId] = useState<string | null>(DEMO_INITIAL_SELECTED)
@@ -125,6 +134,7 @@ export default function DemoApp() {
   const [sentCount, setSentCount]   = useState(0)
   const [showWall, setShowWall]     = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const [showVideo, setShowVideo]   = useState(false)
 
   const idRef       = useRef(1000)
   const scrollRef   = useRef<HTMLDivElement>(null)
@@ -142,6 +152,18 @@ export default function DemoApp() {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [thread, isStreaming])
+
+  // Close the video popup on Esc; lock background scroll while it's open.
+  useEffect(() => {
+    if (!showVideo) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowVideo(false) }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [showVideo])
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id)
@@ -255,15 +277,35 @@ export default function DemoApp() {
 
   return (
     <div className="demo-root">
-      {/* ── Top bar ── */}
-      <header className="demo-topbar">
-        <div className="demo-topbar-left">
+      {/* ── Heading bar (same as the site nav, with Demo highlighted) ── */}
+      <header className="demo-nav">
+        <div className="demo-nav-left">
           <Link href="/" className="demo-wordmark">Nodea</Link>
-          <span className="demo-pill">Demo</span>
+          <ul className="demo-nav-links">
+            <li><Link href="/what-is-nodea">What is Nodea</Link></li>
+            <li><a href="/#how-it-works">How it works</a></li>
+            <li><a href="/#features">Features</a></li>
+            <li><Link href="/blog">Blog</Link></li>
+            <li><Link href="/upgrade">Pricing</Link></li>
+            <li><Link href="/demo" className="demo-nav-active" aria-current="page">Demo</Link></li>
+          </ul>
         </div>
-        <Link href="/login" className="demo-btn demo-btn-primary demo-btn-sm">
-          Sign up free
-        </Link>
+        <div className="demo-nav-actions">
+          <button type="button" className="demo-video-btn" onClick={() => setShowVideo(true)}>
+            <Play size={14} fill="currentColor" />
+            <span className="demo-video-btn-label">Watch demo</span>
+          </button>
+          <button
+            type="button"
+            className="demo-theme-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <Link href="/login" className="demo-nav-ghost">Sign in</Link>
+          <Link href="/login" className="demo-btn demo-btn-primary demo-btn-sm">Get started</Link>
+        </div>
       </header>
 
       {/* ── Banner ── */}
@@ -385,6 +427,28 @@ export default function DemoApp() {
             <button className="demo-wall-later" onClick={() => setShowWall(false)}>
               Keep looking around
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Demo video popup (same modal as the front page) ── */}
+      {showVideo && (
+        <div className="demo-video-modal" onClick={() => setShowVideo(false)}>
+          <div className="demo-video-frame" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="demo-video-close"
+              onClick={() => setShowVideo(false)}
+              aria-label="Close video"
+            >
+              <X size={16} /> Close · Esc
+            </button>
+            <iframe
+              src={DEMO_VIDEO_SRC}
+              title="Nodea — branching AI chat canvas"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
           </div>
         </div>
       )}

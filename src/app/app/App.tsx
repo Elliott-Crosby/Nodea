@@ -54,6 +54,18 @@ export interface NodeAttachment {
   url?: string  // Supabase Storage URL — present once the file has been uploaded
 }
 
+// The ‹ n/m › prompt-version indicator. A user node's "versions" are its
+// siblings — the other user nodes forked from the same parent (i.e. the edits).
+export interface PromptVersionInfo {
+  /** 0-based position of this prompt among its siblings (oldest → newest). */
+  index: number
+  /** Total number of sibling prompts (always ≥ 2 when this is non-null). */
+  total: number
+  /** Id of the previous / next sibling user node, or null at the ends. */
+  prevId: string | null
+  nextId: string | null
+}
+
 // ─── Attachment persistence ──────────────────────────────────────────────────
 // We embed attachment metadata at the top of the node's `content` column with
 // these markers, so attachments survive across branches without depending on
@@ -173,6 +185,16 @@ export interface DbNode {
   attachments?: NodeAttachment[] | null
 }
 
+// A reversible node deletion. We snapshot the deleted rows (parent-first, so a
+// re-insert satisfies the parent→child link) plus where to re-focus, so Ctrl+Z
+// or the undo toast can put them back exactly where they were.
+interface UndoEntry {
+  id: string
+  convId: string
+  nodes: DbNode[]
+  focusId: string
+}
+
 export interface AppContextType {
   conversations: Conversation[]
   activeConvId: string | null
@@ -195,6 +217,10 @@ export interface AppContextType {
   setIsChatCollapsed: (b: boolean) => void
   handleSend: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
   handleNodeClick: (nodeId: string) => Promise<void>
+  /** Edit a prior user prompt: forks a new version from its parent and regenerates the reply. */
+  editUserMessage: (userNodeId: string, newText: string) => Promise<void>
+  /** Sibling-version info for a user prompt (the ‹ n/m › arrows), or null when it's the only version. */
+  promptVersionInfo: (userNodeId: string) => PromptVersionInfo | null
   switchConversation: (id: string) => Promise<void>
   createConversation: () => Promise<void>
   renameConversation: (id: string, name: string) => Promise<void>
@@ -207,6 +233,8 @@ export interface AppContextType {
   isPro: boolean
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
+  /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
+  deleteNode: (pairId: string) => Promise<boolean>
   nodeSummaries: Record<string, { title: string; summary: string }>
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   pendingAttachments: AttachmentItem[]
@@ -371,6 +399,11 @@ export default function App() {
   const [convMenu, setConvMenu] = useState<{ conv: Conversation; x: number; y: number } | null>(null)
   const [projectMenu, setProjectMenu] = useState<{ project: ChatProject; x: number; y: number } | null>(null)
 
+  // Undo: drives the bottom toast after a node deletion. The full history lives
+  // in undoStackRef (a ref, so pushing/popping doesn't re-render); the toast
+  // only needs to know which entry it's currently offering to undo.
+  const [undoToast, setUndoToast] = useState<{ id: string } | null>(null)
+
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
   const branchChoiceRef   = useRef<Map<string, string>>(new Map())
@@ -392,6 +425,11 @@ export default function App() {
   // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
   // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
   const inFlightRef       = useRef<Set<string>>(new Set())
+  // Recent reversible deletions (most-recent last). Capped so Ctrl+Z only ever
+  // reaches back over "the last few actions", not the whole session.
+  const undoStackRef        = useRef<UndoEntry[]>([])
+  const undoSeqRef          = useRef(0)
+  const undoToastTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
@@ -988,6 +1026,10 @@ export default function App() {
     if (error) { console.error('Delete failed', error); return }
 
     track('conversation_deleted')
+    // Drop any pending node-undo entries for this conversation — its rows are
+    // gone for good, so Ctrl+Z must not try to restore them into a dead project.
+    undoStackRef.current = undoStackRef.current.filter((e) => e.convId !== id)
+    setUndoToast((t) => (t && !undoStackRef.current.some((e) => e.id === t.id) ? null : t))
     const remaining = conversations.filter((c) => c.id !== id)
     setConversations(remaining)
 
@@ -1115,65 +1157,29 @@ export default function App() {
     [supabase]
   )
 
-  // ── Send a message ────────────────────────────────────────────────────────
-  const handleSend = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      // A programmatic send (project "start a new chat") passes its prompt via
-      // forcedSendRef, set synchronously just before requestSubmit(). Consume it
-      // here so we don't read a not-yet-committed `input`. Normal sends leave it
-      // null and fall back to the live input value.
-      const forced = forcedSendRef.current
-      forcedSendRef.current = null
-      const resolvedInput = forced ?? input
-      const hasText = resolvedInput.trim().length > 0
-      const hasAttachments = pendingAttachments.length > 0
-      if ((!hasText && !hasAttachments) || isLoading) return
+  // ── Shared generation core ────────────────────────────────────────────────
+  // The fetch → stream → persist tail shared by a normal send (handleSend) and
+  // an edited prompt (editUserMessage). The caller owns the optimistic UI
+  // (appending the user bubble, clearing the composer, marking in-flight); this
+  // owns the upload, the model call, the typewriter paint, saving the assistant
+  // node, and the fire-and-forget follow-ups. Pinned to `targetConvId` so a
+  // reply that lands after the user navigates away still saves to the right place.
+  const generateReply = useCallback(
+    async (p: {
+      targetConvId: string | null
+      parentId: string | null
+      userContent: string
+      attachments: AttachmentItem[] | undefined
+      nextMessages: ChatMessage[]
+      userMsgId: string
+      assistantId: string
+      autoTitleConversation: boolean
+    }) => {
+      const { targetConvId, parentId, userContent, nextMessages, userMsgId, assistantId } = p
 
-      // Pin this send to the conversation (and branch parent) it started in.
-      // If the user switches away before the reply lands, it still saves here
-      // instead of following whatever conversation becomes active.
-      const targetConvId = activeConvId
-      const parentId     = lastNodeIdRef.current
-
-      setChatError(null)
-      setSaveError(false)
-      setHighlightedMessageId(null)
-
-      const userContent             = resolvedInput.trim()
-      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
-      const now                      = Date.now()
-      const userMsg: ChatMessage = {
-        id: now.toString(), role: 'user', content: userContent,
-        timestamp: now, attachments: localAttachmentsSnapshot,
-      }
-      const assistantId = (now + 1).toString()
-
-      const nextMessages = [...messages, userMsg]
-      setMessages(nextMessages)
-      setInput('')
-      setPendingAttachments([])
-      if (targetConvId) markInFlight(targetConvId)
-
-      track('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
-        attachment_count: pendingAttachments.length,
-        conversation_length: messages.length,
-      })
-      trackEvent('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
-        conversation_length: messages.length,
-      })
-      if (isBranchPointRef.current) {
-        track('branch_created')
-        trackEvent('branch_created')
-        isBranchPointRef.current = false
-      }
-
-      // The snapshot we'll actually send and persist. Starts as the local
-      // (data: URL) snapshot, then upgrades to Storage-URL attachments once
-      // the upload step completes below.
-      let attachmentsSnapshot = localAttachmentsSnapshot
+      // The snapshot we'll actually send and persist. Starts as the caller's
+      // snapshot (possibly data: URLs), then upgrades to Storage URLs on upload.
+      let attachmentsSnapshot = p.attachments
       // Set once the user message is persisted (before the model call); the
       // assistant reply is then saved as this node's child after the stream.
       let savedUserNodeId: string | null = null
@@ -1182,9 +1188,9 @@ export default function App() {
         // Upload any newly-attached files (data: URLs) to Supabase Storage so
         // (1) the chat API request stays well under the 4.5 MB serverless cap,
         // and (2) the URL persists across branches without bloating the DB.
-        if (localAttachmentsSnapshot?.some((a) => a.dataUrl.startsWith('data:'))) {
+        if (attachmentsSnapshot?.some((a) => a.dataUrl.startsWith('data:'))) {
           const uploaded = await Promise.all(
-            localAttachmentsSnapshot.map(async (a) => {
+            attachmentsSnapshot.map(async (a) => {
               if (!a.dataUrl.startsWith('data:')) return a  // already a URL
               const r = await fetch('/api/upload-attachment', {
                 method: 'POST',
@@ -1200,7 +1206,7 @@ export default function App() {
           // Reflect the URL-backed attachments in the on-screen message too,
           // so subsequent renders don't keep huge base64 blobs in memory.
           setMessages((prev) => prev.map((m) =>
-            m.id === userMsg.id ? { ...m, attachments: uploaded } : m
+            m.id === userMsgId ? { ...m, attachments: uploaded } : m
           ))
         }
 
@@ -1214,7 +1220,7 @@ export default function App() {
 
         // Send messages with the post-upload attachments (URLs, not data:).
         const messagesForApi = nextMessages.map((m) =>
-          m.id === userMsg.id ? { ...m, attachments: attachmentsSnapshot } : m
+          m.id === userMsgId ? { ...m, attachments: attachmentsSnapshot } : m
         )
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -1281,6 +1287,15 @@ export default function App() {
           const isFirstPair = parentId === null
           const newPairId = await saveAssistantNode(targetConvId, savedUserNodeId, full)
 
+          // Reconcile the optimistic user-message id to its real node id, so the
+          // prompt can be edited / version-navigated without waiting for a
+          // reload. (The assistant keeps its local id — the memory badge below
+          // keys off it.) Only touches the live view when still on this conv.
+          if (activeConvIdRef.current === targetConvId) {
+            const realUserId = savedUserNodeId
+            setMessages((prev) => prev.map((m) => (m.id === userMsgId ? { ...m, id: realUserId } : m)))
+          }
+
           // Fire-and-forget: cross-chat memory extraction (Pro only, server-gated).
           // The route returns {saved: []} for free users so we never need to
           // branch on plan here.
@@ -1319,7 +1334,8 @@ export default function App() {
           }
 
           // Fire-and-forget: auto-title the conversation on its first message
-          if (isFirstPair) {
+          // (a normal send only — editing an existing prompt leaves the title).
+          if (isFirstPair && p.autoTitleConversation) {
             fetch('/api/autotitle', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1353,7 +1369,154 @@ export default function App() {
         if (targetConvId) clearInFlight(targetConvId)
       }
     },
-    [input, isLoading, messages, saveUserNode, saveAssistantNode, pendingAttachments, activeConvId, renameConversation, isPro, markInFlight, clearInFlight]
+    [saveUserNode, saveAssistantNode, isPro, clearInFlight, renameConversation],
+  )
+
+  // ── Send a message ────────────────────────────────────────────────────────
+  const handleSend = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      // A programmatic send (project "start a new chat") passes its prompt via
+      // forcedSendRef, set synchronously just before requestSubmit(). Consume it
+      // here so we don't read a not-yet-committed `input`. Normal sends leave it
+      // null and fall back to the live input value.
+      const forced = forcedSendRef.current
+      forcedSendRef.current = null
+      const resolvedInput = forced ?? input
+      const hasText = resolvedInput.trim().length > 0
+      const hasAttachments = pendingAttachments.length > 0
+      if ((!hasText && !hasAttachments) || isLoading) return
+
+      // Pin this send to the conversation (and branch parent) it started in.
+      // If the user switches away before the reply lands, it still saves here
+      // instead of following whatever conversation becomes active.
+      const targetConvId = activeConvId
+      const parentId     = lastNodeIdRef.current
+
+      setChatError(null)
+      setSaveError(false)
+      setHighlightedMessageId(null)
+
+      const userContent             = resolvedInput.trim()
+      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
+      const now                      = Date.now()
+      const userMsg: ChatMessage = {
+        id: now.toString(), role: 'user', content: userContent,
+        timestamp: now, attachments: localAttachmentsSnapshot,
+      }
+      const assistantId = (now + 1).toString()
+
+      const nextMessages = [...messages, userMsg]
+      setMessages(nextMessages)
+      setInput('')
+      setPendingAttachments([])
+      if (targetConvId) markInFlight(targetConvId)
+
+      track('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        attachment_count: pendingAttachments.length,
+        conversation_length: messages.length,
+      })
+      trackEvent('message_sent', {
+        has_attachment: pendingAttachments.length > 0,
+        conversation_length: messages.length,
+      })
+      if (isBranchPointRef.current) {
+        track('branch_created')
+        trackEvent('branch_created')
+        isBranchPointRef.current = false
+      }
+
+      // Hand off to the shared generation core: it owns the upload, the model
+      // call, the typewriter paint, persisting the assistant reply, and the
+      // fire-and-forget follow-ups. A normal send auto-titles a brand-new
+      // conversation on its first message.
+      await generateReply({
+        targetConvId,
+        parentId,
+        userContent,
+        attachments: localAttachmentsSnapshot,
+        nextMessages,
+        userMsgId: userMsg.id,
+        assistantId,
+        autoTitleConversation: true,
+      })
+    },
+    [input, isLoading, messages, pendingAttachments, activeConvId, markInFlight, generateReply, setInput],
+  )
+
+  // ── Edit a prior prompt (Claude/GPT-style) ────────────────────────────────
+  // Editing a user message doesn't overwrite it — in a branching canvas it
+  // forks a NEW version from the SAME parent, regenerates the reply, and makes
+  // that branch the active path. The original prompt and its replies stay in
+  // the tree, reachable via the version arrows (‹ n/m ›) or the tree panel.
+  const editUserMessage = useCallback(
+    async (userNodeId: string, newText: string) => {
+      if (!activeConvId) return
+      const trimmed = newText.trim()
+      const orig = allDbNodes.find((n) => n.id === userNodeId && n.role === 'user')
+      if (!orig) return
+
+      const { text: origText, attachments: origAtts } = parseUserContent(orig.content)
+      // Unchanged (or empty) text → no-op, so we don't spawn a duplicate branch.
+      if (!trimmed || trimmed === origText.trim()) return
+
+      const parentId = orig.parent_id
+
+      // Rebuild the context prefix: the path from the root down to the edited
+      // prompt's parent (inclusive). Everything below the edit is replaced by
+      // the new branch we're about to grow.
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      const prefix: DbNode[] = []
+      let cur: DbNode | undefined = parentId ? nodeMap.get(parentId) : undefined
+      while (cur) {
+        prefix.unshift(cur)
+        cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
+      }
+      const prefixMessages = prefix.map(dbNodeToMessage)
+
+      // Carry the original prompt's attachments onto the edited version. They're
+      // already Storage URLs, so generateReply's upload step passes them through.
+      const attachmentItems: AttachmentItem[] | undefined = origAtts.length > 0
+        ? origAtts.map((a) => ({ name: a.name, type: a.type, dataUrl: a.url ?? '' }))
+        : undefined
+
+      setChatError(null)
+      setSaveError(false)
+      setHighlightedMessageId(null)
+
+      const now = Date.now()
+      const userMsg: ChatMessage = {
+        id: now.toString(), role: 'user', content: trimmed,
+        timestamp: now, attachments: attachmentItems,
+      }
+      const assistantId = (now + 1).toString()
+      const nextMessages = [...prefixMessages, userMsg]
+      setMessages(nextMessages)
+
+      // Branch from the edited prompt's parent; clear any stale branch-point
+      // flag so the next normal send isn't mis-tagged.
+      lastNodeIdRef.current = parentId
+      isBranchPointRef.current = false
+      markInFlight(activeConvId)
+
+      track('prompt_edited')
+      track('branch_created')
+      trackEvent('prompt_edited')
+      trackEvent('branch_created')
+
+      await generateReply({
+        targetConvId: activeConvId,
+        parentId,
+        userContent: trimmed,
+        attachments: attachmentItems,
+        nextMessages,
+        userMsgId: userMsg.id,
+        assistantId,
+        autoTitleConversation: false,
+      })
+    },
+    [activeConvId, allDbNodes, markInFlight, generateReply],
   )
 
   // ── Deliver a project's "start a new chat" prompt ─────────────────────────
@@ -1445,6 +1608,198 @@ export default function App() {
     [supabase, activeConvId]
   )
 
+  // ── Prompt version info (sibling user nodes) ──────────────────────────────
+  // Backs the ‹ n/m › indicator under an edited prompt. A user node's
+  // "versions" are its siblings — the other user nodes sharing its parent (the
+  // other edits/forks from that point). Returns null when there's only one.
+  const promptVersionInfo = useCallback(
+    (userNodeId: string): PromptVersionInfo | null => {
+      const node = allDbNodes.find((n) => n.id === userNodeId)
+      if (!node || node.role !== 'user') return null
+      const siblings = allDbNodes
+        .filter((n) => n.role === 'user' && (n.parent_id ?? null) === (node.parent_id ?? null))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      if (siblings.length <= 1) return null
+      const index = siblings.findIndex((s) => s.id === userNodeId)
+      return {
+        index,
+        total: siblings.length,
+        prevId: index > 0 ? siblings[index - 1].id : null,
+        nextId: index < siblings.length - 1 ? siblings[index + 1].id : null,
+      }
+    },
+    [allDbNodes],
+  )
+
+  // Surface the "Node deleted — Undo" toast for 10s. A fresh deletion replaces
+  // any current toast (and its timer), so the toast always tracks the latest.
+  const showUndoToast = useCallback((id: string) => {
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current)
+    setUndoToast({ id })
+    undoToastTimerRef.current = setTimeout(() => {
+      setUndoToast((t) => (t && t.id === id ? null : t))
+      undoToastTimerRef.current = null
+    }, 10000)
+  }, [])
+
+  // Clear the toast timer on unmount so it can't fire into a dead component.
+  useEffect(() => () => { if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current) }, [])
+
+  // ── Delete a node (a prompt + its reply) ──────────────────────────────────
+  // `pairId` is a tree pair id, i.e. the assistant node's id (or the user
+  // node's id when no reply exists yet). We delete the user node and its
+  // assistant reply together, but ONLY if nothing is forked beneath them —
+  // a node with branches below stays put so its descendants aren't orphaned.
+  const deleteNode = useCallback(
+    async (pairId: string): Promise<boolean> => {
+      if (!activeConvId) return false
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      const anchor = nodeMap.get(pairId)
+      if (!anchor) return false
+
+      // Resolve the user node + assistant node that make up this pair.
+      let userNode: DbNode | undefined
+      let aiNode: DbNode | undefined
+      if (anchor.role === 'assistant') {
+        aiNode = anchor
+        userNode = anchor.parent_id ? nodeMap.get(anchor.parent_id) : undefined
+      } else {
+        userNode = anchor
+        aiNode = allDbNodes.find((n) => n.parent_id === anchor.id && n.role === 'assistant')
+      }
+      if (!userNode) return false
+
+      const ids = new Set<string>([userNode.id])
+      if (aiNode) ids.add(aiNode.id)
+
+      // Guard: refuse if anything is forked beneath this pair. "Below" = any
+      // node parented to one of our nodes that isn't itself part of the pair.
+      const hasBranches = allDbNodes.some(
+        (n) => n.parent_id != null && ids.has(n.parent_id) && !ids.has(n.id),
+      )
+      if (hasBranches) return false
+
+      // Snapshot before deleting (user-first so an undo re-insert keeps the
+      // assistant's parent link valid). Captured here while the rows are still
+      // in hand; pushed to the undo stack only once the delete succeeds.
+      const snapshot: DbNode[] = aiNode ? [userNode, aiNode] : [userNode]
+      const focusId = aiNode?.id ?? userNode.id
+      const convId  = activeConvId
+
+      const idList = [...ids]
+      const { error } = await supabase.from('nodes').delete().in('id', idList)
+      if (error) { console.error('Delete node failed', error); return false }
+
+      // Record the deletion so Ctrl+Z / the toast can restore it.
+      const entry: UndoEntry = { id: `undo_${++undoSeqRef.current}`, convId, nodes: snapshot, focusId }
+      undoStackRef.current = [...undoStackRef.current, entry].slice(-30)
+      showUndoToast(entry.id)
+
+      // Drop the deleted rows from local state and forget their derived data.
+      setAllDbNodes((prev) => prev.filter((n) => !ids.has(n.id)))
+      setNodeColors((prev) => {
+        const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
+      })
+      setNodeSummaries((prev) => {
+        const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
+      })
+      idList.forEach((id) => { try { localStorage.removeItem(`node_meta_v1_${id}`) } catch {} })
+
+      // Re-anchor the view. If we deleted what was selected, fall back to the
+      // prompt's parent (the reply above it); deleting a root with no parent
+      // empties the conversation. handleNodeClick re-reads the now-trimmed tree
+      // and rebuilds the active path, so it stays consistent either way.
+      const selectionDeleted = selectedNodeId != null && ids.has(selectedNodeId)
+      const target = selectionDeleted ? userNode.parent_id : selectedNodeId
+      if (target) {
+        await handleNodeClick(target)
+      } else if (selectionDeleted) {
+        setMessages([])
+        setSelectedNodeId(null)
+        setHighlightedMessageId(null)
+        lastNodeIdRef.current = null
+        try { localStorage.removeItem(`lastNodeId_${activeConvId}`) } catch {}
+      }
+      return true
+    },
+    [activeConvId, allDbNodes, selectedNodeId, supabase, handleNodeClick, showUndoToast],
+  )
+
+  // ── Undo a node deletion ──────────────────────────────────────────────────
+  // Re-inserts the snapshotted rows (preserving their ids/created_at so they
+  // land back in their original spot), then brings them into view. Defaults to
+  // the most recent deletion (Ctrl+Z); the toast passes a specific entry id.
+  const undoDelete = useCallback(
+    async (entryId?: string): Promise<void> => {
+      const stack = undoStackRef.current
+      if (stack.length === 0) return
+      const idx = entryId ? stack.findIndex((e) => e.id === entryId) : stack.length - 1
+      if (idx < 0) return
+      const entry = stack[idx]
+
+      // Pop it up front so a double Ctrl+Z can't restore the same rows twice.
+      undoStackRef.current = [...stack.slice(0, idx), ...stack.slice(idx + 1)]
+      setUndoToast((t) => (t && t.id === entry.id ? null : t))
+
+      // If the conversation itself is gone, there's nowhere to restore to.
+      const conv = conversations.find((c) => c.id === entry.convId)
+      if (!conv) return
+
+      for (const n of entry.nodes) {
+        const row: Record<string, unknown> = {
+          id: n.id, project_id: n.project_id, parent_id: n.parent_id,
+          role: n.role, content: n.content,
+          position_x: n.position_x, position_y: n.position_y, created_at: n.created_at,
+        }
+        if (n.color) row.color = n.color
+        if (n.attachments && n.attachments.length) row.attachments = n.attachments
+        let { error } = await supabase.from('nodes').insert(row)
+        // Older schemas may lack the attachments column — retry without it (the
+        // content still carries the inline attachment marker, so nothing is lost).
+        if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+          delete row.attachments
+          ;({ error } = await supabase.from('nodes').insert(row))
+        }
+        if (error) { console.error('Undo restore failed', error); return }
+      }
+
+      // Restore any per-node colour we had cleared on delete.
+      setNodeColors((prev) => {
+        const next = { ...prev }
+        for (const n of entry.nodes) { if (n.color) next[n.id] = n.color }
+        return next
+      })
+
+      // Bring the node back into view and select it. Same conversation → just
+      // re-walk the tree; a different one → load it (seeding the saved-node so
+      // loadConversation lands on the restored node).
+      if (entry.convId === activeConvId) {
+        await handleNodeClick(entry.focusId)
+      } else {
+        try { localStorage.setItem(`lastNodeId_${entry.convId}`, entry.focusId) } catch {}
+        deleteIfEmpty()
+        await loadConversation(entry.convId, conv.name)
+      }
+    },
+    [activeConvId, supabase, handleNodeClick, conversations, deleteIfEmpty, loadConversation],
+  )
+
+  // Ctrl/Cmd+Z restores the most recent node deletion — but never while the
+  // user is typing (that's the browser's own text undo), and only when there's
+  // something to undo (so we don't swallow the shortcut otherwise).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.key !== 'z' && e.key !== 'Z') || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (undoStackRef.current.length === 0) return
+      e.preventDefault()
+      void undoDelete()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undoDelete])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -1457,10 +1812,10 @@ export default function App() {
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     isUpgradeOpen, setIsUpgradeOpen,
     isChatCollapsed, setIsChatCollapsed,
-    handleSend, handleNodeClick, switchConversation, createConversation,
+    handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
     renameConversation, deleteConversation, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
-    nodeColors, setNodeColor, nodeSummaries, chatInputRef,
+    nodeColors, setNodeColor, deleteNode, nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
@@ -1588,6 +1943,54 @@ export default function App() {
           onDelete={() => setDeleteProjectState(projectMenu.project)}
           onClose={() => setProjectMenu(null)}
         />
+      )}
+
+      {/* Undo toast — appears for 10s after a node deletion (Ctrl/Cmd+Z also works) */}
+      {undoToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--modal-bg)', color: 'var(--text-primary)',
+            border: '1px solid var(--border-strong)', borderRadius: 12,
+            boxShadow: 'var(--shadow-lg)', padding: '10px 12px 10px 16px',
+            zIndex: 10000, fontSize: 13.5, maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+            </svg>
+            Node deleted
+          </span>
+          <button
+            type="button"
+            onClick={() => undoDelete(undoToast.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--accent)', fontWeight: 600, fontSize: 13.5, padding: '3px 5px', borderRadius: 6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 14L4 9l5-5" />
+              <path d="M4 9h11a5 5 0 0 1 0 10h-2" />
+            </svg>
+            Undo
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setUndoToast(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', lineHeight: 0, borderRadius: 6 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       )}
     </AppContext.Provider>
   )

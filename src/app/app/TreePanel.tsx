@@ -476,7 +476,7 @@ function StickyNoteCard({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
@@ -484,7 +484,7 @@ export default function TreePanel() {
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
   const [hoveredId,       setHoveredId]       = useState<string | null>(null)
   const [hoverPos,        setHoverPos]        = useState<{ x: number; y: number } | null>(null)
-  const [colorMenu,       setColorMenu]       = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  const [colorMenu,       setColorMenu]       = useState<{ nodeId: string; x: number; y: number; confirmDelete?: boolean } | null>(null)
   const [scale,           setScale]           = useState(1)
   const [pan,             setPan]             = useState({ x: 0, y: 0 })
   const [dragging,        setDragging]        = useState(false)
@@ -1632,6 +1632,80 @@ export default function TreePanel() {
               )
             })}
           </div>
+
+          {/* Delete node — only for leaf pairs; blocked when branches fork below */}
+          <div style={{ height: 1, background: 'var(--border)', margin: '11px 0 8px' }} />
+          {(() => {
+            const menuPair = pairs.find(p => p.id === colorMenu.nodeId)
+            const menuIds  = new Set<string>(
+              menuPair ? [menuPair.userNode.id, menuPair.aiNode?.id].filter(Boolean) as string[] : []
+            )
+            const hasBranches = !!menuPair && allDbNodes.some(
+              n => n.parent_id != null && menuIds.has(n.parent_id) && !menuIds.has(n.id)
+            )
+
+            if (colorMenu.confirmDelete) {
+              return (
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.35 }}>
+                    Delete this prompt &amp; reply?
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const id = colorMenu.nodeId
+                        setColorMenu(null)
+                        track('node_deleted')
+                        await deleteNode(id)
+                      }}
+                      style={{ flex: 1, padding: '6px 10px', fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--color-error)', border: 'none', borderRadius: 7, cursor: 'pointer' }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setColorMenu({ ...colorMenu, confirmDelete: false })}
+                      style={{ flex: 1, padding: '6px 10px', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <>
+                <button
+                  type="button"
+                  disabled={hasBranches}
+                  title={hasBranches ? 'This node has branches below it — delete those first' : 'Delete this prompt & reply'}
+                  onClick={() => { if (!hasBranches) setColorMenu({ ...colorMenu, confirmDelete: true }) }}
+                  onMouseEnter={e => { if (!hasBranches) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error-bg)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                    padding: '7px 8px', fontSize: 12.5, borderRadius: 7,
+                    background: 'transparent', border: 'none', textAlign: 'left',
+                    cursor: hasBranches ? 'not-allowed' : 'pointer',
+                    color: hasBranches ? 'var(--text-muted)' : 'var(--color-error)',
+                    opacity: hasBranches ? 0.6 : 1,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+                  </svg>
+                  Delete node
+                </button>
+                {hasBranches && (
+                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)', padding: '3px 8px 0', lineHeight: 1.35 }}>
+                    Has branches below — delete those first.
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
     </div>
