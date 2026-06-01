@@ -35,19 +35,6 @@ export default function HeroVideo() {
         <div className="ln-split-grid">
           <div className="ln-split-left">
             <span className="ln-wordmark" aria-label="Nodea">Nodea</span>
-            <a
-              href="https://www.producthunt.com/products/nodea?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-nodea"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ln-split-ph"
-            >
-              <img
-                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1159548&theme=light&t=1780252758064"
-                alt="Nodea - Branch any AI reply. Explore ideas as a tree, not a thread. | Product Hunt"
-                width={250}
-                height={54}
-              />
-            </a>
             <h1 className="ln-hero-h1 ln-split-h1">
               Stop scrolling.<br />Start <em>branching.</em>
             </h1>
@@ -108,7 +95,7 @@ export default function HeroVideo() {
           </div>
         </div>
 
-        <SocialLinks className="ln-hero-social" />
+        <SocialLinks className="ln-hero-social" productHuntBadge />
       </div>
 
       {open && (

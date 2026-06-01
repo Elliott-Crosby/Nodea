@@ -1074,6 +1074,12 @@
 .ln-hero-social .soc-pill.primary {
   box-shadow: 0 4px 20px color-mix(in oklab, var(--accent) 20%, transparent);
 }
+/* Product Hunt featured badge sitting inline in the hero row (above the glow). */
+.ln-hero-social .ln-split-ph {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+}
 
 /* ── Keyframes ───────────────────────────────────────────────── */
 @keyframes ln-fadeup {

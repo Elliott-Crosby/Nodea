@@ -60,6 +60,12 @@ const SOCIALS: Social[] = [
   },
 ]
 
+/* Product Hunt "featured" badge — rendered in place of the pill when requested. */
+const PH_BADGE_HREF =
+  'https://www.producthunt.com/products/nodea?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-nodea'
+const PH_BADGE_SRC =
+  'https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1159548&theme=light&t=1780252758064'
+
 /* One request shared across every <SocialLinks> instance on the page (hero + footer). */
 let starsPromise: Promise<string | null> | null = null
 function fetchStars(): Promise<string | null> {
@@ -77,7 +83,14 @@ function fetchStars(): Promise<string | null> {
  * The GitHub pill carries the live star count as social proof; if the count
  * can't be loaded the pill simply renders without it.
  */
-export default function SocialLinks({ className }: { className?: string }) {
+export default function SocialLinks({
+  className,
+  productHuntBadge,
+}: {
+  className?: string
+  /** Render Product Hunt as its featured badge image instead of a text pill. */
+  productHuntBadge?: boolean
+}) {
   const [stars, setStars] = useState<string | null>(null)
 
   useEffect(() => {
@@ -93,6 +106,25 @@ export default function SocialLinks({ className }: { className?: string }) {
   return (
     <div className={'soc-row' + (className ? ' ' + className : '')} role="list">
       {SOCIALS.map(({ id, href, Icon, action, aria, primary, showStars }) => {
+        if (productHuntBadge && id === 'producthunt') {
+          return (
+            <a
+              key={id}
+              role="listitem"
+              className="ln-split-ph"
+              href={PH_BADGE_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src={PH_BADGE_SRC}
+                alt="Nodea - Branch any AI reply. Explore ideas as a tree, not a thread. | Product Hunt"
+                width={250}
+                height={54}
+              />
+            </a>
+          )
+        }
         const count = showStars ? stars : null
         return (
           <a
