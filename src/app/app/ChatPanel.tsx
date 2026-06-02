@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp, type AttachmentItem, type ChatMessage } from './App'
 import { modelDisplayName } from '@/lib/models'
+import { providerForModel, getAISource } from '@/lib/ai-sources'
 
 // ── Accepted file types (Claude API limits) ───────────────────────────────────
 const ACCEPTED_MIME_TYPES: Record<string, string> = {
@@ -328,9 +329,80 @@ function ThinkingBubble() {
   )
 }
 
+// ── Imported-conversation upsell banner ───────────────────────────────────────
+// Shown once (per browser) when viewing a conversation that was imported from the
+// browser extension. The extension captures the tree; these features only exist
+// in the full web app. Dismissal is remembered so it never nags.
+const IMPORT_UPSELL_DISMISS_KEY = 'nodea_import_upsell_dismissed'
+
+function ImportedUpsellBanner() {
+  const { activeConvIsImported } = useApp()
+  const [dismissed, setDismissed] = useState(true)
+
+  // Read persisted dismissal on mount (client-only; avoids SSR mismatch).
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(IMPORT_UPSELL_DISMISS_KEY) === '1')
+    } catch {
+      setDismissed(false)
+    }
+  }, [])
+
+  if (!activeConvIsImported || dismissed) return null
+
+  const dismiss = () => {
+    setDismissed(true)
+    try { localStorage.setItem(IMPORT_UPSELL_DISMISS_KEY, '1') } catch {}
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '10px 20px', flexShrink: 0,
+        borderBottom: '1px solid var(--border)',
+        background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-base))',
+        fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.45,
+      }}
+    >
+      <span style={{ fontSize: 15, flexShrink: 0 }} aria-hidden>✨</span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        You imported this chat — now it&apos;s a canvas. Only the full app lets you{' '}
+        <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>merge branches</strong>,{' '}
+        <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>drop sticky notes</strong>, and{' '}
+        <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>color your tree</strong>.
+      </span>
+      <a
+        href="/extension"
+        onClick={() => { try { track('import_upsell_clicked') } catch {} }}
+        style={{
+          flexShrink: 0, height: 28, display: 'inline-flex', alignItems: 'center',
+          padding: '0 12px', borderRadius: 7, textDecoration: 'none',
+          background: 'var(--accent)', color: '#fff', fontSize: 12.5, fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        See what&apos;s new →
+      </a>
+      <button
+        title="Dismiss"
+        onClick={dismiss}
+        style={{
+          flexShrink: 0, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', color: 'var(--text-muted)',
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource } = useApp()
+  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource, pushToSource, isPushingSource } = useApp()
 
   return (
     <div
@@ -370,6 +442,28 @@ function TopBar() {
               <path d="M12.6 1.5V4H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {isUpdatingSource ? 'Updating…' : 'Update'}
+          </button>
+        )}
+        {activeConvIsImported && (
+          <button
+            title={isPushingSource ? 'Replaying your new branches into Claude…' : 'Push to Claude — replay branches you added in Nodea back into the original Claude chat (keep claude.ai open)'}
+            onClick={() => { if (!isPushingSource) void pushToSource() }}
+            disabled={isPushingSource}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
+              background: 'transparent', border: '1px solid var(--border)', borderRadius: 8,
+              cursor: isPushingSource ? 'default' : 'pointer', color: 'var(--text-secondary)',
+              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', opacity: isPushingSource ? 0.7 : 1,
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={(e) => { if (!isPushingSource) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
+            onMouseLeave={(e) => { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className={isPushingSource ? 'nx-spin' : undefined} style={{ flexShrink: 0 }}>
+              <path d="M7 12V3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {isPushingSource ? 'Pushing…' : 'Push'}
           </button>
         )}
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
@@ -583,7 +677,17 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {(() => {
+              // The model logo. Driven by the node's persisted model_id so it
+              // survives a refresh; falls back to Claude (every model Nodea
+              // generates is a Claude model). eslint-disable: a static SVG.
+              const logo = getAISource(providerForModel(msg.modelId))?.logo
+              return logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} width={13} height={13} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+              ) : null
+            })()}
             <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
             {isEmptyStreaming && elapsed > 0 && (
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
@@ -1102,6 +1206,7 @@ export default function ChatPanel() {
 
       <TopBar />
       <SubHeader />
+      <ImportedUpsellBanner />
 
       {/* Save error banner */}
       {saveError && (

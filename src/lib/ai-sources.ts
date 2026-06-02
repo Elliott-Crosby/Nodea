@@ -23,3 +23,16 @@ export function getAISource(key: string | null | undefined): AISource | null {
   if (!key) return null
   return AI_SOURCES[key] ?? null
 }
+
+// Map a concrete model id (e.g. 'claude-sonnet-4-6') to its provider key in
+// AI_SOURCES. Every model Nodea generates is a Claude model, so the default is
+// 'claude'; the prefix checks keep this honest if other providers are added.
+export function providerForModel(modelId: string | null | undefined): string {
+  const m = (modelId ?? '').toLowerCase()
+  if (m.startsWith('gpt') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('chatgpt')) return 'chatgpt'
+  if (m.startsWith('gemini')) return 'gemini'
+  if (m.startsWith('grok')) return 'grok'
+  if (m.startsWith('mistral')) return 'mistral'
+  if (m.startsWith('deepseek')) return 'deepseek'
+  return 'claude'
+}
