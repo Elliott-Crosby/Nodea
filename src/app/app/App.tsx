@@ -31,7 +31,44 @@ export interface Conversation {
   chat_project_id: string | null
   /** Optional per-conversation color id (ROYGBIV palette). Null = no tint. */
   color?: string | null
+  /** Origin tag when imported from an outside chat host via the browser
+   *  extension (e.g. 'claude'). Null/absent = a native Nodea conversation. */
+  source?: string | null
+  /** The source host's id for this conversation — the key a later
+   *  "Update Conversation" re-sync diffs against. */
+  source_conversation_id?: string | null
 }
+
+// The payload the browser extension hands over via the Nodea-side bridge
+// (extension/src/bridge.js → window.postMessage). One node per source message,
+// carrying its native parent link so we can rebuild the exact branch tree.
+export interface ExtImportNode {
+  id: string
+  parent_id: string | null
+  role: string
+  content: string
+  created_at: string | null
+}
+export interface ExtImportPayload {
+  v: number
+  source?: string
+  sourceConversationId?: string | null
+  sourceOrgId?: string | null
+  name?: string
+  currentLeaf?: string | null
+  selectedLeaf?: string | null
+  nodes: ExtImportNode[]
+}
+
+// A source conversation's current tree, re-fetched by the extension when the
+// user clicks "Update Conversation". Same node shape as an import.
+export interface SourceTree {
+  id?: string | null
+  name?: string
+  nodes: ExtImportNode[]
+  currentLeaf?: string | null
+}
+export type UpdateResult = { ok: true; tree: SourceTree } | { ok: false; error: string }
 
 export interface AttachmentItem {
   name: string
@@ -98,10 +135,19 @@ export function parseUserContent(content: string): { text: string; attachments: 
 // node itself, so TreePanel (which reads userNode.attachments) Just Works.
 function enrichDbNodes(nodes: DbNode[]): DbNode[] {
   return nodes.map((n) => {
-    if (n.role !== 'user') return n
-    if (n.attachments && n.attachments.length > 0) return n  // already populated from DB column
-    const { attachments } = parseUserContent(n.content)
-    return attachments.length > 0 ? { ...n, attachments } : n
+    // Normalize merge_sources to a clean non-empty string[] or drop it, so the
+    // rest of the app never has to distinguish null vs [] vs malformed.
+    const cleanMerges = Array.isArray(n.merge_sources)
+      ? n.merge_sources.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : []
+    const base: DbNode = cleanMerges.length > 0
+      ? { ...n, merge_sources: cleanMerges }
+      : (n.merge_sources != null ? { ...n, merge_sources: undefined } : n)
+
+    if (base.role !== 'user') return base
+    if (base.attachments && base.attachments.length > 0) return base  // already populated from DB column
+    const { attachments } = parseUserContent(base.content)
+    return attachments.length > 0 ? { ...base, attachments } : base
   })
 }
 
@@ -124,6 +170,83 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
     id: n.id, role: n.role, content: n.content,
     timestamp: new Date(n.created_at).getTime(),
   }
+}
+
+// ── Merge overlay helpers ────────────────────────────────────────────────────
+// A merge converges other branches into a node WITHOUT changing parent_id. The
+// link is stored as merge_sources on the node it merges into; these pure
+// helpers resolve the structural tree (parent_id) only — one level deep, so the
+// joined context can never cycle.
+
+// Root→node chain (inclusive), walking up parent_id. Returns [] for a missing id.
+function ancestorChain(nodeId: string | null, nodeMap: Map<string, DbNode>): DbNode[] {
+  const out: DbNode[] = []
+  let cur = nodeId ? nodeMap.get(nodeId) : undefined
+  while (cur) {
+    out.unshift(cur)
+    cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
+  }
+  return out
+}
+
+// Whether `sourceNodeId` may be merged INTO `targetNodeId`. Rejects self, an
+// already-recorded link, and anything that would create a context loop (source
+// is an ancestor of target, or target is an ancestor of source).
+function canMergeNodes(sourceNodeId: string, targetNodeId: string, nodeMap: Map<string, DbNode>): boolean {
+  if (sourceNodeId === targetNodeId) return false
+  const target = nodeMap.get(targetNodeId)
+  const source = nodeMap.get(sourceNodeId)
+  if (!target || !source) return false
+  if (Array.isArray(target.merge_sources) && target.merge_sources.includes(sourceNodeId)) return false
+  // source already on target's lineage → merge is a no-op / would loop
+  if (ancestorChain(targetNodeId, nodeMap).some((n) => n.id === sourceNodeId)) return false
+  // target on source's lineage → source is a descendant → would loop
+  if (ancestorChain(sourceNodeId, nodeMap).some((n) => n.id === targetNodeId)) return false
+  return true
+}
+
+// Soft cap on joined-transcript size so converging many branches can't blow the
+// model's context window. Recency-biased: keep the most recent nodes.
+const MERGE_CONTEXT_MAX_NODES = 80
+
+// Assemble the model context for a send whose lineage involves merges. Unions
+// the target's ancestor path with the full root→tip transcript of every merge
+// source (explicit `extraMergeSources` from a brand-new merged prompt, plus any
+// merge_sources carried on nodes already in the path), de-duplicated by id and
+// ordered by created_at. The new user message goes last.
+function buildMergedContext(
+  allDbNodes: DbNode[],
+  parentId: string | null,
+  extraMergeSources: string[],
+  userMsg: ChatMessage,
+): ChatMessage[] {
+  const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+  const targetPath = ancestorChain(parentId, nodeMap)
+
+  const sourceIds = new Set<string>(extraMergeSources)
+  for (const n of targetPath) {
+    if (Array.isArray(n.merge_sources)) n.merge_sources.forEach((id) => sourceIds.add(id))
+  }
+
+  const collected = new Map<string, DbNode>()
+  for (const n of targetPath) collected.set(n.id, n)
+  for (const srcId of sourceIds) {
+    for (const n of ancestorChain(srcId, nodeMap)) collected.set(n.id, n)
+  }
+
+  const ordered = [...collected.values()].sort((a, b) => {
+    const ta = +new Date(a.created_at)
+    const tb = +new Date(b.created_at)
+    if (ta !== tb) return ta - tb
+    if (a.id === b.parent_id) return -1   // a user node sorts before its own reply on a timestamp tie
+    if (b.id === a.parent_id) return 1
+    return 0
+  })
+
+  const trimmed = ordered.length > MERGE_CONTEXT_MAX_NODES
+    ? ordered.slice(ordered.length - MERGE_CONTEXT_MAX_NODES)
+    : ordered
+  return [...trimmed.map(dbNodeToMessage), userMsg]
 }
 
 // ── Per-fork branch memory ──────────────────────────────────────────────────
@@ -183,6 +306,11 @@ export interface DbNode {
   created_at: string
   color?: string | null
   attachments?: NodeAttachment[] | null
+  // Overlay "merge" links: ids of *other* nodes whose branches converge into
+  // this one. Independent of parent_id — present only when the user merged
+  // branches here. See the merge_sources migration. Lives on the user node of
+  // a pair (the node that owns the next prompt's generation context).
+  merge_sources?: string[] | null
 }
 
 // A reversible node deletion. We snapshot the deleted rows (parent-first, so a
@@ -225,6 +353,12 @@ export interface AppContextType {
   createConversation: () => Promise<void>
   renameConversation: (id: string, name: string) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
+  /** True when the active conversation was imported from an outside source — gates the Update button. */
+  activeConvIsImported: boolean
+  /** Pull any new branches from the active conversation's source (Claude), via the extension. */
+  updateFromSource: () => Promise<void>
+  /** True while an Update round-trip is in flight (drives the button's spinner). */
+  isUpdatingSource: boolean
   signOut: () => void
   userEmail: string
   userName: string
@@ -235,6 +369,18 @@ export interface AppContextType {
   setNodeColor: (id: string, color: string) => void
   /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
   deleteNode: (pairId: string) => Promise<boolean>
+  // ── Merge overlay ──
+  /** Whether `sourceNodeId` can be merged into `targetNodeId` (no self/cycle/dup). */
+  canMergeInto: (sourceNodeId: string, targetNodeId: string) => boolean
+  /** Record a merge link on `targetNodeId` (Flow B drag). Returns false on no-op/error. */
+  addMergeSource: (targetNodeId: string, sourceNodeId: string) => Promise<boolean>
+  /** Remove a merge link from `targetNodeId`. */
+  removeMergeSource: (targetNodeId: string, sourceNodeId: string) => Promise<boolean>
+  /** Arm a Flow-A merge: focus the anchor branch, converging the given tips into the next prompt. */
+  beginMerge: (anchorTipId: string, mergeSourceIds: string[]) => Promise<void>
+  /** Transient notice when a merge can't persist (column not migrated yet). */
+  mergeNotice: string | null
+  clearMergeNotice: () => void
   nodeSummaries: Record<string, { title: string; summary: string }>
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   pendingAttachments: AttachmentItem[]
@@ -404,6 +550,16 @@ export default function App() {
   // only needs to know which entry it's currently offering to undo.
   const [undoToast, setUndoToast] = useState<{ id: string } | null>(null)
 
+  // A brief notice for merge actions that can't persist yet (the merge_sources
+  // column hasn't been migrated). Distinct from saveError so a missing column
+  // doesn't read as "your message failed to save".
+  const [mergeNotice, setMergeNotice] = useState<string | null>(null)
+  const mergeNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // A pending Flow-A merge: the anchor parent the new prompt forks from, plus
+  // the other branch tips to converge. Consumed by the next handleSend, which
+  // persists them on the new user node and joins their transcripts into context.
+  const pendingMergeRef = useRef<{ parentId: string; mergeSources: string[] } | null>(null)
+
   const lastNodeIdRef     = useRef<string | null>(null)
   const isBranchPointRef  = useRef(false)
   const branchChoiceRef   = useRef<Map<string, string>>(new Map())
@@ -433,6 +589,15 @@ export default function App() {
 
   const clearChatError  = useCallback(() => setChatError(null), [])
   const clearSaveError  = useCallback(() => setSaveError(false), [])
+  const clearMergeNotice = useCallback(() => setMergeNotice(null), [])
+
+  // Surface a transient notice when a merge can't persist (column not migrated).
+  const notifyMergeUnavailable = useCallback(() => {
+    if (mergeNoticeTimerRef.current) clearTimeout(mergeNoticeTimerRef.current)
+    setMergeNotice('Merging needs a database update before it can be saved.')
+    mergeNoticeTimerRef.current = setTimeout(() => setMergeNotice(null), 4000)
+  }, [])
+  useEffect(() => () => { if (mergeNoticeTimerRef.current) clearTimeout(mergeNoticeTimerRef.current) }, [])
 
   useEffect(() => { activeConvIdRef.current = activeConvId }, [activeConvId])
 
@@ -589,6 +754,358 @@ export default function App() {
     },
     [supabase]
   )
+
+  // ─── Import a conversation handed over by the browser extension ────────────
+  // The "Nodea Tree for Claude" extension stashes a full Claude branch tree and
+  // opens this app; its Nodea-side bridge (extension/src/bridge.js) relays the
+  // tree here via postMessage. We rebuild it as a real Nodea conversation —
+  // every branch, parent links preserved — stamping each node with its Claude
+  // message id so a later "Update Conversation" can diff against the original.
+  // Insert is client-side (same RLS path as normal chat) and mirrors the
+  // graceful-degrade pattern used for attachments / merge_sources: if the
+  // provenance columns aren't migrated yet, retry without them so it still lands.
+  const [importNotice, setImportNotice] = useState<{ text: string; tone: 'info' | 'error' } | null>(null)
+  const importNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const importingRef = useRef(false)
+  // Set when the extension bridge announces itself — lets Update fail fast with
+  // an "install the extension" hint instead of waiting out the full timeout.
+  const extPresentRef = useRef(false)
+
+  const showImportNotice = useCallback((text: string, tone: 'info' | 'error' = 'info', ms = 4500) => {
+    if (importNoticeTimerRef.current) clearTimeout(importNoticeTimerRef.current)
+    setImportNotice({ text, tone })
+    importNoticeTimerRef.current = setTimeout(() => setImportNotice(null), ms)
+  }, [])
+  const clearImportNotice = useCallback(() => {
+    if (importNoticeTimerRef.current) clearTimeout(importNoticeTimerRef.current)
+    setImportNotice(null)
+  }, [])
+  useEffect(() => () => { if (importNoticeTimerRef.current) clearTimeout(importNoticeTimerRef.current) }, [])
+
+  const importConversation = useCallback(async (raw: unknown) => {
+    const p = raw as ExtImportPayload | null
+    // Only act on our v1 import shape.
+    if (!p || p.v !== 1 || !Array.isArray(p.nodes) || p.nodes.length === 0) {
+      console.warn('[Nodea import] ignored payload (wrong shape)', raw)
+      return
+    }
+    if (importingRef.current) return
+    importingRef.current = true
+    console.info('[Nodea import] received', p.nodes.length, 'nodes from', p.source)
+    const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.warn('[Nodea import] not signed in — aborting')
+        showImportNotice('Sign in to Nodea first, then re-open from the extension.', 'error', 6000); return
+      }
+
+      const source = typeof p.source === 'string' ? p.source : 'claude'
+      const sourceConvId = p.sourceConversationId ?? null
+      const name = (typeof p.name === 'string' && p.name.trim()) || 'Imported conversation'
+
+      // Already imported this source conversation? Open it rather than
+      // duplicating. (A real re-sync/diff is the "Update Conversation"
+      // follow-up.) Best-effort — skipped if provenance columns aren't migrated.
+      if (sourceConvId) {
+        const { data: existing, error: exErr } = await supabase
+          .from('projects')
+          .select('id, name')
+          .eq('source', source)
+          .eq('source_conversation_id', sourceConvId)
+          .limit(1)
+          .maybeSingle()
+        if (!exErr && existing?.id) {
+          await loadConversation(existing.id, existing.name || name)
+          showImportNotice('Already in Nodea — opened it. (Update sync is coming.)', 'info', 5000)
+          return
+        }
+      }
+
+      // 1) Create the conversation via the API route. Conversations are created
+      //    server-side (a client-side INSERT into projects is blocked by RLS —
+      //    the app always uses /api/projects), then we patch provenance with a
+      //    client UPDATE (allowed, exactly like rename / set-colour).
+      const provenance: Record<string, unknown> = {
+        source,
+        source_conversation_id: sourceConvId,
+        source_org_id: p.sourceOrgId ?? null,
+        source_leaf_id: p.currentLeaf ?? null,
+        source_synced_at: new Date().toISOString(),
+      }
+      const createRes = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (!createRes.ok) {
+        console.error('[Nodea import] create conversation failed', createRes.status)
+        showImportNotice('Import failed — could not create the conversation.', 'error', 6000)
+        return
+      }
+      const created = await createRes.json().catch(() => null)
+      const projectId: string | undefined = created?.project?.id
+      if (!projectId) {
+        console.error('[Nodea import] create conversation returned no id', created)
+        showImportNotice('Import failed — could not create the conversation.', 'error', 6000)
+        return
+      }
+      // Patch provenance (best-effort; whole update no-ops pre-migration).
+      const { error: provErr } = await supabase.from('projects').update(provenance).eq('id', projectId)
+      if (provErr && !isColumnError(provErr)) console.warn('[Nodea import] provenance update failed', provErr)
+
+      // 2) Rebuild the node tree. A fresh uuid per source node lets us set
+      //    parent links without round-trips; preserve role, content, and Claude
+      //    timestamps (load orders by created_at) and stamp source_message_id.
+      const idMap = new Map<string, string>()
+      for (const n of p.nodes) if (n && typeof n.id === 'string') idMap.set(n.id, crypto.randomUUID())
+      type Row = Record<string, unknown> & { id: string; parent_id: string | null }
+      const rows: Row[] = []
+      for (const n of p.nodes) {
+        if (!n || typeof n.id !== 'string') continue
+        const row: Row = {
+          id: idMap.get(n.id)!,
+          project_id: projectId,
+          parent_id: (n.parent_id && idMap.get(n.parent_id)) || null,
+          role: n.role === 'assistant' ? 'assistant' : 'user',
+          content: typeof n.content === 'string' ? n.content : '',
+          position_x: 0,
+          position_y: 0,
+          source_message_id: n.id,
+        }
+        if (typeof n.created_at === 'string' && n.created_at) row.created_at = n.created_at
+        rows.push(row)
+      }
+      // Parent-first order so the self-referential FK is satisfied on insert.
+      const byId = new Map(rows.map((r) => [r.id, r]))
+      const ordered: Row[] = []
+      const done = new Set<string>(), busy = new Set<string>()
+      const visit = (r: Row) => {
+        if (done.has(r.id) || busy.has(r.id)) return
+        busy.add(r.id)
+        const parent = r.parent_id ? byId.get(r.parent_id) : undefined
+        if (parent) visit(parent)
+        busy.delete(r.id); done.add(r.id); ordered.push(r)
+      }
+      for (const r of rows) visit(r)
+
+      let { error: nodesErr } = await supabase.from('nodes').insert(ordered)
+      if (isColumnError(nodesErr)) {
+        const stripped = ordered.map((r) => { const c = { ...r }; delete c.source_message_id; return c })
+        ;({ error: nodesErr } = await supabase.from('nodes').insert(stripped))
+      }
+      if (nodesErr) {
+        console.error('import: nodes insert failed', nodesErr)
+        // Don't leave an empty husk conversation behind.
+        await supabase.from('projects').delete().eq('id', projectId)
+        showImportNotice('Import failed — could not save the messages.', 'error', 6000)
+        return
+      }
+
+      // 3) Land on the same node the user was looking at in Claude.
+      const leafSource = p.selectedLeaf || p.currentLeaf
+      const leafNew = (leafSource && idMap.get(leafSource)) || null
+      if (leafNew) { try { localStorage.setItem(`lastNodeId_${projectId}`, leafNew) } catch {} }
+
+      const newConv: Conversation = {
+        id: projectId, name, user_id: user.id,
+        created_at: new Date().toISOString(),
+        chat_project_id: null, color: null,
+        source, source_conversation_id: sourceConvId,
+      }
+      setConversations((prev) => (prev.some((c) => c.id === projectId) ? prev : [...prev, newConv]))
+      await loadConversation(projectId, name)
+      console.info('[Nodea import] done —', ordered.length, 'nodes into', projectId)
+      showImportNotice(`Imported “${name}” from Claude ✓`, 'info', 4500)
+      try { track('conversation_imported', { source, nodes: ordered.length }) } catch {}
+    } catch (e) {
+      console.error('import failed', e)
+      showImportNotice('Import failed — see console for details.', 'error', 6000)
+    } finally {
+      importingRef.current = false
+    }
+  }, [supabase, loadConversation, showImportNotice])
+
+  // Listen for the extension bridge handing over a tree. The handshake is
+  // two-way (each side pings on load and answers the other) so it works no
+  // matter which loaded first; see extension/src/bridge.js.
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.source !== window || e.origin !== window.location.origin) return
+      const d = e.data as { __nodea?: string; payload?: unknown } | null
+      if (!d || typeof d !== 'object') return
+      if (d.__nodea === 'ext-present') {
+        extPresentRef.current = true
+      } else if (d.__nodea === 'ext-ready') {
+        extPresentRef.current = true
+        window.postMessage({ __nodea: 'app-ready' }, window.location.origin)
+      } else if (d.__nodea === 'import-data' && d.payload) {
+        console.info('[Nodea import] bridge delivered a tree')
+        void importConversation(d.payload)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    // Announce we're listening (delivers any pending import) and probe for the
+    // extension (the bridge answers a ping with 'ext-present').
+    window.postMessage({ __nodea: 'app-ready' }, window.location.origin)
+    window.postMessage({ __nodea: 'ping' }, window.location.origin)
+    return () => window.removeEventListener('message', onMessage)
+  }, [importConversation])
+
+  // ─── "Update Conversation": pull new branches from the source (Stage 2) ────
+  // Only the extension can reach Claude, so we ask it (via the bridge) to
+  // re-fetch the original tree, then diff by source_message_id and append
+  // what's new. Append-only and non-destructive: branches deleted in Claude
+  // stay in Nodea, and in-place text edits aren't patched (Claude forks edits
+  // into new messages, so those arrive as new nodes anyway).
+  const [isUpdatingSource, setIsUpdatingSource] = useState(false)
+
+  // Ask the extension bridge for a source conversation's current tree. Resolves
+  // with the tree or an error; times out if no extension answers.
+  const requestSourceTree = useCallback(
+    (sourceConversationId: string, sourceOrgId: string | null, source: string, timeoutMs = 15000): Promise<UpdateResult> =>
+      new Promise<UpdateResult>((resolve) => {
+        const requestId = crypto.randomUUID()
+        let settled = false
+        const finish = (r: UpdateResult) => {
+          if (settled) return
+          settled = true
+          window.removeEventListener('message', onMsg)
+          resolve(r)
+        }
+        function onMsg(e: MessageEvent) {
+          if (e.source !== window || e.origin !== window.location.origin) return
+          const d = e.data as { __nodea?: string; requestId?: string; ok?: boolean; tree?: SourceTree; error?: string } | null
+          if (!d || d.__nodea !== 'update-result' || d.requestId !== requestId) return
+          finish(d.ok && d.tree ? { ok: true, tree: d.tree } : { ok: false, error: d.error || 'fetch failed' })
+        }
+        window.addEventListener('message', onMsg)
+        window.postMessage({ __nodea: 'update-request', requestId, sourceConversationId, sourceOrgId, source }, window.location.origin)
+        setTimeout(() => finish({ ok: false, error: 'timeout' }), timeoutMs)
+      }),
+    [],
+  )
+
+  // Diff a freshly-fetched source tree against what's already in the Nodea
+  // conversation and insert only the new nodes, preserving parent links.
+  const applySourceTree = useCallback(
+    async (convId: string, tree: SourceTree): Promise<{ status: 'ok' | 'unlinked'; added: number }> => {
+      const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
+      const { data: existingRows, error: exErr } = await supabase
+        .from('nodes').select('id, source_message_id').eq('project_id', convId)
+      if (exErr) { console.error('update: load existing failed', exErr); throw new Error('db') }
+
+      // source message id → existing Nodea node id.
+      const sourceToNodea = new Map<string, string>()
+      for (const r of (existingRows || []) as { id: string; source_message_id: string | null }[]) {
+        if (r.source_message_id) sourceToNodea.set(r.source_message_id, r.id)
+      }
+      // Imported before provenance existed → no ids to diff against safely.
+      if ((existingRows?.length ?? 0) > 0 && sourceToNodea.size === 0) return { status: 'unlinked', added: 0 }
+
+      const incoming = (tree.nodes || []).filter((n) => n && typeof n.id === 'string')
+      const newOnes = incoming.filter((n) => !sourceToNodea.has(n.id))
+      if (newOnes.length === 0) return { status: 'ok', added: 0 }
+      for (const n of newOnes) sourceToNodea.set(n.id, crypto.randomUUID())
+
+      type Row = Record<string, unknown> & { id: string; parent_id: string | null }
+      const rows: Row[] = newOnes.map((n) => {
+        const row: Row = {
+          id: sourceToNodea.get(n.id)!,
+          project_id: convId,
+          parent_id: (n.parent_id && sourceToNodea.get(n.parent_id)) || null,
+          role: n.role === 'assistant' ? 'assistant' : 'user',
+          content: typeof n.content === 'string' ? n.content : '',
+          position_x: 0,
+          position_y: 0,
+          source_message_id: n.id,
+        }
+        if (typeof n.created_at === 'string' && n.created_at) row.created_at = n.created_at
+        return row
+      })
+      // Parent-first (a new node's parent may be another new node in this batch).
+      const byId = new Map(rows.map((r) => [r.id, r]))
+      const ordered: Row[] = []; const done = new Set<string>(); const busy = new Set<string>()
+      const visit = (r: Row) => {
+        if (done.has(r.id) || busy.has(r.id)) return
+        busy.add(r.id)
+        const par = r.parent_id ? byId.get(r.parent_id) : undefined
+        if (par) visit(par)
+        busy.delete(r.id); done.add(r.id); ordered.push(r)
+      }
+      for (const r of rows) visit(r)
+
+      let { error: insErr } = await supabase.from('nodes').insert(ordered)
+      if (isColumnError(insErr)) {
+        const stripped = ordered.map((r) => { const c = { ...r }; delete c.source_message_id; return c })
+        ;({ error: insErr } = await supabase.from('nodes').insert(stripped))
+      }
+      if (insErr) { console.error('update: insert failed', insErr); throw new Error('db') }
+
+      // Best-effort sync metadata (ignored if columns absent).
+      try {
+        await supabase.from('projects')
+          .update({ source_synced_at: new Date().toISOString(), source_leaf_id: tree.currentLeaf ?? null })
+          .eq('id', convId)
+      } catch {}
+
+      // Re-render if it's the on-screen conversation, landing on the new leaf.
+      if (activeConvIdRef.current === convId) {
+        const newLeaf = tree.currentLeaf ? sourceToNodea.get(tree.currentLeaf) : null
+        if (newLeaf) { try { localStorage.setItem(`lastNodeId_${convId}`, newLeaf) } catch {} }
+        const nm = conversations.find((c) => c.id === convId)?.name || convName
+        await loadConversation(convId, nm)
+      }
+      return { status: 'ok', added: newOnes.length }
+    },
+    [supabase, loadConversation, conversations, convName],
+  )
+
+  const updateFromSource = useCallback(async () => {
+    const convId = activeConvIdRef.current
+    if (!convId || isUpdatingSource) return
+    const { data: proj, error } = await supabase
+      .from('projects').select('source, source_conversation_id, source_org_id').eq('id', convId).maybeSingle()
+    if (error || !proj?.source || !proj?.source_conversation_id) {
+      showImportNotice('This conversation isn’t linked to a source to update from.', 'error', 5000)
+      return
+    }
+    setIsUpdatingSource(true)
+    try {
+      // If the bridge never announced itself, fail fast with an install hint;
+      // if it did, give Claude the full window (SW fetch + possible tab fallback).
+      const res = await requestSourceTree(
+        proj.source_conversation_id as string, (proj.source_org_id as string) || null, proj.source as string,
+        extPresentRef.current ? 15000 : 4000,
+      )
+      if (!res.ok) {
+        const notDetected = !extPresentRef.current && res.error === 'timeout'
+        showImportNotice(
+          notDetected
+            ? 'Nodea extension not detected. Install it and reload this page, then try Update again.'
+            : res.error === 'timeout'
+              ? 'Couldn’t reach Claude. Make sure you’re signed into claude.ai, then try again.'
+              : `Update failed: ${res.error}`,
+          'error', 7000,
+        )
+        return
+      }
+      const applied = await applySourceTree(convId, res.tree)
+      if (applied.status === 'unlinked') {
+        showImportNotice('This conversation predates sync — re-import it from the extension to enable updates.', 'error', 7000)
+      } else if (applied.added > 0) {
+        showImportNotice(`Updated from Claude — added ${applied.added} new node${applied.added === 1 ? '' : 's'} ✓`, 'info', 5000)
+        try { track('conversation_synced', { source: proj.source, added: applied.added }) } catch {}
+      } else {
+        showImportNotice('Already up to date with Claude ✓', 'info', 4000)
+      }
+    } catch (e) {
+      console.error('update failed', e)
+      showImportNotice('Update failed — see console for details.', 'error', 6000)
+    } finally {
+      setIsUpdatingSource(false)
+    }
+  }, [supabase, isUpdatingSource, requestSourceTree, applySourceTree, showImportNotice])
 
   // Delete the active conv only if it's truly empty: no DB nodes, no in-flight
   // local messages, and no send in progress. The local-messages check matters
@@ -1060,6 +1577,7 @@ export default function App() {
       parentId: string | null,
       userContent: string,
       attachments?: AttachmentItem[],
+      mergeSources?: string[],
     ): Promise<DbNode | null> => {
       if (!pid) return null
 
@@ -1071,23 +1589,39 @@ export default function App() {
       // a branch from this node, the next request still has the image URLs.
       const persistedContent = serializeUserContent(userContent, attachmentMeta)
 
+      const hasMerges = !!(mergeSources && mergeSources.length > 0)
+      const baseRow = { project_id: pid, parent_id: parentId, role: 'user' as const, content: persistedContent, position_x: 0, position_y: 0 }
+      const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
+      let mergeDropped = false
+
+      // Try the richest row first (attachments + merge links), then peel off the
+      // newest optional columns if the schema doesn't have them yet. The two
+      // codes that show up here are Postgres-native 42703 (column truly missing)
+      // and PostgREST's PGRST204 ("schema cache" — column exists but the API
+      // layer hasn't refreshed). Attachment metadata also lives in the content
+      // header, so dropping it is lossless; dropping merge links just means the
+      // merge can't persist until the migration is pushed.
       let { data: userNode, error: ue } = await supabase
         .from('nodes')
-        .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0, attachments: attachmentMeta })
+        .insert(hasMerges ? { ...baseRow, attachments: attachmentMeta, merge_sources: mergeSources } : { ...baseRow, attachments: attachmentMeta })
         .select()
         .single()
-      // Fall back if the attachments column isn't recognized. Two codes show up
-      // here: Postgres-native 42703 (column truly missing) and PostgREST's
-      // PGRST204 ("schema cache" — column exists but the API layer hasn't
-      // refreshed yet). Either way, the attachment metadata still lives inside
-      // the content header, so the retry is safe.
-      if (ue?.code === '42703' || ue?.code === 'PGRST204') {
+      if (isColumnError(ue) && hasMerges) {
+        mergeDropped = true
         ;({ data: userNode, error: ue } = await supabase
           .from('nodes')
-          .insert({ project_id: pid, parent_id: parentId, role: 'user', content: persistedContent, position_x: 0, position_y: 0 })
+          .insert({ ...baseRow, attachments: attachmentMeta })
           .select()
           .single())
       }
+      if (isColumnError(ue)) {
+        ;({ data: userNode, error: ue } = await supabase
+          .from('nodes')
+          .insert(baseRow)
+          .select()
+          .single())
+      }
+      if (!ue && mergeDropped) notifyMergeUnavailable()
       if (ue || !userNode) {
         console.error('user node save failed', ue)
         if (activeConvIdRef.current === pid) setSaveError(true)
@@ -1118,7 +1652,7 @@ export default function App() {
       }
       return userNode as DbNode
     },
-    [supabase]
+    [supabase, notifyMergeUnavailable]
   )
 
   // ── Save the assistant's reply ────────────────────────────────────────────
@@ -1174,6 +1708,8 @@ export default function App() {
       userMsgId: string
       assistantId: string
       autoTitleConversation: boolean
+      /** Merge links to persist on the new user node (Flow-A merged prompt). */
+      mergeSources?: string[]
     }) => {
       const { targetConvId, parentId, userContent, nextMessages, userMsgId, assistantId } = p
 
@@ -1214,7 +1750,7 @@ export default function App() {
         // conversation has content and won't be auto-deleted if the reply is
         // slow, errors out, or the user switches away before it lands.
         if (targetConvId) {
-          const savedUser = await saveUserNode(targetConvId, parentId, userContent, attachmentsSnapshot)
+          const savedUser = await saveUserNode(targetConvId, parentId, userContent, attachmentsSnapshot, p.mergeSources)
           savedUserNodeId = savedUser?.id ?? null
         }
 
@@ -1406,11 +1942,28 @@ export default function App() {
       }
       const assistantId = (now + 1).toString()
 
+      // The visible chat thread stays the plain active path. If this send's
+      // lineage involves a merge, the MODEL gets a richer joined transcript via
+      // apiMessages, without reshuffling what the user sees in the chat panel.
       const nextMessages = [...messages, userMsg]
       setMessages(nextMessages)
       setInput('')
       setPendingAttachments([])
       if (targetConvId) markInFlight(targetConvId)
+
+      // Merge context: an armed Flow-A merge for this exact branch tip, or any
+      // node on the active path carrying merge_sources (a Flow-B follow-up).
+      const pendingMerge = pendingMergeRef.current && pendingMergeRef.current.parentId === parentId
+        ? pendingMergeRef.current.mergeSources
+        : null
+      pendingMergeRef.current = null
+      const pathHasMerges = parentId
+        ? ancestorChain(parentId, new Map(allDbNodes.map((n) => [n.id, n]))).some((n) => n.merge_sources && n.merge_sources.length > 0)
+        : false
+      const mergeSourcesForSend = pendingMerge && pendingMerge.length > 0 ? pendingMerge : undefined
+      const apiMessages = (mergeSourcesForSend || pathHasMerges)
+        ? buildMergedContext(allDbNodes, parentId, mergeSourcesForSend ?? [], userMsg)
+        : nextMessages
 
       track('message_sent', {
         has_attachment: pendingAttachments.length > 0,
@@ -1436,13 +1989,14 @@ export default function App() {
         parentId,
         userContent,
         attachments: localAttachmentsSnapshot,
-        nextMessages,
+        nextMessages: apiMessages,
         userMsgId: userMsg.id,
         assistantId,
         autoTitleConversation: true,
+        mergeSources: mergeSourcesForSend,
       })
     },
-    [input, isLoading, messages, pendingAttachments, activeConvId, markInFlight, generateReply, setInput],
+    [input, isLoading, messages, pendingAttachments, activeConvId, allDbNodes, markInFlight, generateReply, setInput],
   )
 
   // ── Edit a prior prompt (Claude/GPT-style) ────────────────────────────────
@@ -1547,6 +2101,8 @@ export default function App() {
   const handleNodeClick = useCallback(
     async (nodeId: string) => {
       if (!activeConvId) return
+      // Navigating cancels any armed merge (beginMerge re-arms it after this call).
+      pendingMergeRef.current = null
       const { data: allNodes } = await supabase
         .from('nodes')
         .select('*')
@@ -1606,6 +2162,75 @@ export default function App() {
       if (lastAsst) lastNodeIdRef.current = lastAsst.id
     },
     [supabase, activeConvId]
+  )
+
+  // ── Merge overlay: persistence ────────────────────────────────────────────
+  // Whether a source node may be merged into a target node (pure tree check),
+  // exposed so the canvas can validate a drop target before writing anything.
+  const canMergeInto = useCallback(
+    (sourceNodeId: string, targetNodeId: string): boolean =>
+      canMergeNodes(sourceNodeId, targetNodeId, new Map(allDbNodes.map((n) => [n.id, n]))),
+    [allDbNodes],
+  )
+
+  // Persist a single merge link (Flow B drag, or adding to an existing pair).
+  // Writes merge_sources on the TARGET node; the structural tree is untouched.
+  const addMergeSource = useCallback(
+    async (targetNodeId: string, sourceNodeId: string): Promise<boolean> => {
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      if (!canMergeNodes(sourceNodeId, targetNodeId, nodeMap)) return false
+      const target = nodeMap.get(targetNodeId)
+      if (!target) return false
+      const next = [...(target.merge_sources ?? []), sourceNodeId]
+
+      const { error } = await supabase.from('nodes').update({ merge_sources: next }).eq('id', targetNodeId)
+      if (error) {
+        if (error.code === '42703' || error.code === 'PGRST204') { notifyMergeUnavailable(); return false }
+        console.error('add merge source failed', error)
+        return false
+      }
+      // Reflect immediately so the light-blue edge appears without a refetch.
+      setAllDbNodes((prev) => prev.map((n) => (n.id === targetNodeId ? { ...n, merge_sources: next } : n)))
+      return true
+    },
+    [allDbNodes, supabase, notifyMergeUnavailable],
+  )
+
+  // Remove one merge link; writes null when the last one is gone so "no merges"
+  // stays a clean IS NOT NULL check.
+  const removeMergeSource = useCallback(
+    async (targetNodeId: string, sourceNodeId: string): Promise<boolean> => {
+      const target = allDbNodes.find((n) => n.id === targetNodeId)
+      if (!target || !Array.isArray(target.merge_sources)) return false
+      const next = target.merge_sources.filter((id) => id !== sourceNodeId)
+      const value = next.length > 0 ? next : null
+
+      const { error } = await supabase.from('nodes').update({ merge_sources: value }).eq('id', targetNodeId)
+      if (error) {
+        if (error.code === '42703' || error.code === 'PGRST204') { notifyMergeUnavailable(); return false }
+        console.error('remove merge source failed', error)
+        return false
+      }
+      setAllDbNodes((prev) => prev.map((n) => (n.id === targetNodeId ? { ...n, merge_sources: value ?? undefined } : n)))
+      return true
+    },
+    [allDbNodes, supabase, notifyMergeUnavailable],
+  )
+
+  // Arm a Flow-A merge: focus the anchor branch and stash the other tips, so the
+  // user's next prompt forks from the anchor with those branches converged in.
+  const beginMerge = useCallback(
+    async (anchorTipId: string, mergeSourceIds: string[]): Promise<void> => {
+      await handleNodeClick(anchorTipId)
+      const parentId = lastNodeIdRef.current
+      if (!parentId) return
+      // Don't include the anchor's own lineage as a merge source.
+      const nodeMap = new Map(allDbNodes.map((n) => [n.id, n]))
+      const sources = mergeSourceIds.filter((id) => id !== parentId && canMergeNodes(id, parentId, nodeMap))
+      pendingMergeRef.current = { parentId, mergeSources: sources }
+      chatInputRef.current?.focus()
+    },
+    [handleNodeClick, allDbNodes],
   )
 
   // ── Prompt version info (sibling user nodes) ──────────────────────────────
@@ -1695,8 +2320,26 @@ export default function App() {
       undoStackRef.current = [...undoStackRef.current, entry].slice(-30)
       showUndoToast(entry.id)
 
+      // Any node that merged one of the deleted nodes now has a dangling link —
+      // strip it so the DB doesn't accumulate orphans. The render layer already
+      // ignores unresolved source ids, so this is just housekeeping; do it
+      // fire-and-forget and reflect it in local state below.
+      const orphanedTargets = allDbNodes.filter(
+        (n) => Array.isArray(n.merge_sources) && n.merge_sources.some((sid) => ids.has(sid)),
+      )
+      for (const t of orphanedTargets) {
+        const cleaned = (t.merge_sources ?? []).filter((sid) => !ids.has(sid))
+        void supabase.from('nodes').update({ merge_sources: cleaned.length ? cleaned : null }).eq('id', t.id)
+      }
+
       // Drop the deleted rows from local state and forget their derived data.
-      setAllDbNodes((prev) => prev.filter((n) => !ids.has(n.id)))
+      setAllDbNodes((prev) => prev
+        .filter((n) => !ids.has(n.id))
+        .map((n) => {
+          if (!Array.isArray(n.merge_sources) || !n.merge_sources.some((sid) => ids.has(sid))) return n
+          const cleaned = n.merge_sources.filter((sid) => !ids.has(sid))
+          return { ...n, merge_sources: cleaned.length ? cleaned : undefined }
+        }))
       setNodeColors((prev) => {
         const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
       })
@@ -1805,6 +2448,14 @@ export default function App() {
     window.location.href = '/login'
   }, [supabase])
 
+  // The active conversation shows an "Update" button when it was imported from a
+  // source (carries provenance). Reads off the in-memory list, which includes
+  // the source_* columns from the projects load.
+  const activeConvIsImported = !!(() => {
+    const c = conversations.find((c) => c.id === activeConvId)
+    return c?.source && c?.source_conversation_id
+  })()
+
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
@@ -1813,9 +2464,12 @@ export default function App() {
     isUpgradeOpen, setIsUpgradeOpen,
     isChatCollapsed, setIsChatCollapsed,
     handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
-    renameConversation, deleteConversation, signOut,
+    renameConversation, deleteConversation,
+    activeConvIsImported, updateFromSource, isUpdatingSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
-    nodeColors, setNodeColor, deleteNode, nodeSummaries, chatInputRef,
+    nodeColors, setNodeColor, deleteNode,
+    canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,
+    nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
@@ -1984,6 +2638,72 @@ export default function App() {
             type="button"
             aria-label="Dismiss"
             onClick={() => setUndoToast(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', lineHeight: 0, borderRadius: 6 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {mergeNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'var(--modal-bg)', color: 'var(--text-primary)',
+            border: '1px solid var(--border-strong)', borderRadius: 12,
+            boxShadow: 'var(--shadow-lg)', padding: '10px 12px 10px 16px',
+            zIndex: 10000, fontSize: 13.5, maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5M12 16h.01" />
+            </svg>
+            {mergeNotice}
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={clearMergeNotice}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', lineHeight: 0, borderRadius: 6 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {importNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'var(--modal-bg)', color: 'var(--text-primary)',
+            border: `1px solid ${importNotice.tone === 'error' ? '#ef4444' : 'var(--border-strong)'}`,
+            borderRadius: 12, boxShadow: 'var(--shadow-lg)', padding: '10px 12px 10px 16px',
+            zIndex: 10001, fontSize: 13.5, maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={importNotice.tone === 'error' ? '#ef4444' : '#38bdf8'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5M12 16h.01" />
+            </svg>
+            {importNotice.text}
+          </span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={clearImportNotice}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', lineHeight: 0, borderRadius: 6 }}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

@@ -642,6 +642,37 @@ function PinnedProject({
 
 import type { Conversation } from './App'
 
+// Anthropic / Claude brand mark — a small sunburst, shown beside a conversation
+// that was imported from Claude via the browser extension. (This is the source
+// model's logo, not a Nodea mark.) Rays precomputed once at module load.
+const CLAUDE_RAYS = Array.from({ length: 12 }, (_, i) => {
+  const a = (i * Math.PI) / 6
+  const rOuter = i % 2 === 0 ? 6 : 4.2
+  return { x1: 7 + Math.cos(a) * 1.7, y1: 7 + Math.sin(a) * 1.7, x2: 7 + Math.cos(a) * rOuter, y2: 7 + Math.sin(a) * rOuter }
+})
+function ClaudeMark({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden style={{ display: 'block' }}>
+      {CLAUDE_RAYS.map((r, i) => (
+        <line key={i} x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2} stroke="#D97757" strokeWidth="1.15" strokeLinecap="round" />
+      ))}
+    </svg>
+  )
+}
+
+// Provenance badge between a conversation's icon and its title — the source
+// model's logo. Only Claude today; extend the switch as sources are added.
+function SourceBadge({ source }: { source?: string | null }) {
+  if (source === 'claude') {
+    return (
+      <span title="Imported from Claude" style={{ display: 'inline-flex', flexShrink: 0, lineHeight: 0 }}>
+        <ClaudeMark size={13} />
+      </span>
+    )
+  }
+  return null
+}
+
 interface ConvRowProps {
   conv: Conversation
   isActive: boolean
@@ -762,6 +793,7 @@ function ConvRow(props: ConvRowProps) {
           )}
           {!collapsed && (
             <>
+              <SourceBadge source={conv.source} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                 {conv.name}
               </span>

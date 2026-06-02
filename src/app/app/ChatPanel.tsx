@@ -330,7 +330,7 @@ function ThinkingBubble() {
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen, setIsChatCollapsed } = useApp()
+  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource } = useApp()
 
   return (
     <div
@@ -350,6 +350,28 @@ function TopBar() {
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        {activeConvIsImported && (
+          <button
+            title={isUpdatingSource ? 'Checking Claude for new branches…' : 'Update from Claude — pull in any new branches'}
+            onClick={() => { if (!isUpdatingSource) void updateFromSource() }}
+            disabled={isUpdatingSource}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
+              background: 'transparent', border: '1px solid var(--border)', borderRadius: 8,
+              cursor: isUpdatingSource ? 'default' : 'pointer', color: 'var(--text-secondary)',
+              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', opacity: isUpdatingSource ? 0.7 : 1,
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={(e) => { if (!isUpdatingSource) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
+            onMouseLeave={(e) => { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className={isUpdatingSource ? 'nx-spin' : undefined} style={{ flexShrink: 0 }}>
+              <path d="M12.5 7a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M12.6 1.5V4H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {isUpdatingSource ? 'Updating…' : 'Update'}
+          </button>
+        )}
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
