@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none">
+  <rect width="14" height="14" rx="3" fill="#fff"/>
+  <!-- 4-pointed sparkle: smooth bezier arms matching the Gemini mark -->
+  <path fill="url(#gg)"
+    d="M7 0.5
+       C7.2 6.8 7.2 6.8 13.5 7
+       C7.2 7.2 7.2 7.2 7 13.5
+       C6.8 7.2 6.8 7.2 0.5 7
+       C6.8 6.8 6.8 6.8 7 0.5Z"/>
+  <defs>
+    <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#4285F4"/>
+      <stop offset="50%"  stop-color="#7C4DFF"/>
+      <stop offset="100%" stop-color="#4285F4"/>
+    </linearGradient>
+  </defs>
+</svg>

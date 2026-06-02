@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none">
+  <rect width="14" height="14" rx="3" fill="#fff"/>
+  <!-- Copilot rainbow ring: 4 quarter-arcs, each a different brand colour -->
+  <path d="M7 1.5  A5.5 5.5 0 0 0 1.5 7"   stroke="#B4A0FF" stroke-width="1.7" stroke-linecap="butt"/>
+  <path d="M1.5 7  A5.5 5.5 0 0 0 7 12.5"  stroke="#5EA0EF" stroke-width="1.7" stroke-linecap="butt"/>
+  <path d="M7 12.5 A5.5 5.5 0 0 0 12.5 7"  stroke="#19D3EE" stroke-width="1.7" stroke-linecap="butt"/>
+  <path d="M12.5 7 A5.5 5.5 0 0 0 7 1.5"   stroke="#0ED8B4" stroke-width="1.7" stroke-linecap="butt"/>
+</svg>

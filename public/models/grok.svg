@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none">
+  <rect width="14" height="14" rx="3" fill="#000"/>
+  <!-- Stylised G arc (xAI / Grok) -->
+  <path stroke="white" stroke-width="1.3" stroke-linecap="round" fill="none"
+    d="M11 4.5
+       A5 5 0 1 0 12 8
+       L9.5 8"/>
+</svg>

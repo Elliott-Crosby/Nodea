@@ -2685,7 +2685,7 @@ export default function App() {
           role="status"
           aria-live="polite"
           style={{
-            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)',
             display: 'flex', alignItems: 'center', gap: 10,
             background: 'var(--modal-bg)', color: 'var(--text-primary)',
             border: `1px solid ${importNotice.tone === 'error' ? '#ef4444' : 'var(--border-strong)'}`,

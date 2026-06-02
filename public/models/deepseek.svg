@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none">
+  <rect width="14" height="14" rx="3" fill="#4D6BFE"/>
+  <!-- DeepSeek: magnifier on blue (search motif) -->
+  <circle cx="5.8" cy="5.8" r="3" stroke="white" stroke-width="1.3"/>
+  <line   x1="8"   y1="8"   x2="11.5" y2="11.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+</svg>

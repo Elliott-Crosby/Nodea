@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none">
+  <rect width="14" height="14" rx="3" fill="#1C1C1C"/>
+  <!-- Mistral: 3 descending bars (inverted pyramid) in brand orange -->
+  <rect x="2.5" y="3.5" width="9"   height="2" rx="1" fill="#FF7000"/>
+  <rect x="4"   y="6.5" width="6"   height="2" rx="1" fill="#FF7000"/>
+  <rect x="5.5" y="9.5" width="3"   height="2" rx="1" fill="#FF7000"/>
+</svg>

@@ -31,6 +31,11 @@ const PALETTE = [
   { id: 'violet',  label: 'Violet',  hex: '#8b5cf6' },
 ]
 
+// ── Merge overlay ────────────────────────────────────────────────────────────
+// Merge edges and connection points are light blue, deliberately distinct from
+// the violet branch edges (--edge-color / --accent).
+const MERGE_BLUE = '#38bdf8'
+
 // ── Sticky-note constants ──────────────────────────────────────────────────────
 const STICKY_MIN_W       = 140
 const STICKY_MIN_H       = 90
@@ -476,7 +481,7 @@ function StickyNoteCard({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
@@ -490,6 +495,21 @@ export default function TreePanel() {
   const [dragging,        setDragging]        = useState(false)
   const [scrollbarHover,  setScrollbarHover]  = useState(false)
   const [containerSize,   setContainerSize]   = useState({ w: 0, h: 0 })
+
+  // ── Merge overlay state ─────────────────────────────────────────────────────
+  // mergeMode turns node clicks into multi-select (Flow A). selectedPairIds is
+  // that selection. dragMerge tracks a live drag from a node's connection handle
+  // (Flow B); dropTargetPairId is the pair currently hovered as a valid target.
+  // pendingFanInSourceIds renders preview edges into the ghost while a Flow-A
+  // merged prompt is being typed. hoveredMergeKey reveals an edge's remove ×.
+  const [mergeMode,        setMergeMode]        = useState(false)
+  const [selectedPairIds,  setSelectedPairIds]  = useState<Set<string>>(new Set())
+  const [dragMerge,        setDragMerge]        = useState<
+    { sourceNodeId: string; sourcePairId: string; sx: number; sy: number; cx: number; cy: number; validTarget: boolean } | null
+  >(null)
+  const [dropTargetPairId, setDropTargetPairId] = useState<string | null>(null)
+  const [pendingFanInSourceIds, setPendingFanInSourceIds] = useState<string[]>([])
+  const [hoveredMergeKey,  setHoveredMergeKey]  = useState<string | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging   = useRef(false)
@@ -607,6 +627,67 @@ export default function TreePanel() {
     }
     return [...pairs, ghost]
   }, [pairs, showGhost, ghostAnchorPair])
+
+  // Map every node id (user + assistant) to the pair it belongs to, so a merge
+  // source stored as a node id can be resolved to a pair for drawing.
+  const nodeIdToPairId = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of pairs) {
+      m.set(p.userNode.id, p.id)
+      if (p.aiNode) m.set(p.aiNode.id, p.id)
+    }
+    return m
+  }, [pairs])
+
+  // The merge overlay: one entry per stored merge link, resolved to source/target
+  // pairs. Unresolved ids (deleted node, other conversation) are silently skipped.
+  const mergeEdges = useMemo(() => {
+    const edges: { key: string; sourcePairId: string; targetPairId: string; sourceNodeId: string; targetNodeId: string }[] = []
+    for (const p of pairs) {
+      const sources = p.userNode.merge_sources
+      if (!Array.isArray(sources) || sources.length === 0) continue
+      for (const srcId of sources) {
+        const sourcePairId = nodeIdToPairId.get(srcId)
+        if (!sourcePairId || sourcePairId === p.id) continue
+        edges.push({ key: `${srcId}->${p.id}`, sourcePairId, targetPairId: p.id, sourceNodeId: srcId, targetNodeId: p.userNode.id })
+      }
+    }
+    return edges
+  }, [pairs, nodeIdToPairId])
+
+  // Click order of the current merge selection. Insertion order of the Set is
+  // the order the user clicked, so index 0 is the base (the merged prompt grows
+  // from it) and the rest are sources.
+  const mergeOrder = useMemo(() => {
+    const m = new Map<string, number>()
+    let i = 0
+    for (const id of selectedPairIds) { m.set(id, i); i++ }
+    return m
+  }, [selectedPairIds])
+
+  // A readable title for any node id (resolved to its pair), for labelling which
+  // branches a merge pulls from.
+  const titleForNodeId = useCallback((nodeId: string): string => {
+    const pid = nodeIdToPairId.get(nodeId)
+    const p = pid ? pairs.find((x) => x.id === pid) : undefined
+    if (!p) return 'a branch'
+    return nodeSummaries[p.id]?.title || generateTitle(p.userNode.content, p.aiNode?.content ?? '')
+  }, [pairs, nodeIdToPairId, nodeSummaries])
+
+  // Source pairs of any merge node on the current active path — so selecting a
+  // merged node lights up the branches it pulled from (and brightens its lines).
+  const activeMergeSourcePairIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of mergeEdges) if (activePairIds.has(e.targetPairId)) set.add(e.sourcePairId)
+    return set
+  }, [mergeEdges, activePairIds])
+
+  // Leaving the conversation or merge mode clears any in-progress merge UI.
+  useEffect(() => { setMergeMode(false); setSelectedPairIds(new Set()); setPendingFanInSourceIds([]) }, [activeConvId])
+  useEffect(() => { if (!mergeMode) setSelectedPairIds(new Set()) }, [mergeMode])
+  // Once the merged prompt is saved as a real pair (lastSavedPairId advances) the
+  // stored merge_sources edges take over, so drop the ghost preview edges.
+  useEffect(() => { setPendingFanInSourceIds([]) }, [lastSavedPairId])
 
   const vSpacing      = viewMode === 'full' ? V_SPACING_FULL : V_SPACING
   const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing), [displayPairs, vSpacing])
@@ -863,6 +944,190 @@ export default function TreePanel() {
     })
   }
 
+  // ── Merge edges (light-blue overlay) ────────────────────────────────────────
+  // A merge can cross the tree (source far from target, sometimes below it), so
+  // the path exits the bottom of whichever node is higher and bows horizontally
+  // to skirt around intervening nodes. Returns the path `d` plus the target
+  // connection-point coordinates.
+  function mergeEdgeGeometry(s: { x: number; y: number }, t: { x: number; y: number }) {
+    const cx  = LAYOUT_W / 2
+    const x1  = s.x + cx
+    const x2  = t.x + cx
+    const y1  = s.y <= t.y ? s.y + nodeH : s.y
+    const y2  = s.y <= t.y ? t.y : t.y + nodeH
+    const dx  = x2 - x1
+    const dy  = y2 - y1
+    const bow = Math.max(36, Math.abs(dx) * 0.4)
+    const dir = dx >= 0 ? 1 : -1
+    const d   = `M${x1},${y1} C${x1 + dir * bow},${y1 + dy * 0.25} ${x2 - dir * bow},${y2 - dy * 0.25} ${x2},${y2}`
+    return { d, tx: x2, ty: y2 }
+  }
+
+  function renderMergeEdges() {
+    const out: React.ReactElement[] = []
+
+    // Persisted merge links.
+    for (const e of mergeEdges) {
+      const s = pairPositions.get(e.sourcePairId)
+      const t = pairPositions.get(e.targetPairId)
+      if (!s || !t || e.sourcePairId === '__ghost__' || e.targetPairId === '__ghost__') continue
+      const { d, tx, ty } = mergeEdgeGeometry(s, t)
+      const hot = hoveredMergeKey === e.key
+      // Faint by default; bright when the merged node is on the active path
+      // (i.e. selected), so a merge's lines surface when you focus that node.
+      const targetActive = activePairIds.has(e.targetPairId)
+      const op = hot ? 1 : targetActive ? 0.95 : 0.1
+      const sw = hot ? 2.6 : targetActive ? 1.9 : 1.3
+      out.push(
+        <g key={`m-${e.key}`}>
+          {/* wide invisible hit area — click to remove the link (works even when faint) */}
+          <path d={d} stroke="transparent" strokeWidth={14} fill="none"
+            style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+            onMouseEnter={() => setHoveredMergeKey(e.key)}
+            onMouseLeave={() => setHoveredMergeKey((k) => (k === e.key ? null : k))}
+            onClick={(ev) => { ev.stopPropagation(); void removeMergeSource(e.targetNodeId, e.sourceNodeId) }}>
+            <title>Click to remove this merge</title>
+          </path>
+          <path d={d} stroke={MERGE_BLUE} strokeWidth={sw} strokeDasharray="5 4"
+            fill="none" strokeLinecap="round" opacity={op} markerEnd="url(#merge-arrow)"
+            style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }} />
+          {/* light-blue connection point at the target */}
+          <circle cx={tx} cy={ty} r={3.4} fill={MERGE_BLUE} opacity={op} style={{ pointerEvents: 'none', transition: 'opacity 0.2s' }} />
+          {hot && (
+            <g transform={`translate(${tx},${ty - 16})`} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+              onClick={(ev) => { ev.stopPropagation(); void removeMergeSource(e.targetNodeId, e.sourceNodeId) }}>
+              <circle r={7} fill={MERGE_BLUE} />
+              <path d="M-2.6,-2.6 L2.6,2.6 M2.6,-2.6 L-2.6,2.6" stroke="white" strokeWidth={1.5} strokeLinecap="round" />
+            </g>
+          )}
+        </g>,
+      )
+    }
+
+    // Preview fan-in for a Flow-A merge being typed into the ghost.
+    const ghost = pairPositions.get('__ghost__')
+    if (ghost && pendingFanInSourceIds.length > 0) {
+      for (const srcId of pendingFanInSourceIds) {
+        const srcPairId = nodeIdToPairId.get(srcId)
+        const s = srcPairId ? pairPositions.get(srcPairId) : undefined
+        if (!s) continue
+        const { d, tx, ty } = mergeEdgeGeometry(s, ghost)
+        out.push(
+          <g key={`fan-${srcId}`} style={{ pointerEvents: 'none' }}>
+            <path d={d} stroke={MERGE_BLUE} strokeWidth={1.6} strokeDasharray="5 4" fill="none" strokeLinecap="round" opacity={0.6} markerEnd="url(#merge-arrow)" />
+            <circle cx={tx} cy={ty} r={3.4} fill={MERGE_BLUE} opacity={0.6} />
+          </g>,
+        )
+      }
+    }
+
+    // Live rubber-band while dragging from a connection handle.
+    if (dragMerge) {
+      const color = dragMerge.validTarget ? MERGE_BLUE : 'var(--text-muted)'
+      const d = `M${dragMerge.sx},${dragMerge.sy} C${dragMerge.sx},${(dragMerge.sy + dragMerge.cy) / 2} ${dragMerge.cx},${(dragMerge.sy + dragMerge.cy) / 2} ${dragMerge.cx},${dragMerge.cy}`
+      out.push(
+        <g key="merge-rubber" style={{ pointerEvents: 'none' }}>
+          <path d={d} stroke={color} strokeWidth={2} strokeDasharray="5 4" fill="none" strokeLinecap="round" opacity={0.9} />
+          <circle cx={dragMerge.cx} cy={dragMerge.cy} r={4} fill={color} opacity={0.9} />
+        </g>,
+      )
+    }
+
+    return out
+  }
+
+  // Start a Flow-B merge drag from a node's connection handle. Mirrors the
+  // sticky-note drag pattern: window listeners, scale-aware coordinates, with
+  // the drop target hit-tested via the DOM (data-pair-id). Defined inline so it
+  // captures the freshest layout / merge validators.
+  function beginNodeDrag(e: React.PointerEvent, pair: Pair) {
+    e.stopPropagation()
+    e.preventDefault()
+    const srcPos = pairPositions.get(pair.id)
+    if (!srcPos) return
+    const sourceNodeId = pair.aiNode?.id ?? pair.userNode.id
+    const sourcePairId = pair.id
+    const sx = srcPos.x + LAYOUT_W / 2
+    const sy = srcPos.y + nodeH
+    setDragMerge({ sourceNodeId, sourcePairId, sx, sy, cx: sx, cy: sy, validTarget: false })
+
+    const toTarget = (ev: PointerEvent) => {
+      const el = containerRef.current
+      if (!el) return { cx: sx, cy: sy, validTarget: false, dropId: null as string | null }
+      const rect = el.getBoundingClientRect()
+      const cx = (ev.clientX - rect.left - panRef.current.x) / scaleRef.current
+      const cy = (ev.clientY - rect.top  - panRef.current.y) / scaleRef.current
+      const overEl = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
+      const targetPairId = overEl?.closest('[data-pair-id]')?.getAttribute('data-pair-id') ?? null
+      let validTarget = false
+      let dropId: string | null = null
+      if (targetPairId && targetPairId !== sourcePairId && targetPairId !== '__ghost__') {
+        const tp = pairs.find((p) => p.id === targetPairId)
+        if (tp && canMergeInto(sourceNodeId, tp.userNode.id)) { validTarget = true; dropId = targetPairId }
+      }
+      return { cx, cy, validTarget, dropId }
+    }
+
+    const onMove = (ev: PointerEvent) => {
+      const { cx, cy, validTarget, dropId } = toTarget(ev)
+      setDragMerge((d) => (d ? { ...d, cx, cy, validTarget } : d))
+      setDropTargetPairId(dropId)
+    }
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      const { validTarget, dropId } = toTarget(ev)
+      if (validTarget && dropId) {
+        const tp = pairs.find((p) => p.id === dropId)
+        if (tp) {
+          void addMergeSource(tp.userNode.id, sourceNodeId).then((ok) => { if (ok) track('node_merged', { flow: 'drag' }) })
+        }
+      }
+      setDragMerge(null)
+      setDropTargetPairId(null)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // A node was activated (clicked). In merge mode this toggles selection;
+  // a modifier-click anywhere starts a selection. Otherwise: normal navigation.
+  function onNodeActivate(pair: Pair, e: React.MouseEvent) {
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey
+    if (mergeMode || additive) {
+      if (!mergeMode) setMergeMode(true)
+      setSelectedPairIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(pair.id)) next.delete(pair.id)
+        else next.add(pair.id)
+        return next
+      })
+      return
+    }
+    void handleNodeClick(pair.aiNode?.id ?? pair.userNode.id)
+  }
+
+  // Flow A: converge the selected branches into a new prompt. The most recent
+  // selection is the anchor (the new prompt forks from it); the rest become
+  // merge sources joined into context on the next send.
+  function doMerge() {
+    // Insertion order = click order: the FIRST node clicked is the base. The
+    // merged prompt forks structurally beneath it; every other selected node is
+    // a source, connected in with a dashed light-blue line.
+    const chosen = [...selectedPairIds]
+      .map((id) => pairs.find((p) => p.id === id))
+      .filter((p): p is Pair => !!p)
+    if (chosen.length < 2) return
+    const anchor = chosen[0]
+    const anchorTipId = anchor.aiNode?.id ?? anchor.userNode.id
+    const sourceTipIds = chosen.slice(1).map((p) => p.aiNode?.id ?? p.userNode.id)
+    setPendingFanInSourceIds(sourceTipIds)
+    setMergeMode(false)
+    setSelectedPairIds(new Set())
+    track('merge_started', { count: chosen.length })
+    void beginMerge(anchorTipId, sourceTipIds)
+  }
+
   // ── Collapsed strip ───────────────────────────────────────────────────────────
   if (collapsed) {
     return (
@@ -1015,6 +1280,17 @@ export default function TreePanel() {
                 {renderEdges()}
               </svg>
 
+              {/* Merge overlay — light-blue edges, connection points, drag rubber-band.
+                  The svg ignores pointers; individual hit paths / remove buttons re-enable them. */}
+              <svg style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }} width={canvasW} height={canvasH}>
+                <defs>
+                  <marker id="merge-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M1,1 L6,4 L1,7" fill="none" stroke={MERGE_BLUE} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </marker>
+                </defs>
+                {renderMergeEdges()}
+              </svg>
+
               {displayPairs.map((pair) => {
                 const pos = pairPositions.get(pair.id)
                 if (!pos) return null
@@ -1049,16 +1325,38 @@ export default function TreePanel() {
                 const attachments    = pair.userNode.attachments ?? []
                 const hasAttachments = attachments.length > 0
 
-                const borderCol = color
+                const isSelForMerge = selectedPairIds.has(pair.id)
+                const isDropTarget  = dropTargetPairId === pair.id
+                const isMergeSourceHL = !mergeMode && activeMergeSourcePairIds.has(pair.id)
+                const mergeOrderIdx = mergeOrder.get(pair.id)
+                const mergeSrcIds   = Array.isArray(pair.userNode.merge_sources) ? pair.userNode.merge_sources : []
+                const hasMergeSources = mergeSrcIds.length > 0
+
+                const borderCol = (isDropTarget || isSelForMerge || isMergeSourceHL)
+                  ? MERGE_BLUE
+                  : color
                   ? color
                   : isActive  ? 'var(--accent)'
                   : isHovered ? 'var(--border-strong)'
                   : 'var(--node-border)'
 
-                const bgCol = color
+                const bgCol = (isSelForMerge || isMergeSourceHL)
+                  ? `${MERGE_BLUE}14`
+                  : color
                   ? `${color}14`
                   : isActive ? 'var(--node-active-bg)'
                   : 'var(--node-bg)'
+
+                const boxShadow = isDropTarget
+                  ? `0 0 0 3px ${MERGE_BLUE}55`
+                  : (isSelForMerge || isMergeSourceHL)
+                  ? `0 0 0 2px ${MERGE_BLUE}`
+                  : isActive
+                  ? `0 0 0 3px ${color ? color + '30' : 'var(--accent-bg)'}`
+                  : isHovered ? 'var(--shadow-sm)' : 'none'
+
+                // The connection handle drags this node into another to merge it.
+                const showMergeHandle = isHovered && !mergeMode && !dragMerge
 
                 const offsetX = pos.x + (LAYOUT_W - nodeW) / 2
 
@@ -1066,12 +1364,13 @@ export default function TreePanel() {
                   <div
                     key={pair.id}
                     data-node="true"
+                    data-pair-id={pair.id}
                     style={{
                       position:   'absolute',
                       left:       offsetX,
                       top:        pos.y,
                       zIndex:     isHovered ? 10 : 1,
-                      opacity:    isInactive ? 0.72 : 1,
+                      opacity:    (isInactive && !isMergeSourceHL) ? 0.72 : 1,
                       transition: 'opacity 0.2s',
                     }}
                     onMouseEnter={e => {
@@ -1081,9 +1380,88 @@ export default function TreePanel() {
                     }}
                     onMouseLeave={() => { setHoveredId(null); setHoverPos(null) }}
                   >
+                    {showMergeHandle && (
+                      <div
+                        data-node="true"
+                        title="Drag onto another node to merge"
+                        onPointerDown={(e) => beginNodeDrag(e, pair)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute', left: nodeW / 2 - 8, top: nodeH - 8,
+                          width: 16, height: 16, borderRadius: '50%',
+                          background: MERGE_BLUE, border: '2px solid var(--tree-bg)',
+                          cursor: 'grab', zIndex: 5,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                        }}
+                      >
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Merge-selection badge: which node is the base vs a source. */}
+                    {mergeMode && isSelForMerge && mergeOrderIdx !== undefined && (
+                      <div
+                        title={mergeOrderIdx === 0 ? 'Base — the merged prompt grows from here' : 'Source — merged into the base'}
+                        style={{
+                          position: 'absolute', left: -8, top: -8, zIndex: 6,
+                          height: 18, padding: '0 6px', borderRadius: 9,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap',
+                          background: mergeOrderIdx === 0 ? MERGE_BLUE : 'var(--modal-bg)',
+                          color:      mergeOrderIdx === 0 ? 'white' : MERGE_BLUE,
+                          border: `1.5px solid ${MERGE_BLUE}`, boxShadow: '0 1px 3px rgba(0,0,0,0.22)',
+                        }}
+                      >
+                        {mergeOrderIdx === 0 ? 'Base' : 'Source'}
+                      </div>
+                    )}
+
+                    {/* Persistent "Source" badge while its merged node is on the active path. */}
+                    {isMergeSourceHL && (
+                      <div
+                        title="Source — this branch is merged into the selected node"
+                        style={{
+                          position: 'absolute', left: -8, top: -8, zIndex: 6,
+                          height: 18, padding: '0 6px', borderRadius: 9,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap',
+                          background: 'var(--modal-bg)', color: MERGE_BLUE,
+                          border: `1.5px solid ${MERGE_BLUE}`, boxShadow: '0 1px 3px rgba(0,0,0,0.22)',
+                        }}
+                      >
+                        Source
+                      </div>
+                    )}
+
+                    {/* Persistent caption naming the branches this node merges from. */}
+                    {hasMergeSources && (
+                      <div
+                        title={`Merging from: ${mergeSrcIds.map(titleForNodeId).join(', ')}`}
+                        style={{
+                          position: 'absolute', top: -15, left: 0, maxWidth: nodeW, zIndex: 4,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '1px 6px', borderRadius: 7,
+                          background: MERGE_BLUE, color: 'white',
+                          fontSize: 9.5, fontWeight: 600, lineHeight: 1.5,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)', pointerEvents: 'none',
+                        }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M4 2.6c0 0 .6 2.9 3.5 3.4M4 9.4c0 0 .6-2.9 3.5-3.4" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+                          <circle cx="9.5" cy="6" r="1.3" fill="white" />
+                        </svg>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          from {mergeSrcIds.length === 1 ? titleForNodeId(mergeSrcIds[0]) : `${mergeSrcIds.length} branches`}
+                        </span>
+                      </div>
+                    )}
                     <div
                       data-node="true"
-                      onClick={() => handleNodeClick(pair.aiNode?.id ?? pair.userNode.id)}
+                      onClick={(e) => onNodeActivate(pair, e)}
                       style={{
                         width:      nodeW,
                         height:     nodeH,
@@ -1093,9 +1471,7 @@ export default function TreePanel() {
                         cursor:     'pointer',
                         overflow:   'hidden',
                         position:   'relative',
-                        boxShadow:  isActive
-                          ? `0 0 0 3px ${color ? color + '30' : 'var(--accent-bg)'}`
-                          : isHovered ? 'var(--shadow-sm)' : 'none',
+                        boxShadow,
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
@@ -1556,8 +1932,8 @@ export default function TreePanel() {
         </div>
       )}
 
-      {/* Branch button */}
-      {(() => {
+      {/* Bottom controls — branch (default) or merge selection (merge mode) */}
+      {viewMode !== 'outline' && (() => {
         const selPair = pairs.find(p =>
           p.id === selectedNodeId ||
           p.userNode.id === selectedNodeId ||
@@ -1567,41 +1943,111 @@ export default function TreePanel() {
         const preview      = selPair
           ? (selPair.userNode.content.length > 32 ? selPair.userNode.content.slice(0, 32) + '…' : selPair.userNode.content)
           : null
+        const mergeSel  = [...selectedPairIds].map((id) => pairs.find((p) => p.id === id)).filter((p): p is Pair => !!p)
+        const canMerge  = mergeSel.length >= 2
+        const baseRaw   = mergeSel[0] ? titleForNodeId(mergeSel[0].aiNode?.id ?? mergeSel[0].userNode.id) : ''
+        const baseTitle = baseRaw.length > 20 ? baseRaw.slice(0, 19) + '…' : baseRaw
+        const mergeLabel = canMerge
+          ? `Merge ${mergeSel.length - 1} into “${baseTitle}”`
+          : mergeSel.length === 1
+          ? 'Base set — now pick branches to merge in'
+          : 'Click the base node first'
 
         return (
-          <div style={{ position: 'absolute', bottom: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10, padding: '0 12px' }}>
-            <button
-              disabled={!hasSelection}
-              onClick={async () => {
-                if (!selPair) return
-                await handleNodeClick(selPair.aiNode?.id ?? selPair.userNode.id)
-                chatInputRef?.current?.focus()
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7,
-                padding: '7px 14px',
-                background:  hasSelection ? 'var(--accent)' : 'var(--bg-muted)',
-                color:       hasSelection ? 'white' : 'var(--text-muted)',
-                border:      'none', borderRadius: 20,
-                fontSize:    11, fontWeight: 600,
-                cursor:      hasSelection ? 'pointer' : 'not-allowed',
-                boxShadow:   hasSelection ? 'var(--shadow-md)' : 'none',
-                whiteSpace:  'nowrap', overflow: 'hidden', maxWidth: '100%',
-                transition:  'background 0.15s, color 0.15s, box-shadow 0.15s',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-                <circle cx="2.5" cy="2.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
-                <circle cx="2.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
-                <circle cx="9.5" cy="6"   r="1.5" stroke="currentColor" strokeWidth="1.1" />
-                <path d="M2.5 4v4M2.5 4c0 0 .5 2 3.5 2h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-              </svg>
-              {hasSelection && preview ? (
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Branch from: <span style={{ opacity: 0.85 }}>{preview}</span>
-                </span>
-              ) : 'Select a node to branch'}
-            </button>
+          <div style={{ position: 'absolute', bottom: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, zIndex: 10, padding: '0 12px' }}>
+            {mergeMode ? (
+              <>
+                <button
+                  disabled={!canMerge}
+                  onClick={doMerge}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px',
+                    background:  canMerge ? MERGE_BLUE : 'var(--bg-muted)',
+                    color:       canMerge ? 'white' : 'var(--text-muted)',
+                    border:      'none', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                    cursor:      canMerge ? 'pointer' : 'not-allowed',
+                    boxShadow:   canMerge ? 'var(--shadow-md)' : 'none',
+                    whiteSpace:  'nowrap', overflow: 'hidden', maxWidth: '100%',
+                    transition:  'background 0.15s, color 0.15s, box-shadow 0.15s',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="2.5" cy="2.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <circle cx="2.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <circle cx="9.5" cy="6"   r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <path d="M4 2.6c0 0 .6 2.9 3.5 3.4M4 9.4c0 0 .6-2.9 3.5-3.4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                  </svg>
+                  {mergeLabel}
+                </button>
+                <button
+                  onClick={() => { setMergeMode(false); setSelectedPairIds(new Set()) }}
+                  title="Cancel merge"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px 12px',
+                    background: 'var(--modal-bg)', color: 'var(--text-secondary)',
+                    border: '1px solid var(--border)', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                    cursor: 'pointer', boxShadow: 'var(--shadow-sm)', whiteSpace: 'nowrap',
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  disabled={!hasSelection}
+                  onClick={async () => {
+                    if (!selPair) return
+                    await handleNodeClick(selPair.aiNode?.id ?? selPair.userNode.id)
+                    chatInputRef?.current?.focus()
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '7px 14px',
+                    background:  hasSelection ? 'var(--accent)' : 'var(--bg-muted)',
+                    color:       hasSelection ? 'white' : 'var(--text-muted)',
+                    border:      'none', borderRadius: 20,
+                    fontSize:    11, fontWeight: 600,
+                    cursor:      hasSelection ? 'pointer' : 'not-allowed',
+                    boxShadow:   hasSelection ? 'var(--shadow-md)' : 'none',
+                    whiteSpace:  'nowrap', overflow: 'hidden', maxWidth: '100%',
+                    transition:  'background 0.15s, color 0.15s, box-shadow 0.15s',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="2.5" cy="2.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <circle cx="2.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <circle cx="9.5" cy="6"   r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                    <path d="M2.5 4v4M2.5 4c0 0 .5 2 3.5 2h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                  </svg>
+                  {hasSelection && preview ? (
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Branch from: <span style={{ opacity: 0.85 }}>{preview}</span>
+                    </span>
+                  ) : 'Select a node to branch'}
+                </button>
+                {pairs.length >= 2 && (
+                  <button
+                    onClick={() => setMergeMode(true)}
+                    title="Merge branches — converge two or more into one prompt"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 12px',
+                      background: 'var(--modal-bg)', color: MERGE_BLUE,
+                      border: `1px solid ${MERGE_BLUE}55`, borderRadius: 20, fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', boxShadow: 'var(--shadow-sm)', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="2.5" cy="2.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                      <circle cx="2.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                      <circle cx="9.5" cy="6"   r="1.5" stroke="currentColor" strokeWidth="1.1" />
+                      <path d="M4 2.6c0 0 .6 2.9 3.5 3.4M4 9.4c0 0 .6-2.9 3.5-3.4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                    </svg>
+                    Merge
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )
       })()}
