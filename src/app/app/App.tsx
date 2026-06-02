@@ -839,6 +839,43 @@ export default function App() {
   }, [])
   useEffect(() => () => { if (importNoticeTimerRef.current) clearTimeout(importNoticeTimerRef.current) }, [])
 
+  // ── Login carry-over from the extension ────────────────────────────────────
+  // The extension holds its OWN Supabase session (chrome.storage `nx_session`),
+  // separate from this site's cookie session. When it opens "Open in Nodea" the
+  // user may be signed in there but not here. Give its bridge a brief window to
+  // hand that session over (postMessage `auth-session`) and adopt it onto this
+  // site — setSession writes the auth cookies, so /api routes authenticate too.
+  // Resolves true if a session was adopted. See extension/src/bridge.js.
+  const adoptExtensionSession = useCallback((timeoutMs = 3000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let done = false
+      const finish = (v: boolean) => {
+        if (done) return
+        done = true
+        window.removeEventListener('message', onMsg)
+        clearTimeout(timer)
+        resolve(v)
+      }
+      async function onMsg(e: MessageEvent) {
+        if (e.source !== window || e.origin !== window.location.origin) return
+        const d = e.data as { __nodea?: string; session?: { access_token?: string; refresh_token?: string } } | null
+        if (!d || d.__nodea !== 'auth-session') return
+        const s = d.session
+        if (!s?.access_token || !s?.refresh_token) return finish(false)
+        const { error } = await supabase.auth.setSession({
+          access_token: s.access_token,
+          refresh_token: s.refresh_token,
+        })
+        if (error) console.warn('[Nodea auth] extension session rejected', error.message)
+        finish(!error)
+      }
+      window.addEventListener('message', onMsg)
+      // Ask the extension (if installed) to hand over its session.
+      window.postMessage({ __nodea: 'request-auth' }, window.location.origin)
+      const timer = setTimeout(() => finish(false), timeoutMs)
+    })
+  }, [supabase])
+
   const importConversation = useCallback(async (raw: unknown) => {
     const p = raw as ExtImportPayload | null
     // Only act on our v1 import shape.
@@ -851,7 +888,14 @@ export default function App() {
     console.info('[Nodea import] received', p.nodes.length, 'nodes from', p.source)
     const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      let { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        // The extension launched us — it may be signed in even though this site
+        // isn't. Give it a moment to hand over its session before the login wall.
+        if (await adoptExtensionSession()) {
+          ;({ data: { user } } = await supabase.auth.getUser())
+        }
+      }
       if (!user) {
         // Require a Nodea account, but don't make them re-open from Claude:
         // park the tree and replay it once they're back on /app signed in.
@@ -1011,7 +1055,7 @@ export default function App() {
     } finally {
       importingRef.current = false
     }
-  }, [supabase, loadConversation, showImportNotice, router])
+  }, [supabase, loadConversation, showImportNotice, router, adoptExtensionSession])
 
   // Listen for the extension bridge handing over a tree. The handshake is
   // two-way (each side pings on load and answers the other) so it works no
@@ -1425,7 +1469,16 @@ export default function App() {
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
+      let { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        // Launched from the extension's "Open in Nodea"? The user may be signed
+        // in there but not on this site — adopt the extension's session (login
+        // carry-over) before bouncing to /login. See adoptExtensionSession.
+        const extHandoff = new URLSearchParams(window.location.search).has('import')
+        if (extHandoff && (await adoptExtensionSession())) {
+          ;({ data: { user } } = await supabase.auth.getUser())
+        }
+      }
       if (!user) { router.push('/login'); return }
       const displayName = user.user_metadata?.display_name
       if (typeof displayName !== 'string' || displayName.trim().length === 0) {
