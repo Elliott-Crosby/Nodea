@@ -641,7 +641,11 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
         // The AI agent's icon. A reply imported from a third-party source (e.g.
         // claude.ai) wears that source's own brand logo on a neutral chip; a
         // reply generated natively in Nodea keeps the normal gradient mark.
-        const importedSrc = msg.imported ? getAISource(activeConvSource) : null
+        // Fallback: if source_message_id wasn't persisted (pre-migration path),
+        // use the absence of model_id as a proxy — imported messages never carry
+        // model_id, while every native Nodea reply always has one set.
+        const isImported = msg.imported || (!msg.modelId && !!activeConvSource)
+        const importedSrc = isImported ? getAISource(activeConvSource) : null
         if (importedSrc?.logo) {
           return (
             <div
@@ -681,7 +685,8 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
             {(() => {
               // Imported from a third party (e.g. claude.ai)? The avatar already
               // wears that source's brand logo, so the header just names it.
-              const importedSrc = msg.imported ? getAISource(activeConvSource) : null
+              const isImported = msg.imported || (!msg.modelId && !!activeConvSource)
+              const importedSrc = isImported ? getAISource(activeConvSource) : null
               if (importedSrc) return <span>{importedSrc.name}</span>
               // Native Nodea reply: its model logo + name. Driven by the node's
               // persisted model_id so it survives a refresh; falls back to Claude
