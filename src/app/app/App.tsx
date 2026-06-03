@@ -183,6 +183,49 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
   }
 }
 
+// ── Imported-provenance fallback (works without the DB migration) ────────────
+// The provenance columns (projects.source, nodes.source_message_id) aren't
+// guaranteed to exist on the hosted DB — the import path degrades gracefully and
+// drops them when they're absent. That would also drop the imported-source logo
+// on the next refresh, since both signals come from those columns. To keep the
+// source logo alive *forever* regardless of migration state, we mirror
+// provenance into localStorage at import/sync time and reconstruct it on load.
+// The real DB columns, when present, always take precedence (this is purely a
+// fallback — it never overrides a node that already carries source_message_id).
+const PROV_SRC_KEY   = (convId: string) => `nodea_prov_src_${convId}`
+const PROV_NODES_KEY = (convId: string) => `nodea_prov_nodes_${convId}`
+
+function readImportedSource(convId: string): string | null {
+  try { return localStorage.getItem(PROV_SRC_KEY(convId)) || null } catch { return null }
+}
+function readImportedNodeIds(convId: string): string[] {
+  try {
+    const raw = localStorage.getItem(PROV_NODES_KEY(convId))
+    const arr = raw ? JSON.parse(raw) : []
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []
+  } catch { return [] }
+}
+// Record (or extend) a conversation's imported provenance. `source` tags the
+// host (e.g. 'claude'); `nodeIds` are the Nodea node ids that came from it. The
+// node set is merged so a later "Update from source" only adds to it.
+function rememberImportedProvenance(convId: string, source: string, nodeIds: string[]): void {
+  try {
+    localStorage.setItem(PROV_SRC_KEY(convId), source)
+    const merged = Array.from(new Set([...readImportedNodeIds(convId), ...nodeIds]))
+    localStorage.setItem(PROV_NODES_KEY(convId), JSON.stringify(merged))
+  } catch {}
+}
+// Reconstruct a missing source_message_id from the localStorage fallback so the
+// rest of the pipeline (dbNodeToMessage → `imported`) Just Works unchanged. A
+// node that already has a real source_message_id (migrated DB) is left as-is.
+function applyImportedProvenance(convId: string, nodes: DbNode[]): DbNode[] {
+  const importedIds = new Set(readImportedNodeIds(convId))
+  if (importedIds.size === 0) return nodes
+  return nodes.map((n) =>
+    n.source_message_id || !importedIds.has(n.id) ? n : { ...n, source_message_id: n.id },
+  )
+}
+
 // ── Merge overlay helpers ────────────────────────────────────────────────────
 // A merge converges other branches into a node WITHOUT changing parent_id. The
 // link is stored as merge_sources on the node it merges into; these pure
@@ -704,7 +747,10 @@ export default function App() {
         return
       }
 
-      const enriched = enrichDbNodes(dbNodes as DbNode[])
+      // Reconstruct any imported provenance the hosted DB couldn't persist
+      // (missing source_message_id column) from the localStorage fallback, so
+      // the imported-source logo survives a refresh regardless of migration.
+      const enriched = applyImportedProvenance(convId, enrichDbNodes(dbNodes as DbNode[]))
       setAllDbNodes(enriched)
 
       // Restore persisted node colors
@@ -742,9 +788,10 @@ export default function App() {
           cur = cur.parent_id ? nodeMap.get(cur.parent_id) : undefined
         }
 
-        // Build children map so we can walk DOWN
+        // Build children map so we can walk DOWN (use the provenance-enriched
+        // nodes so descendants carry source_message_id like the ancestors do).
         const childrenMap = new Map<string, DbNode[]>()
-        for (const node of dbNodes as DbNode[]) {
+        for (const node of enriched) {
           if (node.parent_id) {
             if (!childrenMap.has(node.parent_id)) childrenMap.set(node.parent_id, [])
             childrenMap.get(node.parent_id)!.push(node)
@@ -964,6 +1011,11 @@ export default function App() {
         return
       }
 
+      // Mirror provenance into localStorage so the imported-source logo survives
+      // a refresh even when the DB lacks the source columns. Every node in this
+      // tree came from the source, so the whole set is imported.
+      rememberImportedProvenance(projectId, source, ordered.map((r) => r.id))
+
       // 3) Land on the same node the user was looking at in Claude.
       const leafSource = p.selectedLeaf || p.currentLeaf
       const leafNew = (leafSource && idMap.get(leafSource)) || null
@@ -1071,6 +1123,10 @@ export default function App() {
       const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
       const { data: existingRows, error: exErr } = await supabase
         .from('nodes').select('id, source_message_id').eq('project_id', convId)
+      // Pre-migration DB has no source_message_id column, so there's no reliable
+      // key to diff the source tree against — degrade to "unlinked" instead of
+      // throwing (the imported logo still persists via the localStorage fallback).
+      if (exErr && isColumnError(exErr)) return { status: 'unlinked', added: 0 }
       if (exErr) { console.error('update: load existing failed', exErr); throw new Error('db') }
 
       // source message id → existing Nodea node id.
@@ -1119,6 +1175,10 @@ export default function App() {
         ;({ error: insErr } = await supabase.from('nodes').insert(stripped))
       }
       if (insErr) { console.error('update: insert failed', insErr); throw new Error('db') }
+
+      // Keep the localStorage provenance fallback in sync so these freshly
+      // pulled nodes also keep their source logo across a refresh.
+      rememberImportedProvenance(convId, readImportedSource(convId) || 'claude', ordered.map((r) => r.id))
 
       // Best-effort sync metadata (ignored if columns absent).
       try {
@@ -1264,6 +1324,10 @@ export default function App() {
       const normalized: Conversation[] = (projects as Conversation[]).map((p) => ({
         ...p,
         chat_project_id: p.chat_project_id ?? null,
+        // The DB may not have the `source` column yet; restore it from the
+        // localStorage provenance fallback so the imported-source logo (which
+        // reads activeConvSource) survives a refresh.
+        source: p.source ?? readImportedSource(p.id),
       }))
       setConversations(normalized)
       const lastId = localStorage.getItem('lastConvId')
