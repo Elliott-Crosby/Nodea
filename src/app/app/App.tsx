@@ -75,40 +75,6 @@ export interface SourceTree {
 }
 export type UpdateResult = { ok: true; tree: SourceTree } | { ok: false; error: string }
 
-// ── Reverse sync (Nodea → Claude) ────────────────────────────────────────────
-// The mirror of an import: a prompt that was written in Nodea, replayed into the
-// original Claude conversation via the extension's write driver. We only ever
-// push the *user* prompt — Claude generates its own reply — then stamp the new
-// Claude message ids back onto the Nodea nodes so the two trees stay aligned and
-// the same branch is never pushed twice.
-export type PushParentRef =
-  // The branch point already exists in Claude (an imported assistant node).
-  | { kind: 'source'; id: string }
-  // The branch point was itself pushed earlier in this same run; the extension
-  // resolves it to the Claude assistant id it discovered after that push.
-  | { kind: 'localUser'; id: string }
-
-export interface PushItem {
-  /** Nodea user node id carrying the prompt — stamped with Claude's id on success. */
-  localUserId: string
-  /** Nodea assistant node that replied to it — stamped with Claude's reply id. */
-  localAssistantId: string | null
-  /** How the extension locates the Claude node to branch from. */
-  parentRef: PushParentRef
-  /** The prompt text to replay (attachment header already stripped). */
-  text: string
-}
-export interface PushResultItem {
-  localUserId: string
-  ok: boolean
-  claudeUserId?: string | null
-  claudeAssistantId?: string | null
-  error?: string
-}
-export type PushResult =
-  | { ok: true; results: PushResultItem[] }
-  | { ok: false; error: string }
-
 export interface AttachmentItem {
   name: string
   type: string
@@ -122,6 +88,10 @@ export interface ChatMessage {
   timestamp: number
   attachments?: AttachmentItem[]
   modelId?: string
+  /** True when this node came from a third-party source (imported — it carries a
+   *  source_message_id) rather than being generated natively in Nodea. Drives
+   *  whether the reply wears the source's icon or its native Claude model logo. */
+  imported?: boolean
 }
 
 export interface NodeAttachment {
@@ -209,6 +179,7 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
     id: n.id, role: n.role, content: n.content,
     timestamp: new Date(n.created_at).getTime(),
     modelId: n.model_id ?? undefined,
+    imported: !!n.source_message_id,
   }
 }
 
@@ -350,6 +321,11 @@ export interface DbNode {
   // Persisted from the chat API's X-Model-Id header so the model name + logo on
   // a reply survive a refresh. Absent on user nodes and on pre-migration rows.
   model_id?: string | null
+  // The source host's message id this node was imported from (e.g. a claude.ai
+  // message). Present only on imported nodes — its presence is what marks a node
+  // as third-party-sourced (vs. generated natively in Nodea), which drives the
+  // per-message source icon.
+  source_message_id?: string | null
   // Overlay "merge" links: ids of *other* nodes whose branches converge into
   // this one. Independent of parent_id — present only when the user merged
   // branches here. See the merge_sources migration. Lives on the user node of
@@ -399,14 +375,12 @@ export interface AppContextType {
   deleteConversation: (id: string) => Promise<void>
   /** True when the active conversation was imported from an outside source — gates the Update button. */
   activeConvIsImported: boolean
+  /** The active conversation's source key (e.g. 'claude') when imported, else null — picks the per-message source icon. */
+  activeConvSource: string | null
   /** Pull any new branches from the active conversation's source (Claude), via the extension. */
   updateFromSource: () => Promise<void>
   /** True while an Update round-trip is in flight (drives the button's spinner). */
   isUpdatingSource: boolean
-  /** Push branches added in Nodea back to the active conversation's source (Claude), via the extension. */
-  pushToSource: () => Promise<void>
-  /** True while a Push round-trip is in flight (drives the button's spinner). */
-  isPushingSource: boolean
   signOut: () => void
   userEmail: string
   userName: string
@@ -821,12 +795,6 @@ export default function App() {
   // Set when the extension bridge announces itself — lets Update fail fast with
   // an "install the extension" hint instead of waiting out the full timeout.
   const extPresentRef = useRef(false)
-  // Lets importConversation reuse the diff/append engine (applySourceTree) that's
-  // declared further down, without pulling it into importConversation's deps
-  // (which would be a use-before-declaration in the deps array). Assigned below.
-  const applySourceTreeRef = useRef<
-    ((convId: string, tree: SourceTree) => Promise<{ status: 'ok' | 'unlinked'; added: number }>) | null
-  >(null)
 
   const showImportNotice = useCallback((text: string, tone: 'info' | 'error' = 'info', ms = 4500) => {
     if (importNoticeTimerRef.current) clearTimeout(importNoticeTimerRef.current)
@@ -910,53 +878,16 @@ export default function App() {
       const sourceConvId = p.sourceConversationId ?? null
       const name = (typeof p.name === 'string' && p.name.trim()) || 'Imported conversation'
 
-      // Already imported this source conversation? UPDATE it, don't restart.
-      // The handed-over payload IS the source's current tree, so diff it against
-      // what we already have and append only the new branches (the same engine
-      // the "Update Conversation" button uses). Best-effort — falls back to just
-      // opening if provenance columns aren't migrated. Re-opening from Claude
-      // therefore syncs in place instead of creating a duplicate conversation.
-      if (sourceConvId) {
-        const { data: existing, error: exErr } = await supabase
-          .from('projects')
-          .select('id, name')
-          .eq('source', source)
-          .eq('source_conversation_id', sourceConvId)
-          .limit(1)
-          .maybeSingle()
-        if (!exErr && existing?.id) {
-          const tree: SourceTree = {
-            id: sourceConvId,
-            name: existing.name || name,
-            nodes: p.nodes,
-            currentLeaf: p.selectedLeaf || p.currentLeaf || null,
-          }
-          let added = 0
-          let unlinked = false
-          try {
-            const applied = await applySourceTreeRef.current?.(existing.id, tree)
-            if (applied) { added = applied.added; unlinked = applied.status === 'unlinked' }
-          } catch (err) {
-            console.warn('[Nodea import] re-import update failed; opening as-is', err)
-          }
-          await loadConversation(existing.id, existing.name || name)
-          showImportNotice(
-            unlinked
-              ? 'Opened the existing copy — this import predates sync, so newer branches can’t be merged in.'
-              : added > 0
-                ? `Updated “${existing.name || name}” — added ${added} new node${added === 1 ? '' : 's'} ✓`
-                : 'Already in Nodea and up to date ✓',
-            'info', 5000,
-          )
-          try { track('conversation_reimport_synced', { source, added }) } catch {}
-          return
-        }
-      }
+      // Carrying the same Claude conversation over again makes a fresh copy —
+      // imports aren't synced in place. (Each copy stays independently linked to
+      // its source, so the in-app "Update" button can still pull new branches
+      // into it; a re-import is always a new copy, never a merge.)
 
       // 1) Create the conversation via the API route. Conversations are created
       //    server-side (a client-side INSERT into projects is blocked by RLS —
-      //    the app always uses /api/projects), then we patch provenance with a
-      //    client UPDATE (allowed, exactly like rename / set-colour).
+      //    the app always uses /api/projects). Pass provenance fields in the
+      //    same request so they're written atomically in the INSERT — no
+      //    separate UPDATE step that can silently no-op pre-migration.
       const provenance: Record<string, unknown> = {
         source,
         source_conversation_id: sourceConvId,
@@ -967,7 +898,7 @@ export default function App() {
       const createRes = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, ...provenance }),
       })
       if (!createRes.ok) {
         console.error('[Nodea import] create conversation failed', createRes.status)
@@ -1207,9 +1138,6 @@ export default function App() {
     },
     [supabase, loadConversation, conversations, convName],
   )
-  // Expose the diff/append engine to importConversation (declared earlier), so a
-  // re-import updates the existing conversation in place instead of restarting.
-  applySourceTreeRef.current = applySourceTree
 
   const updateFromSource = useCallback(async () => {
     const convId = activeConvIdRef.current
@@ -1256,185 +1184,6 @@ export default function App() {
       setIsUpdatingSource(false)
     }
   }, [supabase, isUpdatingSource, requestSourceTree, applySourceTree, showImportNotice])
-
-  // ─── "Push to Claude": replay Nodea-only branches into the source (Stage 3) ──
-  // The reverse of Update: branches written in Nodea after an import are sent
-  // back to the original Claude conversation. Only the extension can drive
-  // claude.ai, so we hand it an ordered list of prompts (each tagged with the
-  // Claude node to branch from) and it forks them in with Claude's native edit/
-  // continue controls. Claude regenerates its own replies; we then stamp the new
-  // Claude message ids onto the matching Nodea nodes so a branch is never pushed
-  // twice and a later Update dedupes cleanly. Append-only — nothing is deleted.
-  const [isPushingSource, setIsPushingSource] = useState(false)
-
-  // Ask the extension bridge to replay `items` into the source conversation.
-  // Resolves with per-item results, or an error; times out generously because
-  // each item is a real Claude generation (DOM drive + reply wait).
-  const requestPushToSource = useCallback(
-    (
-      sourceConversationId: string, sourceOrgId: string | null, source: string,
-      items: PushItem[], timeoutMs: number,
-    ): Promise<PushResult> =>
-      new Promise<PushResult>((resolve) => {
-        const requestId = crypto.randomUUID()
-        let settled = false
-        const finish = (r: PushResult) => {
-          if (settled) return
-          settled = true
-          window.removeEventListener('message', onMsg)
-          resolve(r)
-        }
-        function onMsg(e: MessageEvent) {
-          if (e.source !== window || e.origin !== window.location.origin) return
-          const d = e.data as { __nodea?: string; requestId?: string; ok?: boolean; results?: PushResultItem[]; error?: string } | null
-          if (!d || d.__nodea !== 'push-result' || d.requestId !== requestId) return
-          finish(d.ok ? { ok: true, results: d.results || [] } : { ok: false, error: d.error || 'push failed' })
-        }
-        window.addEventListener('message', onMsg)
-        window.postMessage({ __nodea: 'push-request', requestId, source, sourceConversationId, sourceOrgId, items }, window.location.origin)
-        setTimeout(() => finish({ ok: false, error: 'timeout' }), timeoutMs)
-      }),
-    [],
-  )
-
-  const pushToSource = useCallback(async () => {
-    const convId = activeConvIdRef.current
-    if (!convId || isPushingSource) return
-    const { data: proj, error } = await supabase
-      .from('projects').select('source, source_conversation_id, source_org_id').eq('id', convId).maybeSingle()
-    if (error || !proj?.source || !proj?.source_conversation_id) {
-      showImportNotice('This conversation isn’t linked to Claude — nothing to push to.', 'error', 5000)
-      return
-    }
-
-    setIsPushingSource(true)
-    try {
-      // Pull the current tree, including provenance, so we can tell Nodea-authored
-      // nodes (no source_message_id) from imported ones.
-      const { data: rows, error: nodesErr } = await supabase
-        .from('nodes')
-        .select('id, parent_id, role, content, created_at, source_message_id')
-        .eq('project_id', convId)
-        .order('created_at', { ascending: true })
-      if (nodesErr) { showImportNotice('Push failed — could not read the conversation.', 'error', 6000); return }
-
-      type Row = { id: string; parent_id: string | null; role: string; content: string; created_at: string; source_message_id: string | null }
-      const all = (rows || []) as Row[]
-      const byId = new Map(all.map((r) => [r.id, r]))
-      const childrenOf = new Map<string, Row[]>()
-      for (const r of all) {
-        if (!r.parent_id) continue
-        if (!childrenOf.has(r.parent_id)) childrenOf.set(r.parent_id, [])
-        childrenOf.get(r.parent_id)!.push(r)
-      }
-
-      // Pre-provenance import (no source ids anywhere) → we can't safely anchor a
-      // push. Tell the user to re-import to enable it.
-      const anyLinked = all.some((r) => r.source_message_id)
-      if (!anyLinked) {
-        showImportNotice('This conversation predates sync — re-import it from the extension to enable Push.', 'error', 7000)
-        return
-      }
-
-      // Pushable = user prompts authored in Nodea (no Claude id yet).
-      const pushableIds = new Set(all.filter((r) => r.role === 'user' && !r.source_message_id).map((r) => r.id))
-
-      const items: PushItem[] = []
-      const skipped: string[] = []
-      // created_at order is parent-first, so any 'localUser' parent ref points at
-      // an item already earlier in the list.
-      for (const u of all) {
-        if (!pushableIds.has(u.id)) continue
-        const text = parseUserContent(u.content).text.trim()
-        if (!text) { skipped.push(u.id); continue }
-        const parentAsst = u.parent_id ? byId.get(u.parent_id) : null
-        if (!parentAsst || parentAsst.role !== 'assistant') { skipped.push(u.id); continue } // root / malformed — can't anchor
-
-        let parentRef: PushParentRef | null = null
-        if (parentAsst.source_message_id) {
-          parentRef = { kind: 'source', id: parentAsst.source_message_id }
-        } else {
-          // Parent reply was itself authored in Nodea — anchor on the prompt that
-          // produced it (which we must also be pushing this run).
-          const grandUser = parentAsst.parent_id ? byId.get(parentAsst.parent_id) : null
-          if (grandUser && grandUser.role === 'user' && pushableIds.has(grandUser.id)) {
-            parentRef = { kind: 'localUser', id: grandUser.id }
-          }
-        }
-        if (!parentRef) { skipped.push(u.id); continue }
-
-        // The Nodea reply to this prompt — stamped with Claude's reply id on success.
-        const reply = (childrenOf.get(u.id) || []).filter((c) => c.role === 'assistant')
-          .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))[0]
-        items.push({ localUserId: u.id, localAssistantId: reply?.id ?? null, parentRef, text })
-      }
-
-      if (items.length === 0) {
-        showImportNotice(
-          skipped.length
-            ? 'Nothing pushable yet — new branches must continue from a message that already exists in Claude.'
-            : 'Nothing new to push — Claude already has every branch ✓',
-          'info', 6000,
-        )
-        return
-      }
-
-      const res = await requestPushToSource(
-        proj.source_conversation_id as string, (proj.source_org_id as string) || null, proj.source as string,
-        items, Math.min(300000, 30000 + items.length * 45000),
-      )
-      if (!res.ok) {
-        const notDetected = !extPresentRef.current && res.error === 'timeout'
-        showImportNotice(
-          notDetected
-            ? 'Nodea extension not detected. Install it, open the Claude conversation, then try Push again.'
-            : res.error === 'timeout'
-              ? 'Couldn’t finish pushing to Claude. Open the imported conversation on claude.ai and try again.'
-              : `Push failed: ${res.error}`,
-          'error', 8000,
-        )
-        return
-      }
-
-      // Stamp the new Claude ids back so these branches aren't re-pushed and a
-      // later Update dedupes them. Best-effort, graceful-degrade per row.
-      const okItems = res.results.filter((r) => r.ok && r.claudeUserId)
-      const itemById = new Map(items.map((i) => [i.localUserId, i]))
-      const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
-      for (const r of okItems) {
-        const up = await supabase.from('nodes').update({ source_message_id: r.claudeUserId }).eq('id', r.localUserId)
-        if (up.error && !isColumnError(up.error)) console.warn('[Nodea push] stamp user node failed', up.error)
-        const localAsstId = itemById.get(r.localUserId)?.localAssistantId
-        if (r.claudeAssistantId && localAsstId) {
-          const ua = await supabase.from('nodes').update({ source_message_id: r.claudeAssistantId }).eq('id', localAsstId)
-          if (ua.error && !isColumnError(ua.error)) console.warn('[Nodea push] stamp assistant node failed', ua.error)
-        }
-      }
-
-      // Record the last-synced leaf so Update lands in the right spot next time.
-      try {
-        await supabase.from('projects').update({ source_synced_at: new Date().toISOString() }).eq('id', convId)
-      } catch {}
-
-      const failed = res.results.filter((r) => !r.ok)
-      const pushed = okItems.length
-      if (pushed > 0 && failed.length === 0) {
-        showImportNotice(`Pushed ${pushed} branch${pushed === 1 ? '' : 'es'} to Claude ✓`, 'info', 5000)
-      } else if (pushed > 0) {
-        showImportNotice(`Pushed ${pushed} of ${items.length} — ${failed.length} couldn’t be replayed. See console.`, 'info', 7000)
-        console.warn('[Nodea push] partial', failed)
-      } else {
-        showImportNotice('Push didn’t land any branches. Make sure the Claude conversation is open and try again.', 'error', 7000)
-        console.warn('[Nodea push] all failed', failed)
-      }
-      try { track('conversation_pushed', { source: proj.source, pushed }) } catch {}
-    } catch (e) {
-      console.error('push failed', e)
-      showImportNotice('Push failed — see console for details.', 'error', 6000)
-    } finally {
-      setIsPushingSource(false)
-    }
-  }, [supabase, isPushingSource, requestPushToSource, showImportNotice])
 
   // Delete the active conv only if it's truly empty: no DB nodes, no in-flight
   // local messages, and no send in progress. The local-messages check matters
@@ -2807,6 +2556,10 @@ export default function App() {
     const c = conversations.find((c) => c.id === activeConvId)
     return c?.source && c?.source_conversation_id
   })()
+  // The active conversation's source provider key (e.g. 'claude'), or null when
+  // it's a native Nodea conversation. Lets the chat panel tag imported messages
+  // with the source's own icon instead of the native model logo.
+  const activeConvSource = conversations.find((c) => c.id === activeConvId)?.source ?? null
 
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
@@ -2817,7 +2570,7 @@ export default function App() {
     isChatCollapsed, setIsChatCollapsed,
     handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
     renameConversation, deleteConversation,
-    activeConvIsImported, updateFromSource, isUpdatingSource, pushToSource, isPushingSource, signOut,
+    activeConvIsImported, activeConvSource, updateFromSource, isUpdatingSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
     nodeColors, setNodeColor, deleteNode,
     canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,

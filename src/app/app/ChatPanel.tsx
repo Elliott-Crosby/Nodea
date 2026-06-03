@@ -402,7 +402,7 @@ function ImportedUpsellBanner() {
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource, pushToSource, isPushingSource } = useApp()
+  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource } = useApp()
 
   return (
     <div
@@ -442,28 +442,6 @@ function TopBar() {
               <path d="M12.6 1.5V4H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {isUpdatingSource ? 'Updating…' : 'Update'}
-          </button>
-        )}
-        {activeConvIsImported && (
-          <button
-            title={isPushingSource ? 'Replaying your new branches into Claude…' : 'Push to Claude — replay branches you added in Nodea back into the original Claude chat (keep claude.ai open)'}
-            onClick={() => { if (!isPushingSource) void pushToSource() }}
-            disabled={isPushingSource}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
-              background: 'transparent', border: '1px solid var(--border)', borderRadius: 8,
-              cursor: isPushingSource ? 'default' : 'pointer', color: 'var(--text-secondary)',
-              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', opacity: isPushingSource ? 0.7 : 1,
-              transition: 'background 0.1s, color 0.1s',
-            }}
-            onMouseEnter={(e) => { if (!isPushingSource) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
-            onMouseLeave={(e) => { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' }}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className={isPushingSource ? 'nx-spin' : undefined} style={{ flexShrink: 0 }}>
-              <path d="M7 12V3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {isPushingSource ? 'Pushing…' : 'Push'}
           </button>
         )}
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
@@ -604,7 +582,7 @@ function VersionArrow({ dir, disabled, onClick }: { dir: 'prev' | 'next'; disabl
 
 // ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
-  const { isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick } = useApp()
+  const { isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick, activeConvSource } = useApp()
   const savedMemories = !msg.role || msg.role === 'assistant' ? memorySavedByMsgId[msg.id] : undefined
   const isUser = msg.role === 'user'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
@@ -659,36 +637,66 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
         </div>
       )}
 
-      {!isUser && (
-        <div
-          style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, marginTop: 5,
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="2.8" stroke="white" strokeWidth="1.4" />
-            <path d="M7 1v1.8M7 11.2V13M1 7h1.8M11.2 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-          </svg>
-        </div>
-      )}
+      {!isUser && (() => {
+        // The AI agent's icon. A reply imported from a third-party source (e.g.
+        // claude.ai) wears that source's own brand logo on a neutral chip; a
+        // reply generated natively in Nodea keeps the normal gradient mark.
+        const importedSrc = msg.imported ? getAISource(activeConvSource) : null
+        if (importedSrc?.logo) {
+          return (
+            <div
+              title={`From ${importedSrc.name}`}
+              style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: '#fff', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, marginTop: 5,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={importedSrc.logo} width={16} height={16} alt="" aria-hidden style={{ display: 'block' }} />
+            </div>
+          )
+        }
+        return (
+          <div
+            style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, marginTop: 5,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="2.8" stroke="white" strokeWidth="1.4" />
+              <path d="M7 1v1.8M7 11.2V13M1 7h1.8M11.2 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </div>
+        )
+      })()}
 
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
             {(() => {
-              // The model logo. Driven by the node's persisted model_id so it
-              // survives a refresh; falls back to Claude (every model Nodea
-              // generates is a Claude model). eslint-disable: a static SVG.
+              // Imported from a third party (e.g. claude.ai)? The avatar already
+              // wears that source's brand logo, so the header just names it.
+              const importedSrc = msg.imported ? getAISource(activeConvSource) : null
+              if (importedSrc) return <span>{importedSrc.name}</span>
+              // Native Nodea reply: its model logo + name. Driven by the node's
+              // persisted model_id so it survives a refresh; falls back to Claude
+              // (every model Nodea generates is a Claude model).
               const logo = getAISource(providerForModel(msg.modelId))?.logo
-              return logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} width={13} height={13} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
-              ) : null
+              return (
+                <>
+                  {logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={logo} width={13} height={13} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+                  ) : null}
+                  <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
+                </>
+              )
             })()}
-            <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
             {isEmptyStreaming && elapsed > 0 && (
               <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
                 {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s
