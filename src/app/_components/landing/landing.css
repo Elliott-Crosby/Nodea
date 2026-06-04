@@ -1771,3 +1771,110 @@
 @media (prefers-reduced-motion: reduce) {
   .ln-split-scrim, .ln-split-sound { transition: none; }
 }
+
+/* ── Legal & support pages (privacy, terms, support) ─────────────
+   The global reset (* { margin:0; padding:0 }) zeroes element spacing,
+   so these long-form pages need their own typography. Shared by
+   /privacy, /terms, and /support. */
+.ln-legal {
+  line-height: 1.7;
+  font-size: 1.02rem;
+  color: var(--text-secondary);
+}
+.ln-legal > :first-child { margin-top: 0; }
+.ln-legal h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 2.4em 0 0.6em;
+}
+.ln-legal h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 1.8em 0 0.5em;
+}
+.ln-legal p { margin: 0 0 1.05em; }
+.ln-legal ul {
+  margin: 0 0 1.2em;
+  padding-left: 1.35em;
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+.ln-legal li { line-height: 1.6; }
+.ln-legal strong { color: var(--text-primary); font-weight: 600; }
+.ln-legal a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.ln-legal a:hover { color: var(--accent); }
+.ln-legal code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+/* ── Support / contact form ──────────────────────────────────── */
+.ln-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 36px;
+}
+.ln-field { display: flex; flex-direction: column; gap: 8px; }
+.ln-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ln-input,
+.ln-textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev-1);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ln-input:focus,
+.ln-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.ln-input::placeholder,
+.ln-textarea::placeholder { color: var(--text-muted); }
+.ln-textarea { resize: vertical; min-height: 150px; }
+.ln-form-status {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  border: 1px solid transparent;
+}
+.ln-form-status a { color: inherit; text-decoration: underline; }
+.ln-form-status.ok {
+  background: var(--accent-bg);
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--accent-text);
+}
+.ln-form-status.err {
+  background: color-mix(in oklab, #ef4444 12%, transparent);
+  border-color: color-mix(in oklab, #ef4444 45%, transparent);
+  color: #dc2626;
+}
+[data-theme="dark"] .ln-form-status.err { color: #f87171; }

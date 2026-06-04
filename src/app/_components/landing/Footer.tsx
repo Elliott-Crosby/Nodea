@@ -23,6 +23,9 @@ export default function Footer() {
           <Link href="/compare/nodea-vs-claude-projects">vs Claude</Link>
           <Link href="/compare/nodea-vs-typingmind">vs TypingMind</Link>
           <a href="/feed.xml">RSS</a>
+          <Link href="/support">Support</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
           <Link href="/login">Sign in</Link>
         </nav>
 

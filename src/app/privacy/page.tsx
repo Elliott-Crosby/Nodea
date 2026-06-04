@@ -25,11 +25,11 @@ export default function PrivacyPage() {
             <h1 style={{ fontSize: '2.4rem', margin: '0.4em 0 0.2em', letterSpacing: '-0.02em' }}>
               Privacy Policy
             </h1>
-            <p style={{ color: 'var(--ln-text-muted, #6b7280)', marginBottom: '2.5rem' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
               Last updated: {LAST_UPDATED}
             </p>
 
-            <div className="privacy-body" style={{ lineHeight: 1.7, fontSize: '1.02rem' }}>
+            <div className="ln-legal">
               <p>
                 This policy explains how Nodea (&ldquo;Nodea,&rdquo; &ldquo;we,&rdquo;
                 &ldquo;us&rdquo;) handles your data across both the Nodea web app at{' '}
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
               <h3>What the extension accesses</h3>
               <ul>
                 <li>
-                  <strong>Your Claude conversation content</strong> (messages, branch
+                  <strong>Your Claude conversation content</strong>{' '}(messages, branch
                   structure, message IDs) — read from Claude&rsquo;s own API in your
                   browser, solely to render the tree and to power the
                   &ldquo;Open in Nodea&rdquo; and &ldquo;Update Conversation&rdquo;
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
               <h3>What is transmitted, and when</h3>
               <ul>
                 <li>
-                  <strong>Reading / visualizing the tree:</strong> conversation data
+                  <strong>Reading / visualizing the tree:</strong>{' '}conversation data
                   stays in your browser. Nothing is sent to Nodea&rsquo;s servers.
                 </li>
                 <li>
