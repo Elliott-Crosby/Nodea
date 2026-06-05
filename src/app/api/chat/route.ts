@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { streamText, type ModelMessage } from 'ai'
 import { anthropic } from '@/lib/anthropic'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
@@ -144,6 +144,23 @@ export async function POST(req: Request) {
     return { role: 'user' as const, content: await buildUserContent(msg) }
   }))
 
+  // ─── Prompt caching ──────────────────────────────────────────────────────
+  // Nodea resends the full conversation path every turn, and sibling branches
+  // share a common ancestor prefix — ideal for Anthropic's ephemeral prompt
+  // cache (5-min TTL, refreshed free on every hit; reads cost ~10% of fresh
+  // input). A breakpoint on the system prompt keeps tools+system a cache hit
+  // even when a branch diverges early; a breakpoint on the latest message
+  // caches the whole conversation prefix for the next turn. usage.inputTokens
+  // still reports the full prompt size (cache read + write + uncached), so the
+  // per-user token limits below are unaffected.
+  const cacheControl = { anthropic: { cacheControl: { type: 'ephemeral' as const } } }
+  const chatMessages: ModelMessage[] = [
+    { role: 'system', content: systemPrompt, providerOptions: cacheControl },
+    ...modelMessages.map((m, i) =>
+      i === modelMessages.length - 1 ? { ...m, providerOptions: cacheControl } : m,
+    ),
+  ]
+
   try {
     const encoder  = new TextEncoder()
     const userId   = user.id
@@ -157,12 +174,16 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model:    anthropic(modelId),
-      system:   systemPrompt,
-      messages: modelMessages,
+      messages: chatMessages,
       ...(tools ? { tools } : {}),
       // onFinish fires after the stream is fully consumed, with real token counts.
       // This is the correct hook vs after()+result.usage, which races the stream.
       onFinish: async ({ totalUsage }) => {
+        // Observability: confirm prompt caching is doing work in production.
+        const { cacheReadTokens, cacheWriteTokens } = totalUsage.inputTokenDetails
+        if (cacheReadTokens || cacheWriteTokens) {
+          console.log(`[cache] ${modelId} read=${cacheReadTokens ?? 0} write=${cacheWriteTokens ?? 0} input=${totalUsage.inputTokens ?? 0}`)
+        }
         try {
           await recordTokenUsage(
             userId,
