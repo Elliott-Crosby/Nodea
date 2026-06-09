@@ -8,6 +8,7 @@ import { trackEvent } from '@/lib/track-event'
 import Sidebar from './Sidebar'
 import ChatPanel from './ChatPanel'
 import TreePanel from './TreePanel'
+import TreeSummaryCard from './TreeSummaryCard'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
 import UpgradeModal from './UpgradeModal'
@@ -2674,6 +2675,7 @@ export default function App() {
               <ChatPanel />
             </div>
             <TreePanel />
+            <TreeSummaryCard key={activeConvId ?? 'none'} />
           </>
         )}
         {view === 'projects' && (
