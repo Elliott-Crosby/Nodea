@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { track } from '@vercel/analytics'
 import { Play, X, Sun, Moon } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
+import { useIsMobile } from '@/lib/useIsMobile'
+import MobileDemo from './MobileDemo'
 import DemoTree from './DemoTree'
 import {
   SEED_NODES,
@@ -125,6 +127,8 @@ const WALL_BENEFITS = [
 
 export default function DemoApp() {
   const { theme, toggleTheme } = useTheme()
+  // Mobile-only: serve the touch-native demo below the breakpoint.
+  const isMobile = useIsMobile()
   const [nodes, setNodes]           = useState<DemoNode[]>(SEED_NODES)
   const [meta, setMeta]             = useState<Record<string, NodeMeta>>(SEED_META)
   const [selectedId, setSelectedId] = useState<string | null>(DEMO_INITIAL_SELECTED)
@@ -274,6 +278,8 @@ export default function DemoApp() {
       ? selectedNode.id
       : selectedNode.parent_id
     : null
+
+  if (isMobile) return <MobileDemo />
 
   return (
     <div className="demo-root">

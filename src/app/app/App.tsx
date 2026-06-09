@@ -20,6 +20,8 @@ import EditConversationModal from './EditConversationModal'
 import ConvContextMenu from './ConvContextMenu'
 import { MAX_PINNED_PROJECTS } from './projectConstants'
 import type { ChatProject, ChatProjectInput, ProjectView } from './chatProjectTypes'
+import { useIsMobile } from '@/lib/useIsMobile'
+import MobileApp from './mobile/MobileApp'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -559,6 +561,9 @@ export function truncate(str: string, max = 65) {
 export default function App() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
+  // Mobile-only: below the breakpoint we swap the three-panel desktop layout for
+  // a touch-native UI. Everything still runs on the same context/state below.
+  const isMobile = useIsMobile()
 
   const [conversations, setConversations]   = useState<Conversation[]>([])
   const [activeConvId,  setActiveConvId]    = useState<string | null>(null)
@@ -2664,6 +2669,9 @@ export default function App() {
 
   return (
     <AppContext.Provider value={ctx}>
+      {isMobile ? (
+        <MobileApp onSaveMemory={saveProjectMemory} />
+      ) : (
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <Sidebar />
         {view === 'chat' && (
@@ -2708,6 +2716,7 @@ export default function App() {
           />
         )}
       </div>
+      )}
 
       {/* Existing modals */}
       {isSearchOpen  && <SearchModal />}
