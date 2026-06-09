@@ -5,9 +5,9 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 
 export const metadata: Metadata = {
-  title: 'The Nodea extension captures. The canvas is where you work.',
+  title: { absolute: 'Nodea Tree for Claude — Import Chats as a Branching Tree' },
   description:
-    'The Nodea browser extension brings your Claude chats in as a branching tree. The full app at nodea.ai adds merging, sticky notes, node colors, search, and cross-chat memory — the tools to actually work in your tree.',
+    'The Nodea browser extension imports your Claude chats as a branching tree. The full app at nodea.ai adds merging, notes, colors, search, and cross-chat memory.',
   alternates: { canonical: '/extension' },
   openGraph: {
     title: 'Do more with your imported chats — Nodea',

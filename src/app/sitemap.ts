@@ -7,6 +7,10 @@ const COMPARE_PAGES = [
   'nodea-vs-chatgpt',
   'nodea-vs-claude-projects',
   'nodea-vs-typingmind',
+  'nodea-vs-perplexity',
+  'nodea-vs-librechat',
+  'nodea-vs-msty',
+  'nodea-vs-poe',
 ] as const
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -26,6 +30,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/chatgpt-alternative`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/ai-chat-canvas`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/compare`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
       url: `${SITE_URL}/glossary`,
       lastModified: now,
       changeFrequency: 'monthly',
@@ -42,6 +64,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/demo`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/extension`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
     },
     {
       url: `${SITE_URL}/login`,

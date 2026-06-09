@@ -1,0 +1,279 @@
+/* ── /ai-chat-canvas page styles ────────────────────────────── */
+
+.cc-root {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ── Hero ──────────────────────────────────────────────────── */
+.cc-hero {
+  padding: 96px 0 56px;
+  text-align: center;
+}
+.cc-h1 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  margin: 12px 0 24px;
+  color: var(--text-primary);
+}
+.cc-lede {
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 720px;
+  margin: 0 auto 14px;
+}
+.cc-lede-sub {
+  color: var(--text-muted);
+  margin-bottom: 36px;
+}
+.cc-lede strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cc-ctas {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── Thread vs canvas contrast cards ───────────────────────── */
+.cc-contrast {
+  padding: 24px 0 56px;
+}
+.cc-contrast-grid {
+  max-width: 880px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 720px) {
+  .cc-contrast-grid { grid-template-columns: 1fr; }
+}
+.cc-card {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 28px 30px;
+}
+.cc-card-thread {
+  opacity: 0.92;
+}
+.cc-card-canvas {
+  border-color: var(--accent);
+}
+.cc-card-label {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+  color: var(--text-muted);
+}
+.cc-card-canvas .cc-card-label {
+  color: var(--accent-text);
+}
+.cc-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.cc-card li {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  padding-left: 22px;
+  position: relative;
+}
+.cc-card-thread li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.cc-card-canvas li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+.cc-card strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Prose section ────────────────────────────────────────── */
+.cc-deep {
+  padding: 64px 0 56px;
+}
+.cc-prose {
+  max-width: 760px;
+}
+.cc-h2 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  line-height: 1.15;
+  margin: 12px 0 24px;
+  color: var(--text-primary);
+}
+.cc-h3 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin: 44px 0 14px;
+  color: var(--text-primary);
+}
+.cc-prose p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+}
+.cc-prose ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cc-prose ul li {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  padding-left: 22px;
+  position: relative;
+}
+.cc-prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 11px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+.cc-prose strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cc-prose em {
+  color: var(--text-primary);
+  font-style: italic;
+}
+
+/* ── Who it's for ─────────────────────────────────────────── */
+.cc-who {
+  padding: 24px 0 56px;
+}
+.cc-who-grid {
+  max-width: 880px;
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) {
+  .cc-who-grid { grid-template-columns: 1fr; }
+}
+.cc-who-card {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 22px 24px;
+}
+.cc-who-card h3 {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+.cc-who-card p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ── FAQ ──────────────────────────────────────────────────── */
+.cc-faq {
+  padding: 32px 0 80px;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border);
+}
+.cc-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.cc-faq-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+.cc-faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cc-faq-item summary::-webkit-details-marker { display: none; }
+.cc-faq-item summary::after {
+  content: '+';
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.cc-faq-item[open] summary::after {
+  content: '−';
+}
+.cc-faq-item p {
+  padding: 0 20px 18px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+/* ── Final CTA ────────────────────────────────────────────── */
+.cc-cta {
+  padding: 80px 0 96px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.cc-cta-h2 {
+  margin-bottom: 12px;
+}
+.cc-cta-sub {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 0 28px;
+}

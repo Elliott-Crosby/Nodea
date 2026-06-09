@@ -15,6 +15,7 @@ export default function Nav() {
 
           <ul className="ln-nav-links">
             <li><Link href="/what-is-nodea">What is Nodea</Link></li>
+            <li><Link href="/glossary">Glossary</Link></li>
             <li><a href="#how-it-works">How it works</a></li>
             <li><a href="#features">Features</a></li>
             <li><Link href="/blog">Blog</Link></li>

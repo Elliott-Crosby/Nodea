@@ -9,8 +9,8 @@ export default function CtaSection() {
           Start <em>branching.</em>
         </h2>
         <p className="ln-cta-sub">
-          Free while in beta. Bring your own API keys or use ours —
-          no credit card required to get started.
+          Free while in beta — no credit card required. Branch any reply
+          across Claude Haiku, Sonnet, and Opus on managed keys.
         </p>
         <div className="ln-cta-btns">
           <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">

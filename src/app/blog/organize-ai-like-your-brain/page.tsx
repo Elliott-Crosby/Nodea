@@ -10,7 +10,7 @@ const SLUG = 'organize-ai-like-your-brain'
 const post = getPost(SLUG)!
 
 export const metadata: Metadata = {
-  title: post.title,
+  title: { absolute: post.title },
   description: post.description,
   alternates: { canonical: `/blog/${SLUG}` },
   keywords: post.keywords,
@@ -33,6 +33,7 @@ export default function OrganizeAiLikeYourBrainPost() {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: post.title,
+    image: 'https://nodea.ai/og/primary.png',
     description: post.description,
     author: { '@type': 'Organization', name: 'Nodea' },
     publisher: { '@type': 'Organization', name: 'Nodea', url: 'https://nodea.ai' },

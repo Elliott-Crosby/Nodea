@@ -12,9 +12,9 @@ export interface PostMeta {
 export const POSTS: PostMeta[] = [
   {
     slug: 'branching-ai-chat-guide',
-    title: 'Branching AI Chat: The Complete Guide to Non-Linear Conversations with Claude and ChatGPT',
+    title: 'Branching AI Chat: A Guide to Non-Linear Claude Chat',
     description:
-      'A definitive guide to branching AI chat: what it is, why linear chatbots fail at exploration, how to fork ChatGPT and Claude conversations, and the tools that make tree-shaped conversations possible.',
+      'What branching AI chat is, why linear chatbots fail at exploration, how to fork ChatGPT and Claude conversations, and the tools that make it possible.',
     category: 'Pillar',
     readMinutes: 14,
     publishedAt: '2026-05-22',
@@ -29,9 +29,9 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'fork-chatgpt-conversation',
-    title: 'How to Fork a ChatGPT Conversation (and When the Workarounds Break Down)',
+    title: 'How to Fork a ChatGPT Conversation (Workarounds Break)',
     description:
-      'Step-by-step instructions for the three main ways to branch a ChatGPT or Claude conversation — the edit trick, the regenerate trick, and duplicate tabs — plus exactly where each one fails.',
+      'The three ways to branch a ChatGPT or Claude conversation — the edit trick, the regenerate trick, and duplicate tabs — plus exactly where each one fails.',
     category: 'Guide',
     readMinutes: 8,
     publishedAt: '2026-05-22',
@@ -46,9 +46,9 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'tree-of-thought-prompting',
-    title: 'Tree of Thought Prompting: What It Is, How to Use It, and Why Your Interface Matters',
+    title: 'Tree of Thought Prompting: What It Is and How to Use It',
     description:
-      'A practical guide to Tree of Thought prompting — the technique, how it differs from chain-of-thought, when it outperforms step-by-step reasoning, and why most chat interfaces get in the way.',
+      'A practical guide to Tree of Thought prompting: how it differs from chain-of-thought, when it beats step-by-step reasoning, and why your interface matters.',
     category: 'Guide',
     readMinutes: 7,
     publishedAt: '2026-05-22',
@@ -65,7 +65,7 @@ export const POSTS: PostMeta[] = [
     slug: 'compare-ai-model-outputs',
     title: 'How to Compare AI Model Outputs Side by Side',
     description:
-      'A practical method for running honest A/B comparisons between Claude, ChatGPT, and other models — prompt design, what to actually measure, and the tools that make parallel comparison tractable.',
+      'How to run honest A/B comparisons between Claude, ChatGPT, and other models — prompt design, what to actually measure, and tools that make it tractable.',
     category: 'Guide',
     readMinutes: 6,
     publishedAt: '2026-05-22',
@@ -80,7 +80,7 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'never-lose-thinking',
-    title: 'Never Lose a Train of Thought Again: Why Linear AI Chats Forget Your Best Ideas',
+    title: 'Never Lose a Train of Thought in a Linear AI Chat Again',
     description:
       'Why every promising tangent in a linear AI chat ends up buried or overwritten — and how a branching canvas keeps every line of thinking intact and addressable.',
     category: 'Essay',
@@ -99,7 +99,7 @@ export const POSTS: PostMeta[] = [
     slug: 'organize-ai-like-your-brain',
     title: 'Organize AI Conversations the Way Your Brain Actually Works',
     description:
-      'Human thinking branches; chat interfaces force it into a single line. A look at why tree-shaped conversations match the way ideas actually develop — and how to use them.',
+      'Human thinking branches; chat forces it into one line. Why tree-shaped AI conversations match how ideas actually develop — and how to use them.',
     category: 'Essay',
     readMinutes: 9,
     publishedAt: '2026-05-22',
@@ -114,9 +114,9 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'persistent-project-intelligence',
-    title: 'Persistent Project Intelligence: Turning Scattered AI Chats Into a Living Knowledge Base',
+    title: 'Persistent Project Intelligence: AI Chats as Knowledge',
     description:
-      'How to make AI conversations accumulate value over weeks and months instead of dying with the tab — a workflow for long-running projects that need shared context, not a new session every time.',
+      'Make AI conversations accumulate value over weeks instead of dying with the tab — a workflow for long-running projects that need shared context.',
     category: 'Guide',
     readMinutes: 10,
     publishedAt: '2026-05-22',
@@ -131,9 +131,9 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'research-without-chaos',
-    title: 'Research Without Chaos: A Branching Workflow for Deep AI Investigation',
+    title: 'Research Without Chaos: A Branching AI Research Workflow',
     description:
-      'A repeatable system for doing serious research with an AI — how to branch hypotheses, separate sources, compare findings, and never lose the thread of an investigation.',
+      'A repeatable system for serious AI research: branch hypotheses, separate sources, compare findings, and never lose the thread of an investigation.',
     category: 'Guide',
     readMinutes: 10,
     publishedAt: '2026-05-22',
@@ -148,9 +148,9 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'ai-for-deep-work',
-    title: 'AI for Deep Work: How Branching Conversations Protect Your Focus',
+    title: 'AI for Deep Work: How Branching Conversations Protect Focus',
     description:
-      'Most AI chat interfaces are built for quick replies, not concentrated thinking. A look at what deep work with an AI looks like — and how a branching canvas keeps you in flow instead of starting over.',
+      'Most AI chat is built for quick replies, not concentrated thinking. What deep work with an AI looks like — and how a branching canvas keeps you in flow.',
     category: 'Essay',
     readMinutes: 8,
     publishedAt: '2026-05-22',

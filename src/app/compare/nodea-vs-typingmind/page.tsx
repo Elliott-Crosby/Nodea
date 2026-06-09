@@ -4,9 +4,9 @@ import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
 export const metadata: Metadata = {
-  title: 'Nodea vs TypingMind — Branching Canvas vs Multi-Model Frontend',
+  title: { absolute: 'Nodea vs TypingMind — Branching AI Canvas' },
   description:
-    'Honest comparison: Nodea vs TypingMind. TypingMind is a polished BYOK frontend across many providers. Nodea is a branching canvas on Claude. Here&rsquo;s how to choose.',
+    'Honest comparison: Nodea vs TypingMind. TypingMind is a multi-provider BYOK frontend. Nodea is a branching canvas on Claude. How to choose.',
   alternates: { canonical: '/compare/nodea-vs-typingmind' },
   openGraph: {
     title: 'Nodea vs TypingMind — Honest Comparison',

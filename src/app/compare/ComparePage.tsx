@@ -111,6 +111,17 @@ export default function ComparePage(props: ComparePageProps) {
           </div>
         </section>
 
+        <section>
+          <div className="ln-container cmp-prose">
+            <h2>Related reading</h2>
+            <ul>
+              <li><Link href="/what-is-nodea">What is Nodea? — the branching AI chat canvas explained</Link></li>
+              <li><Link href="/blog/branching-ai-chat-guide">The complete guide to branching AI chat</Link></li>
+              <li><Link href="/demo">Try the live branching demo — no sign-up</Link></li>
+            </ul>
+          </div>
+        </section>
+
         <section className="cmp-cta">
           <h2>See for yourself in 30 seconds.</h2>
           <p>Free during beta. No credit card. No waitlist.</p>

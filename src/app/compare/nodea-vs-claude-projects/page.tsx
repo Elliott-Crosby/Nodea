@@ -4,9 +4,9 @@ import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
 export const metadata: Metadata = {
-  title: 'Nodea vs Claude Projects — Branching Canvas vs Linear Projects',
+  title: { absolute: 'Nodea vs Claude Projects — Branching AI Canvas' },
   description:
-    'Honest comparison: Nodea vs Anthropic Claude Projects. Both run on Claude; one gives you branching, the other gives you persistent project memory. Here&rsquo;s how to decide.',
+    'Honest comparison: Nodea vs Claude Projects. Both run on Claude — one adds branching, the other persistent project memory. How to choose.',
   alternates: { canonical: '/compare/nodea-vs-claude-projects' },
   openGraph: {
     title: 'Nodea vs Claude Projects — Honest Comparison',

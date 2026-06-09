@@ -105,6 +105,60 @@
   .cmp-cell::before { content: attr(data-label) ': '; font-weight: 600; color: var(--text-muted); }
 }
 
+/* Hub grid of comparison cards */
+.cmp-grid {
+  max-width: 920px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+.cmp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 24px 22px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.cmp-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.cmp-card-pill {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.cmp-card-title {
+  font-family: var(--font-bricolage, sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: 0;
+}
+.cmp-card-desc {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+}
+.cmp-card-arrow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-top: 4px;
+}
+
 /* Prose sections */
 .cmp-prose {
   max-width: 760px;

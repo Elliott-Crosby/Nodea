@@ -6,7 +6,7 @@ import SupportForm from './SupportForm'
 import '@/app/_components/landing/landing.css'
 
 export const metadata: Metadata = {
-  title: 'Support — Nodea',
+  title: { absolute: 'Nodea AI Support — Help, Billing & Bug Reports' },
   description:
     'Get help with Nodea, the branching AI chat canvas. Reach the team about billing, bugs, feature requests, or the "Nodea Tree for Claude" browser extension.',
   alternates: { canonical: '/support' },

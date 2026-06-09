@@ -1,12 +1,6 @@
-'use client'
-
+import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-
-const SMALL_CARDS = [
-  { label: 'Essay',      activeRight: false },
-  { label: 'Field note', activeRight: true  },
-  { label: 'Changelog',  activeRight: false },
-]
+import { POSTS } from '@/app/blog/posts'
 
 function MiniTree({ activeRight = false }: { activeRight?: boolean }) {
   return (
@@ -68,6 +62,9 @@ function FeaturedTree() {
 }
 
 export default function Blog() {
+  const [featured, ...rest] = POSTS
+  const small = rest.slice(0, 3)
+
   return (
     <section id="blog" className="ln-blog">
       <div className="ln-container">
@@ -80,71 +77,69 @@ export default function Blog() {
             </p>
           </div>
           <div className="ln-blog-head-right">
-            <button className="ln-btn ln-btn-outline" type="button">
-              Get notified <ArrowRight size={14} />
-            </button>
+            <Link href="/blog" className="ln-btn ln-btn-outline">
+              Read the blog <ArrowRight size={14} />
+            </Link>
           </div>
         </div>
 
         {/* Featured row */}
         <div className="ln-blog-featured">
           {/* Art card */}
-          <div className="ln-blog-card ln-blog-card-featured-art">
-            <span className="ln-blog-coming-soon">Coming soon</span>
+          <Link
+            href={`/blog/${featured.slug}`}
+            className="ln-blog-card ln-blog-card-featured-art ln-blog-card-link"
+          >
+            <span className="ln-blog-coming-soon">{featured.category}</span>
             <div className="ln-blog-art ln-blog-art-featured">
               <FeaturedTree />
             </div>
-          </div>
+          </Link>
           {/* Featured essay text card */}
-          <div className="ln-blog-card ln-blog-card-featured-text">
+          <Link
+            href={`/blog/${featured.slug}`}
+            className="ln-blog-card ln-blog-card-featured-text ln-blog-card-link"
+          >
             <div className="ln-blog-body">
-              <span className="ln-blog-meta">Featured &middot; Essay</span>
-              <div className="ln-blog-skeleton ln-sk-title" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div className="ln-blog-skeleton ln-sk-line" />
-                <div className="ln-blog-skeleton ln-sk-line" />
-                <div className="ln-blog-skeleton ln-sk-line short" />
-              </div>
+              <span className="ln-blog-meta">Featured &middot; {featured.category}</span>
+              <h3 className="ln-blog-title">{featured.title}</h3>
+              <p className="ln-blog-desc">{featured.description}</p>
               <div className="ln-blog-footer-row">
-                <div className="ln-blog-avatar" />
-                <div className="ln-blog-skeleton" style={{ height: 12, width: 80, borderRadius: 4 }} />
-                <div className="ln-blog-skeleton" style={{ height: 12, width: 48, borderRadius: 4, marginLeft: 'auto' }} />
+                <span className="ln-blog-meta">{featured.readMinutes} min read</span>
+                <span className="ln-blog-readmore">Read &rarr;</span>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Small cards */}
         <div className="ln-blog-grid">
-          {SMALL_CARDS.map((card, i) => (
-            <div key={i} className="ln-blog-card">
+          {small.map((p, i) => (
+            <Link
+              key={p.slug}
+              href={`/blog/${p.slug}`}
+              className="ln-blog-card ln-blog-card-link"
+            >
               <div className="ln-blog-art">
-                <MiniTree activeRight={card.activeRight} />
+                <MiniTree activeRight={i % 2 === 1} />
               </div>
               <div className="ln-blog-body">
-                <span className="ln-blog-meta">{card.label}</span>
-                <div className="ln-blog-skeleton ln-sk-title" />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="ln-blog-skeleton ln-sk-line" />
-                  <div className="ln-blog-skeleton ln-sk-line short" />
-                </div>
+                <span className="ln-blog-meta">{p.category} &middot; {p.readMinutes} min</span>
+                <h3 className="ln-blog-title ln-blog-title-sm">{p.title}</h3>
+                <p className="ln-blog-desc ln-blog-desc-sm">{p.description}</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
         <div className="ln-blog-empty">
-          <p>The first post is being written. Hook up your email to hear about it the day it drops.</p>
-          <form className="ln-notify-form" onSubmit={e => e.preventDefault()}>
-            <input
-              className="ln-notify-input"
-              type="email"
-              placeholder="you@thinking.com"
-            />
-            <button className="ln-btn ln-btn-primary" type="submit">
-              Notify me
-            </button>
-          </form>
+          <p>
+            {POSTS.length} guides and essays on branching AI chat, prompt design,
+            and non-linear thinking &mdash; with more on the way.
+          </p>
+          <Link href="/blog" className="ln-btn ln-btn-primary">
+            Read all posts <ArrowRight size={14} />
+          </Link>
         </div>
       </div>
     </section>

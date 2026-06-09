@@ -4,7 +4,7 @@ import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
 export const metadata: Metadata = {
-  title: 'Nodea vs ChatGPT — Branching AI Chat vs Linear Chatbot',
+  title: { absolute: 'Nodea vs ChatGPT — Branching AI Chat Canvas' },
   description:
     'Honest comparison: Nodea vs ChatGPT. Compare branching, model selection, data ownership, and price. When ChatGPT wins, when Nodea wins, and how to decide.',
   alternates: { canonical: '/compare/nodea-vs-chatgpt' },

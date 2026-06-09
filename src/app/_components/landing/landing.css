@@ -901,6 +901,39 @@
 .ln-notify-input:focus { border-color: var(--accent); }
 .ln-notify-input::placeholder { color: var(--text-muted); }
 
+/* Real post cards (homepage blog teaser) */
+.ln-blog-card-link { text-decoration: none; color: inherit; }
+.ln-blog-card-link:hover { border-color: var(--border-strong); }
+.ln-blog-card-link:hover .ln-blog-readmore { color: var(--accent); }
+.ln-blog-title {
+  font-family: var(--font-bricolage, inherit);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+.ln-blog-title-sm { font-size: 16px; }
+.ln-blog-desc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ln-blog-desc-sm { -webkit-line-clamp: 2; }
+.ln-blog-readmore {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-text);
+  margin-left: auto;
+  transition: color .15s;
+}
+
 /* ── Final CTA ───────────────────────────────────────────────── */
 .ln-cta {
   padding: 140px 0;

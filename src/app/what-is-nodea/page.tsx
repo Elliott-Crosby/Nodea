@@ -8,7 +8,7 @@ import './what-is-nodea.css'
 export const metadata: Metadata = {
   title: 'What is Nodea? Branching AI Chat Explained',
   description:
-    'Nodea is a branching AI chat canvas — every reply becomes a fork point, so your conversation grows as a tree of nodes instead of a single linear thread. Built on Claude, Next.js, and Supabase.',
+    'Nodea is a branching AI chat canvas — every reply becomes a node you can fork from, so your conversation grows as a tree of branches, not one long thread.',
   alternates: { canonical: '/what-is-nodea' },
   openGraph: {
     title: 'What is Nodea? Branching AI Chat Explained',
