@@ -62,3 +62,7 @@ desktop.ini
 
 # Standalone Chrome extension — its own repo (github.com/Elliott-Crosby/NodeaExtension)
 /extension
+
+# Local working notes + packaged artifacts (repo is public — keep these off it)
+/HANDOFF.md
+/*.zip

@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nodea Extension — 15s demo mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   NODEA EXTENSION — 15s DEMO MOCKUP
+   Single 15s timeline, loops forever. Every animated element
+   shares duration:15s / iteration:infinite so everything stays
+   in lock-step. Screen-record the .stage at 1280x720.
+
+   Real tokens pulled from the codebase:
+   Nodea  --accent #7c3aed  --accent-bg #f0ebff  --user-bubble #ede9fe
+          --bg #f8f9fa  --border #d8dade  --text #1a1d23
+          node card 240x86 r10 1.5px border, dotted-grid canvas
+   Claude clay accent #D97757, paper bg #faf9f5
+   ============================================================ */
+
+:root{
+  --T: 15s;
+  /* Nodea */
+  --nx-bg:#f8f9fa; --nx-panel:#ffffff; --nx-border:#d8dade; --nx-border-strong:#b8bcc4;
+  --nx-text:#1a1d23; --nx-text-2:#5b606b; --nx-muted:#8a8f99;
+  --nx-accent:#7c3aed; --nx-accent-hover:#6d28d9; --nx-accent-bg:#f0ebff; --nx-accent-text:#6d28d9;
+  --nx-user:#ede9fe; --nx-topbar:#f8f9fa; --nx-grid:#d4d7dd;
+  /* Claude */
+  --cl-paper:#faf9f5; --cl-panel:#ffffff; --cl-border:#ece9e1; --cl-text:#26241f; --cl-text-2:#6d6a60;
+  --cl-clay:#d97757; --cl-clay-soft:#f3e6df;
+  --ink: #0b0c10;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0b0c10;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}
+
+/* 16:9 stage */
+.stage{
+  position:relative;width:min(1280px,96vw);aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+  background:var(--nx-bg);box-shadow:0 30px 80px -20px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.04);
+}
+
+/* ---- scene layers ---- */
+.scene{position:absolute;inset:0}
+#sceneClaude{animation:claudeVis var(--T) infinite}
+#sceneNodea{animation:nodeaVis var(--T) infinite;opacity:0}
+@keyframes claudeVis{
+  0%{opacity:1} 29%{opacity:1} 33%{opacity:0} 100%{opacity:0}
+}
+@keyframes nodeaVis{
+  0%{opacity:0} 31%{opacity:0} 35%{opacity:1} 100%{opacity:1}
+}
+
+/* camera rig per scene */
+.cam{position:absolute;inset:0;transform-origin:50% 50%}
+#claudeCam{animation:claudeCam var(--T) infinite cubic-bezier(.4,0,.2,1)}
+@keyframes claudeCam{
+  0%,18%{transform:scale(1) translate(0,0)}
+  29%{transform:scale(1.32) translate(-21%,4%)}   /* push toward extension panel/button */
+  33%{transform:scale(1.5) translate(-21%,4%)}
+  100%{transform:scale(1.5) translate(-21%,4%)}
+}
+#nodeaCam{animation:nodeaCam var(--T) infinite cubic-bezier(.4,0,.2,1)}
+@keyframes nodeaCam{
+  0%,33%{transform:scale(1.18) translate(7%,2%)}
+  40%{transform:scale(1.18) translate(7%,2%)}
+  58%{transform:scale(1.06) translate(3%,1%)}      /* settle over trunk */
+  72%{transform:scale(1.06) translate(3%,1%)}
+  80%{transform:scale(1) translate(0,0)}           /* pull back to reveal the new branch */
+  100%{transform:scale(1) translate(0,0)}
+}
+
+/* =======================================================
+   CLAUDE SCENE  (claude.ai look)
+   ======================================================= */
+.cl-root{position:absolute;inset:0;background:var(--cl-paper);display:flex}
+.cl-side{width:188px;flex:none;border-right:1px solid var(--cl-border);background:#f3f1ea;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.cl-word{font-family:Georgia,"Times New Roman",serif;font-size:17px;color:var(--cl-text);letter-spacing:-.01em;margin:2px 4px 12px;display:flex;align-items:center;gap:7px}
+.cl-spark{width:13px;height:13px;color:var(--cl-clay)}
+.cl-newbtn{font-size:12px;color:var(--cl-text-2);border:1px solid var(--cl-border);border-radius:9px;padding:7px 10px;display:flex;align-items:center;gap:7px;background:#fff}
+.cl-rowlbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#a8a499;margin:12px 6px 2px}
+.cl-conv{font-size:11.5px;color:var(--cl-text-2);padding:6px 9px;border-radius:8px}
+.cl-conv.on{background:#eceadf;color:var(--cl-text);font-weight:600}
+
+.cl-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.cl-top{height:46px;flex:none;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--cl-border);gap:8px}
+.cl-top .name{font-size:12.5px;color:var(--cl-text);font-weight:600}
+.cl-top .model{margin-left:auto;font-size:11px;color:var(--cl-text-2);border:1px solid var(--cl-border);border-radius:20px;padding:4px 10px;background:#fff}
+.cl-thread{flex:1;overflow:hidden;padding:26px 8% 0;display:flex;flex-direction:column;gap:20px}
+.cl-msg{display:flex;gap:12px;max-width:680px}
+.cl-av{width:26px;height:26px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.cl-av.user{background:#e7e3d8;color:#7a7568}
+.cl-av.ai{background:var(--cl-clay);color:#fff}
+.cl-bub .who{font-size:11px;font-weight:700;color:var(--cl-text);margin-bottom:5px}
+.cl-bub p{margin:0 0 7px;font-size:13px;line-height:1.6;color:var(--cl-text)}
+.cl-bub .pale{color:var(--cl-text-2)}
+.cl-li{font-size:13px;line-height:1.7;color:var(--cl-text);margin-left:2px}
+.cl-li b{color:var(--cl-clay)}
+.cl-inputwrap{padding:14px 8% 18px}
+.cl-input{border:1px solid var(--cl-border);background:#fff;border-radius:14px;height:46px;display:flex;align-items:center;padding:0 14px;color:#b3afa4;font-size:12.5px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+.cl-send{margin-left:auto;width:30px;height:30px;border-radius:8px;background:var(--cl-clay);display:flex;align-items:center;justify-content:center}
+
+/* Extension panel docked right */
+.ext{position:absolute;top:60px;right:22px;width:236px;background:#fff;border:1px solid var(--cl-border);border-radius:14px;
+  box-shadow:0 18px 44px -14px rgba(60,50,30,.28);overflow:hidden;z-index:6}
+.ext-h{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--cl-border)}
+.ext-h .wm{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:14px;letter-spacing:-.025em;color:var(--nx-accent)}
+.ext-h .tag{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--nx-accent-text);background:var(--nx-accent-bg);padding:2px 6px;border-radius:5px}
+.ext-cap{font-size:10.5px;color:#8d897e;padding:9px 13px 4px}
+/* mini tree preview inside the extension */
+.ext-tree{height:104px;margin:2px 12px 8px;border-radius:9px;background:#faf9f5;border:1px solid var(--cl-border);position:relative;overflow:hidden}
+.ext-tree svg{position:absolute;inset:0}
+.ext-node{position:absolute;height:15px;border-radius:4px;background:#fff;border:1px solid #d8d3c6;left:50%;transform:translateX(-50%)}
+.ext-btn{margin:2px 12px 13px;height:38px;border-radius:10px;background:var(--nx-accent);color:#fff;font-size:13px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:8px;position:relative;box-shadow:0 6px 16px -4px rgba(124,58,237,.5)}
+#openBtn{animation:openBtn var(--T) infinite}
+@keyframes openBtn{
+  0%,26%{transform:scale(1);filter:brightness(1)}
+  28%{transform:scale(.95);filter:brightness(.92)}      /* press */
+  30%{transform:scale(1);filter:brightness(1.05)}
+  31%{transform:scale(1)}
+  100%{transform:scale(1)}
+}
+.btn-glow{position:absolute;inset:0;border-radius:10px;background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.55), transparent 60%);opacity:0;animation:btnGlow var(--T) infinite}
+@keyframes btnGlow{0%,27%{opacity:0}29%{opacity:1}34%{opacity:0}100%{opacity:0}}
+
+/* =======================================================
+   HANDOFF — purple sweep + flash
+   ======================================================= */
+#wipe{position:absolute;inset:0;z-index:30;pointer-events:none;
+  background:linear-gradient(115deg,var(--nx-accent) 0%, #9b6cf0 55%, #c4b1f7 100%);
+  transform:translateX(-101%);animation:wipe var(--T) infinite cubic-bezier(.7,0,.2,1)}
+@keyframes wipe{
+  0%,30%{transform:translateX(-101%)}
+  33%{transform:translateX(0)}
+  34%{transform:translateX(0)}
+  38%{transform:translateX(101%)}
+  100%{transform:translateX(101%)}
+}
+#wipe .wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:48px;letter-spacing:-.03em;color:#fff;opacity:0;animation:wipeWm var(--T) infinite}
+@keyframes wipeWm{0%,31%{opacity:0;transform:translate(-50%,-46%)}33.5%{opacity:1;transform:translate(-50%,-50%)}36%{opacity:0;transform:translate(-50%,-54%)}100%{opacity:0}}
+
+/* =======================================================
+   NODEA SCENE  (three-panel app)
+   ======================================================= */
+.nx-root{position:absolute;inset:0;background:var(--nx-bg);display:flex}
+.nx-side{width:184px;flex:none;border-right:1px solid var(--nx-border);background:#fbfbfc;padding:14px 12px;display:flex;flex-direction:column;gap:5px}
+.nx-word{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:17px;letter-spacing:-.025em;color:var(--nx-accent);margin:2px 4px 14px}
+.nx-new{font-size:12px;color:#fff;background:var(--nx-accent);border-radius:9px;padding:8px 10px;display:flex;align-items:center;gap:8px;font-weight:600;justify-content:center;margin-bottom:8px}
+.nx-conv{font-size:11.5px;color:var(--nx-text-2);padding:7px 8px;border-radius:8px;display:flex;align-items:center;gap:7px}
+.nx-conv.on{background:var(--nx-accent-bg);color:var(--nx-accent-text);font-weight:600}
+.nx-chat-ic{width:13px;height:13px;flex:none;opacity:.7}
+/* the Claude provenance sunburst badge */
+.nx-badge{width:13px;height:13px;flex:none;color:var(--cl-clay)}
+
+/* chat panel */
+.nx-chat{width:340px;flex:none;border-right:1px solid var(--nx-border);display:flex;flex-direction:column;background:var(--nx-bg);min-width:0}
+.nx-top{height:46px;flex:none;display:flex;align-items:center;gap:7px;padding:0 16px;border-bottom:1px solid var(--nx-border);background:var(--nx-topbar)}
+.nx-crumb{font-size:11px;color:var(--nx-muted)}
+.nx-crumb b{color:var(--nx-text);font-weight:600}
+.nx-update{margin-left:auto;display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--nx-border);border-radius:8px;font-size:11.5px;font-weight:600;color:var(--nx-text-2)}
+.nx-sub{padding:12px 16px;border-bottom:1px solid var(--nx-border);font-size:15px;font-weight:600;color:var(--nx-text)}
+.nx-upsell{display:flex;align-items:center;gap:9px;padding:8px 14px;border-bottom:1px solid var(--nx-border);
+  background:color-mix(in srgb,var(--nx-accent) 8%, var(--nx-bg));font-size:11px;color:var(--nx-text-2)}
+.nx-upsell b{color:var(--nx-text);font-weight:600}
+.nx-thread{flex:1;overflow:hidden;padding:18px 16px;display:flex;flex-direction:column;gap:16px}
+.nx-m{display:flex;gap:9px;align-items:flex-start}
+.nx-m.user{padding-left:40px;justify-content:flex-end}
+.nx-ai-av{width:24px;height:24px;border-radius:50%;flex:none;margin-top:3px;background:linear-gradient(135deg,var(--nx-accent),#06b6d4);display:flex;align-items:center;justify-content:center}
+.nx-who{font-size:10.5px;font-weight:600;color:var(--nx-accent-text);margin-bottom:4px}
+.nx-aibub{background:var(--nx-panel);border:1px solid var(--nx-border);border-radius:4px 13px 13px 13px;padding:10px 13px;font-size:12px;line-height:1.6;color:var(--nx-text);box-shadow:0 1px 2px rgba(20,20,40,.04)}
+.nx-userbub{background:var(--nx-user);border:1px solid #d9cffb;border-radius:13px 13px 4px 13px;padding:8px 13px;font-size:12px;line-height:1.55;color:var(--nx-text);max-width:78%}
+.nx-input{margin:0 16px 16px;border:1px solid var(--nx-border);background:#fff;border-radius:13px;height:42px;display:flex;align-items:center;padding:0 8px 0 14px;color:var(--nx-muted);font-size:12px}
+.nx-inp-send{margin-left:auto;width:30px;height:30px;border-radius:8px;background:var(--nx-accent);display:flex;align-items:center;justify-content:center}
+
+/* tree panel */
+.nx-tree{flex:1;position:relative;border-left:1px solid var(--nx-border);background:#fcfcfd;overflow:hidden}
+.nx-tree-top{height:46px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid var(--nx-border);background:var(--nx-topbar);position:relative;z-index:3}
+.nx-tree-top .lbl{font-size:12.5px;font-weight:600;color:var(--nx-text)}
+.nx-pill{margin-left:auto;font-size:10.5px;color:var(--nx-muted);background:#edeef1;border-radius:10px;padding:2px 8px}
+.nx-canvas{position:absolute;inset:46px 0 0 0;overflow:hidden;
+  background-image:radial-gradient(circle, var(--nx-grid) 1.3px, transparent 1.3px);
+  background-size:22px 22px;background-position:6px 6px}
+.nx-world{position:absolute;left:50%;top:30px;width:520px;height:520px;transform:translateX(-50%)}
+
+/* nodes */
+.node{position:absolute;width:208px;height:78px;border-radius:10px;background:#fff;border:1.5px solid var(--nx-border);
+  padding:9px 11px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;opacity:0;transform:scale(.6) translateY(8px);transform-origin:50% 0}
+.node .nt{font-size:11.5px;font-weight:600;color:var(--nx-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .ns{font-size:10.5px;line-height:1.42;color:var(--nx-text-2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.node.active{border-color:var(--nx-accent);background:#fbf9ff;box-shadow:0 0 0 3px var(--nx-accent-bg)}
+.node.branch{border-color:var(--nx-accent)}
+
+/* node positions */
+#nA{left:156px;top:8px}
+#nB{left:156px;top:118px}
+#nC{left:156px;top:228px}
+#nD{left:330px;top:200px}     /* forked branch, offset right & down from B */
+
+/* node pop-in keyframes (each keyed to the global 15s line) */
+@keyframes popA{0%,40%{opacity:0;transform:scale(.6) translateY(8px)}44%{opacity:1;transform:scale(1) translateY(0)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes popB{0%,46%{opacity:0;transform:scale(.6) translateY(8px)}50%{opacity:1;transform:scale(1) translateY(0)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes popC{0%,52%{opacity:0;transform:scale(.6) translateY(8px)}56%{opacity:1;transform:scale(1) translateY(0)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes popD{0%,74%{opacity:0;transform:scale(.55) translate(-26px,-10px)}79%{opacity:1;transform:scale(1) translate(0,0)}100%{opacity:1;transform:scale(1) translate(0,0)}}
+#nA{animation:popA var(--T) infinite cubic-bezier(.34,1.56,.64,1)}
+#nB{animation:popB var(--T) infinite cubic-bezier(.34,1.56,.64,1)}
+#nC{animation:popC var(--T) infinite cubic-bezier(.34,1.56,.64,1)}
+#nD{animation:popD var(--T) infinite cubic-bezier(.34,1.56,.64,1)}
+
+/* active-path highlight migrating B -> branch */
+#nB{}
+#nbHi{animation:bHover var(--T) infinite}
+@keyframes bHover{
+  0%,64%{box-shadow:0 0 0 3px var(--nx-accent-bg);border-color:var(--nx-accent)}
+  68%{box-shadow:0 0 0 5px rgba(124,58,237,.28);border-color:var(--nx-accent)}
+  72%{box-shadow:0 0 0 3px var(--nx-accent-bg)}
+  100%{box-shadow:0 0 0 3px var(--nx-accent-bg)}
+}
+
+/* edges (SVG, stroke-dash draw-on) */
+.edges{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.edge{stroke:var(--nx-accent);stroke-width:2;fill:none;stroke-linecap:round;stroke-dasharray:140;stroke-dashoffset:140}
+.edge.dim{stroke:var(--nx-border-strong)}
+#eAB{animation:draw var(--T) infinite}
+#eBC{animation:drawC var(--T) infinite}
+#eBD{animation:drawD var(--T) infinite}
+@keyframes draw{0%,46%{stroke-dashoffset:140}51%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes drawC{0%,52%{stroke-dashoffset:140}57%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes drawD{0%,74%{stroke-dashoffset:160;opacity:0}75%{opacity:1}80%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+#eBD{stroke-dasharray:160;stroke-dashoffset:160}
+
+/* fork popover label near node B */
+.fork-tip{position:absolute;left:300px;top:150px;z-index:8;display:flex;align-items:center;gap:6px;
+  background:var(--nx-accent);color:#fff;font-size:11px;font-weight:600;padding:5px 9px;border-radius:8px;
+  box-shadow:0 6px 16px -4px rgba(124,58,237,.5);opacity:0;transform:translateY(4px);animation:forkTip var(--T) infinite}
+@keyframes forkTip{0%,69%{opacity:0;transform:translateY(4px)}72%{opacity:1;transform:translateY(0)}80%{opacity:1}84%{opacity:0;transform:translateY(-4px)}100%{opacity:0}}
+
+/* streaming dots in new branch node */
+.stream{display:inline-flex;gap:3px;align-items:center}
+.stream i{width:4px;height:4px;border-radius:50%;background:var(--nx-accent);display:inline-block;animation:bd 1.1s ease-in-out infinite}
+.stream i:nth-child(2){animation-delay:.15s}.stream i:nth-child(3){animation-delay:.3s}
+@keyframes bd{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-3px);opacity:1}}
+
+/* =======================================================
+   CURSOR
+   ======================================================= */
+#cursor{position:absolute;z-index:40;width:22px;height:22px;left:0;top:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));
+  animation:cursor var(--T) infinite cubic-bezier(.45,.05,.2,1)}
+@keyframes cursor{
+  /* Claude scene: idle center -> Open in Nodea button */
+  0%{left:46%;top:54%;opacity:1}
+  16%{left:46%;top:54%}
+  27%{left:84.5%;top:30%}     /* over the Open-in-Nodea button */
+  28%{left:84.5%;top:30.5%}   /* tiny press dip */
+  30%{left:84.5%;top:30%}
+  31%{left:84.5%;top:30%;opacity:1}
+  33%{opacity:0}              /* hide during wipe */
+  40%{left:70%;top:55%;opacity:0}
+  /* Nodea scene: glide to node B, then to fork */
+  44%{opacity:1}
+  64%{left:60%;top:52%}       /* arrive at node B */
+  70%{left:64%;top:43%}       /* nudge to fork affordance */
+  79%{left:80%;top:62%}       /* follow the new branch out */
+  100%{left:80%;top:62%}
+}
+#cursor svg{display:block}
+
+/* =======================================================
+   CAPTIONS  (lower third)
+   ======================================================= */
+.caps{position:absolute;left:0;right:0;bottom:30px;z-index:35;display:flex;justify-content:center;pointer-events:none}
+.cap{position:absolute;font-size:21px;font-weight:600;letter-spacing:-.01em;color:#fff;opacity:0;
+  background:rgba(15,14,22,.66);backdrop-filter:blur(6px);padding:9px 18px;border-radius:12px;white-space:nowrap;
+  box-shadow:0 8px 30px -8px rgba(0,0,0,.5)}
+.cap b{color:#c4b1f7}
+#c1{animation:cap var(--T) infinite}   /* A great Claude chat */
+#c2{animation:cap2 var(--T) infinite}  /* one click */
+#c3{animation:cap3 var(--T) infinite}  /* branching tree */
+#c4{animation:cap4 var(--T) infinite}  /* fork from any reply */
+@keyframes cap{0%{opacity:0;transform:translateY(6px)}3%{opacity:1;transform:translateY(0)}24%{opacity:1}28%{opacity:0}100%{opacity:0}}
+@keyframes cap2{0%,28%{opacity:0;transform:translateY(6px)}31%{opacity:1;transform:translateY(0)}38%{opacity:1}41%{opacity:0}100%{opacity:0}}
+@keyframes cap3{0%,41%{opacity:0;transform:translateY(6px)}45%{opacity:1;transform:translateY(0)}68%{opacity:1}71%{opacity:0}100%{opacity:0}}
+@keyframes cap4{0%,71%{opacity:0;transform:translateY(6px)}75%{opacity:1;transform:translateY(0)}90%{opacity:1}94%{opacity:0}100%{opacity:0}}
+
+/* end CTA chip */
+#cta{position:absolute;z-index:36;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);opacity:0;
+  text-align:center;animation:cta var(--T) infinite}
+#cta .wm{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:46px;letter-spacing:-.03em;color:var(--nx-accent)}
+#cta .sub{margin-top:6px;font-size:15px;color:var(--nx-text-2);font-weight:500}
+@keyframes cta{0%,90%{opacity:0;transform:translate(-50%,-50%) scale(.9)}94%{opacity:1;transform:translate(-50%,-50%) scale(1)}99%{opacity:1}100%{opacity:0}}
+
+/* progress + replay */
+.bar{position:absolute;left:0;bottom:0;height:3px;background:var(--nx-accent);width:0;z-index:50;animation:bar var(--T) infinite linear}
+@keyframes bar{0%{width:0}100%{width:100%}}
+.hud{display:flex;gap:14px;align-items:center;color:#9aa0ad;font-size:12.5px}
+.hud b{color:#e7e9ee}
+.hud kbd{font:inherit;background:#1c1f26;border:1px solid #2c313b;border-radius:6px;padding:2px 7px;color:#cfd3da}
+.replay{cursor:pointer;background:#15171d;border:1px solid #2c313b;color:#cfd3da;border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:600}
+.replay:hover{border-color:var(--nx-accent);color:#fff}
+.paused .stage *{animation-play-state:paused!important}
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+  <div class="hud">
+    <span><b>Nodea extension</b> — 15s demo mock</span>
+    <span>•</span><span>loops automatically</span>
+    <button class="replay" id="replay">↻ Replay</button>
+    <button class="replay" id="pause">⏸ Pause</button>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <!-- ================= CLAUDE SCENE ================= -->
+    <div class="scene" id="sceneClaude">
+      <div class="cam" id="claudeCam">
+        <div class="cl-root">
+          <!-- sidebar -->
+          <div class="cl-side">
+            <div class="cl-word">
+              <svg class="cl-spark" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0l1.6 5.1L15 6.6 9.6 8 8 13 6.4 8 1 6.6 6.4 5z"/></svg>
+              Claude
+            </div>
+            <div class="cl-newbtn">＋ New chat</div>
+            <div class="cl-rowlbl">Recents</div>
+            <div class="cl-conv on">Onboarding email flow</div>
+            <div class="cl-conv">Pricing page copy</div>
+            <div class="cl-conv">SQL for cohort report</div>
+            <div class="cl-conv">Trip itinerary — Lisbon</div>
+          </div>
+          <!-- main -->
+          <div class="cl-main">
+            <div class="cl-top">
+              <span class="name">Onboarding email flow</span>
+              <span class="model">Claude Sonnet 4.6</span>
+            </div>
+            <div class="cl-thread">
+              <div class="cl-msg">
+                <div class="cl-av user">E</div>
+                <div class="cl-bub">
+                  <div class="who">You</div>
+                  <p>Draft a 3-email onboarding sequence for a new SaaS signup. Keep each email short.</p>
+                </div>
+              </div>
+              <div class="cl-msg">
+                <div class="cl-av ai">✶</div>
+                <div class="cl-bub">
+                  <div class="who">Claude</div>
+                  <p>Here's a tight 3-email sequence — each one does a single job:</p>
+                  <div class="cl-li"><b>1 · Welcome</b> — confirm the account, one clear next step.</div>
+                  <div class="cl-li"><b>2 · Activation</b> — nudge them to the “aha” feature on day 2.</div>
+                  <div class="cl-li"><b>3 · Proof</b> — a short customer result on day 4 to build trust.</div>
+                  <p class="pale">Want me to write the full copy, or try a more playful tone?</p>
+                </div>
+              </div>
+            </div>
+            <div class="cl-inputwrap">
+              <div class="cl-input">Reply to Claude…
+                <span class="cl-send"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M13 1L1 5.5l5 1.5L7.5 12 13 1z" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/></svg></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- extension panel -->
+          <div class="ext">
+            <div class="ext-h">
+              <span class="wm">Nodea</span>
+              <span class="tag">TREE</span>
+            </div>
+            <div class="ext-cap">This conversation, as a branching tree.</div>
+            <div class="ext-tree">
+              <svg viewBox="0 0 212 104" preserveAspectRatio="none">
+                <path d="M106 22 V40" stroke="#cdc7b8" stroke-width="2" fill="none"/>
+                <path d="M106 55 V72" stroke="#cdc7b8" stroke-width="2" fill="none"/>
+              </svg>
+              <div class="ext-node" style="top:10px;width:120px"></div>
+              <div class="ext-node" style="top:43px;width:120px"></div>
+              <div class="ext-node" style="top:76px;width:120px"></div>
+            </div>
+            <div class="ext-btn" id="openBtn">
+              <span class="btn-glow"></span>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Open in Nodea
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= NODEA SCENE ================= -->
+    <div class="scene" id="sceneNodea">
+      <div class="cam" id="nodeaCam">
+        <div class="nx-root">
+          <!-- sidebar -->
+          <div class="nx-side">
+            <div class="nx-word">Nodea</div>
+            <div class="nx-new">＋ New conversation</div>
+            <div class="nx-conv on">
+              <!-- Claude provenance sunburst badge -->
+              <svg class="nx-badge" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0l1.5 4.9L14.5 6 9.6 8 14.5 10 9.5 11.1 8 16 6.5 11.1 1.5 10 6.4 8 1.5 6 6.5 4.9z"/></svg>
+              Onboarding email flow
+            </div>
+            <div class="nx-conv"><svg class="nx-chat-ic" viewBox="0 0 16 16" fill="none"><path d="M14 10a2 2 0 0 1-2 2H6l-3 2.4V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.3"/></svg>Pricing page copy</div>
+            <div class="nx-conv"><svg class="nx-chat-ic" viewBox="0 0 16 16" fill="none"><path d="M14 10a2 2 0 0 1-2 2H6l-3 2.4V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.3"/></svg>Trip itinerary — Lisbon</div>
+          </div>
+
+          <!-- chat panel -->
+          <div class="nx-chat">
+            <div class="nx-top">
+              <span class="nx-crumb">Conversations › <b>Onboarding email flow</b></span>
+              <span class="nx-update">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M12.5 7a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12.6 1.5V4H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Update
+              </span>
+            </div>
+            <div class="nx-sub">Onboarding email flow</div>
+            <div class="nx-upsell">✨ Imported from Claude — now it's a canvas you can <b>branch</b>.</div>
+            <div class="nx-thread">
+              <div class="nx-m user"><div class="nx-userbub">Draft a 3-email onboarding sequence for a new SaaS signup. Keep each email short.</div></div>
+              <div class="nx-m">
+                <div class="nx-ai-av"><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.8" stroke="#fff" stroke-width="1.4"/><path d="M7 1v1.8M7 11.2V13M1 7h1.8M11.2 7H13" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+                <div>
+                  <div class="nx-who">Claude · Sonnet 4.6</div>
+                  <div class="nx-aibub">Here's a tight 3-email sequence — each one does a single job: welcome, activation, then proof. Want the full copy, or a more playful tone?</div>
+                </div>
+              </div>
+            </div>
+            <div class="nx-input">Message Claude…
+              <span class="nx-inp-send"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M13 1L1 5.5l5 1.5L7.5 12 13 1z" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- tree panel -->
+          <div class="nx-tree">
+            <div class="nx-tree-top">
+              <span class="lbl">Tree</span>
+              <span class="nx-pill">4 nodes</span>
+            </div>
+            <div class="nx-canvas">
+              <div class="nx-world">
+                <!-- edges -->
+                <svg class="edges" viewBox="0 0 520 520" preserveAspectRatio="none">
+                  <!-- A(center ~260,86) -> B(260,196) -> C(260,306); B -> D(434,278) -->
+                  <path id="eAB" class="edge" d="M260 86 V118"/>
+                  <path id="eBC" class="edge" d="M260 196 V228"/>
+                  <path id="eBD" class="edge" d="M260 170 C 300 196, 330 210, 360 240"/>
+                </svg>
+
+                <div class="node" id="nA">
+                  <div class="nt">3-email onboarding sequence</div>
+                  <div class="ns">Welcome → activation → proof. Short emails, one job each.</div>
+                </div>
+                <div class="node active" id="nB">
+                  <div class="nt" style="position:relative;z-index:2">Tighten + single job per email</div>
+                  <div class="ns" style="position:relative;z-index:2">Claude proposes the 3-step structure and asks about tone.</div>
+                  <div id="nbHi" style="position:absolute;inset:-1.5px;border-radius:10px"></div>
+                </div>
+                <div class="node" id="nC">
+                  <div class="nt">Formal tone — full copy</div>
+                  <div class="ns">Original path: writes out all three emails verbatim.</div>
+                </div>
+                <!-- forked branch -->
+                <div class="node branch" id="nD">
+                  <div class="nt">Playful tone variant</div>
+                  <div class="ns" style="display:flex;align-items:center;gap:6px"><span class="stream"><i></i><i></i><i></i></span>drafting an upbeat rewrite…</div>
+                </div>
+
+                <!-- fork tooltip -->
+                <div class="fork-tip">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M4 2v3.2a2 2 0 0 0 2 2H9" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><circle cx="4" cy="2" r="1.4" fill="#fff"/><circle cx="10" cy="7.4" r="1.4" fill="#fff"/></svg>
+                  Fork a branch
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= HANDOFF WIPE ================= -->
+    <div id="wipe"><span class="wm">Nodea</span></div>
+
+    <!-- ================= CURSOR ================= -->
+    <div id="cursor">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 2l5.5 15 2.3-6.2L17 8.5 3 2z" fill="#fff" stroke="#1a1a1a" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    </div>
+
+    <!-- ================= CAPTIONS ================= -->
+    <div class="caps">
+      <div class="cap" id="c1">A great Claude chat.</div>
+      <div class="cap" id="c2">One click — <b>Open in Nodea.</b></div>
+      <div class="cap" id="c3">Your whole conversation, <b>as a branching tree.</b></div>
+      <div class="cap" id="c4"><b>Fork from any reply.</b> Branch, don't restart.</div>
+    </div>
+
+    <!-- ================= END CTA ================= -->
+    <div id="cta">
+      <div class="wm">Nodea</div>
+      <div class="sub">nodea.ai — branch, don't restart.</div>
+    </div>
+
+    <div class="bar"></div>
+  </div>
+
+  <div class="hud">
+    <span>1280×720 · 16:9 · screen-record the frame for the final video</span>
+  </div>
+</div>
+
+<script>
+  // Replay: re-trigger every CSS animation by cloning the stage timeline.
+  const stage = document.getElementById('stage');
+  document.getElementById('replay').onclick = () => {
+    const r = stage.cloneNode(true);
+    stage.replaceWith(r);
+    // reattach pause toggle target
+    window.__stage = r;
+  };
+  const root = document.getElementById('root');
+  const pauseBtn = document.getElementById('pause');
+  pauseBtn.onclick = () => {
+    root.classList.toggle('paused');
+    pauseBtn.textContent = root.classList.contains('paused') ? '▶ Play' : '⏸ Pause';
+  };
+</script>
+</body>
+</html>

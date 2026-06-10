@@ -22,6 +22,7 @@ the `launch/` kit says which image goes in which slide/post.
 ## Chrome Web Store
 - `nodea-ai-chrome-store-promo-440x280.png` — small promo tile (440×280)
 - `nodea-ai-chrome-store-marquee-1400x560.png` — marquee (1400×560)
+- `nodea-ai-app-logo-128.png` — 128×128 store icon
 
 ## Product screenshots (directories / gallery / blog)
 - `nodea-ai-screenshot-conversation-tree.png` — Naming Habit Tracker + tree panel
