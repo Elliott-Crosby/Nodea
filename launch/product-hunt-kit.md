@@ -29,7 +29,7 @@ PH gives you a short product description (keep the front-loaded value inside ~26
 ### Short version (for the description field, ~255 chars)
 
 ```
-Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. Built on Claude (Haiku 4.5, Sonnet 4.6, Opus). Compare branches side by side. Free during beta, no card.
+Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. Built on Claude (Haiku 4.5, Sonnet 4.6, Opus 4.7). Compare branches side by side. Free during beta, no card.
 ```
 
 ### Longer version (if you want a fuller description before the first comment)
@@ -43,7 +43,7 @@ Instead of one long thread where exploring a tangent destroys your place, you fo
 - Pan/zoom a visual tree of your whole conversation
 - Compare branches side by side
 - Color and group nodes; organize conversations into projects
-- Anthropic Claude only — Haiku 4.5, Sonnet 4.6, Opus, auto-routed by complexity
+- Anthropic Claude only — Haiku 4.5, Sonnet 4.6, Opus 4.7, auto-routed by complexity
 - A Chrome extension imports your existing Claude.ai chats as a branching tree
 
 Free during beta — managed keys, no credit card. Pro is $8/mo.
@@ -69,7 +69,7 @@ Here's the itch I couldn't stop scratching: every AI chat is one long thread. Th
 So Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. You pan and zoom the tree, fork any reply into its own branch, and compare two branches side by side without throwing the original away. You can color nodes and group conversations into projects so a week of thinking doesn't turn into 40 dead tabs.
 
 A few honest specifics:
-- It's Claude only — Haiku 4.5, Sonnet 4.6, and Opus — auto-routed by complexity. Same models you'd use anyway; the difference is the canvas, not the model.
+- It's Claude only — Haiku 4.5, Sonnet 4.6, and Opus 4.7 — auto-routed by complexity. Same models you'd use anyway; the difference is the canvas, not the model.
 - There's a Chrome extension, "Nodea Tree for Claude," that reads your existing Claude.ai conversation's hidden branch tree and lets you import it into Nodea as a real tree.
 - It's free during beta on managed keys (no credit card). Pro is $8/mo.
 - Roadmap, not shipped yet: bring-your-own API keys, plugins, full export, and a project-wide connected canvas. I'd rather tell you what's coming than pretend it's here.

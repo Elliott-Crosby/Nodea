@@ -955,14 +955,14 @@ export default function App() {
       })
       if (!createRes.ok) {
         console.error('[Nodea import] create conversation failed', createRes.status)
-        showImportNotice('Import failed — could not create the conversation.', 'error', 6000)
+        showImportNotice('Import failed: could not create the conversation.', 'error', 6000)
         return
       }
       const created = await createRes.json().catch(() => null)
       const projectId: string | undefined = created?.project?.id
       if (!projectId) {
         console.error('[Nodea import] create conversation returned no id', created)
-        showImportNotice('Import failed — could not create the conversation.', 'error', 6000)
+        showImportNotice('Import failed: could not create the conversation.', 'error', 6000)
         return
       }
       // Patch provenance (best-effort; whole update no-ops pre-migration).
@@ -1013,7 +1013,7 @@ export default function App() {
         console.error('import: nodes insert failed', nodesErr)
         // Don't leave an empty husk conversation behind.
         await supabase.from('projects').delete().eq('id', projectId)
-        showImportNotice('Import failed — could not save the messages.', 'error', 6000)
+        showImportNotice('Import failed: could not save the messages.', 'error', 6000)
         return
       }
 
@@ -1040,7 +1040,7 @@ export default function App() {
       try { track('conversation_imported', { source, nodes: ordered.length }) } catch {}
     } catch (e) {
       console.error('import failed', e)
-      showImportNotice('Import failed — see console for details.', 'error', 6000)
+      showImportNotice('Import failed. See the console for details.', 'error', 6000)
     } finally {
       importingRef.current = false
     }
@@ -1236,16 +1236,16 @@ export default function App() {
       }
       const applied = await applySourceTree(convId, res.tree)
       if (applied.status === 'unlinked') {
-        showImportNotice('This conversation predates sync — re-import it from the extension to enable updates.', 'error', 7000)
+        showImportNotice('This conversation predates sync. Re-import it from the extension to enable updates.', 'error', 7000)
       } else if (applied.added > 0) {
-        showImportNotice(`Updated from Claude — added ${applied.added} new node${applied.added === 1 ? '' : 's'} ✓`, 'info', 5000)
+        showImportNotice(`Updated from Claude: ${applied.added} new node${applied.added === 1 ? '' : 's'} added ✓`, 'info', 5000)
         try { track('conversation_synced', { source: proj.source, added: applied.added }) } catch {}
       } else {
         showImportNotice('Already up to date with Claude ✓', 'info', 4000)
       }
     } catch (e) {
       console.error('update failed', e)
-      showImportNotice('Update failed — see console for details.', 'error', 6000)
+      showImportNotice('Update failed. See the console for details.', 'error', 6000)
     } finally {
       setIsUpdatingSource(false)
     }

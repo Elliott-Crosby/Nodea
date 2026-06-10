@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ComparePage from '../ComparePage'
+import { OG_IMAGES } from '@/lib/og'
 import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
     title: 'Nodea vs ChatGPT — Honest Comparison',
     description: 'Branching AI chat vs the linear ChatGPT thread. Side-by-side feature table.',
     url: 'https://nodea.ai/compare/nodea-vs-chatgpt',
+    images: OG_IMAGES,
   },
 }
 
@@ -32,7 +34,7 @@ export default function NodeaVsChatGPT() {
         { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'Yes — no email needed', nodeaWins: true },
         { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
         { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$8/mo (Opus + 50k/day · 1M/mo)', nodeaWins: true },
-        { feature: 'Open source',            competitor: 'No',                        nodea: 'Admin dashboard is MIT-licensed', nodeaWins: true },
+        { feature: 'Open source',            competitor: 'No',                        nodea: 'Yes — MIT, source on GitHub', nodeaWins: true },
         { feature: 'Data isolation',         competitor: 'OpenAI cloud',              nodea: 'Supabase Postgres with RLS' },
       ]}
       whenCompetitor={{

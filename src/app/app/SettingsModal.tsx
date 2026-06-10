@@ -713,7 +713,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
           {[
             { t: 'Saved automatically',  d: 'As you chat, stable facts about you get distilled into short memories.' },
             { t: 'Used everywhere',      d: 'Future conversations start with Claude already knowing the basics.' },
-            { t: 'Fully in your control', d: 'Every memory is visible here — edit, delete, or add your own anytime.' },
+            { t: 'Fully in your control', d: 'Every memory is visible here. Edit, delete, or add your own anytime.' },
           ].map((row) => (
             <li key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <div
@@ -762,7 +762,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
               Unlock Memory with Pro
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>
-              $8/mo — locked at the early-bird rate
+              $8/mo, locked at the early-bird rate
             </div>
           </div>
           <button
@@ -799,7 +799,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
       </div>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18, lineHeight: 1.5 }}>
         Facts Claude carries across every conversation. {isPro
-          ? 'Saved automatically as you chat — edit or delete anything you don\'t want kept.'
+          ? 'Saved automatically as you chat. Edit or delete anything you don\'t want kept.'
           : 'Memory adds are paused on Free, but you can still view or delete what\'s here.'}
       </p>
 
@@ -832,7 +832,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
             marginBottom: 18,
           }}
         >
-          Nothing saved yet. Memories appear here as Claude picks them up — or add one manually below.
+          Nothing saved yet. Memories appear here as Claude picks them up, or add one manually below.
         </div>
       ) : (
         <div

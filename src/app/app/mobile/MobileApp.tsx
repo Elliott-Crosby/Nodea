@@ -303,7 +303,7 @@ function Canvas({ theme, onToggleTheme, onMenu, activeConv }: {
                   onVersion={(id) => { void app.handleNodeClick(id) }}
                 />
               ))}
-              <p className="nm-hint">Tap <b>Branch from here</b> on any reply to explore a new direction — your original path stays put.</p>
+              <p className="nm-hint">Tap <b>Branch from here</b> on any reply to explore a new direction. Your original path stays put.</p>
             </div>
           </div>
 
@@ -487,7 +487,7 @@ function ProjectsScreen({ theme, onToggleTheme, onMenu }: { theme: string; onTog
           <div>
             <div className="ic"><ProjectIcon name="layers" size={32} color="var(--accent)" sw={1.5} /></div>
             <h2>Organize your conversations</h2>
-            <p>Projects group related chats — give each a color and icon, and pin your favorites to the sidebar.</p>
+            <p>Projects group related chats. Give each a color and icon, and pin your favorites to the sidebar.</p>
             <button className="nm-pl-new" onClick={app.openNewProjectModal} style={{ margin: '0 auto' }}><IcPlus s={15} />Create your first project</button>
           </div>
         </div>
@@ -621,7 +621,7 @@ function ProjectScreen({ project, theme, onToggleTheme, onSaveMemory }: {
         <div className="nm-soon">
           <span className="ic"><IcBranch s={16} style={{ opacity: 0.7 }} /></span>
           <div>
-            <div className="tt">Connected canvas — coming soon</div>
+            <div className="tt">Connected canvas (coming soon)</div>
             <div className="ss">Soon you’ll see every conversation in this project as one connected tree.</div>
           </div>
         </div>
@@ -691,7 +691,7 @@ function MemoryBox({ project, color, onSave }: { project: ChatProject; color: st
         <>
           <textarea ref={taRef} value={draft} rows={6} maxLength={2000}
             onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
-            placeholder="Context Nodea should remember for every chat in this project — goals, tone, key facts…" />
+            placeholder="Context Nodea should remember for every chat in this project: goals, tone, key facts…" />
           <div className="nm-mem-foot">
             <span className="cnt">{draft.length} / 2000</span>
             <div className="btns">

@@ -385,7 +385,7 @@ export default function ProjectPage({
           </span>
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
-              Connected canvas — coming soon
+              Connected canvas (coming soon)
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.45 }}>
               Soon you&rsquo;ll see every conversation in this project laid out as one connected tree.
@@ -691,7 +691,7 @@ function MemoryBox({
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save() }
             }}
             rows={7}
-            placeholder="Context Nodea should remember for every chat in this project — goals, preferences, tone, key facts…"
+            placeholder="Context Nodea should remember for every chat in this project: goals, preferences, tone, key facts…"
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -710,7 +710,7 @@ function MemoryBox({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 10 }}>
             <span style={{ fontSize: 11, color: failed ? 'var(--color-error)' : 'var(--text-muted)' }}>
               {failed
-                ? "Couldn't save — try again"
+                ? "Couldn't save. Try again."
                 : `${draft.length} / ${MAX_PROJECT_MEMORY_LENGTH}`}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>

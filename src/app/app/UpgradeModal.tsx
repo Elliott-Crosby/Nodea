@@ -182,7 +182,7 @@ export default function UpgradeModal() {
                   letterSpacing: '0.02em',
                 }}
               >
-                47% off — price rising soon
+                47% off, price rising soon
               </span>
             </div>
           </div>

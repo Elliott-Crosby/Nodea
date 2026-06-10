@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import DemoApp from './DemoApp'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 const TITLE = 'Try Nodea — Live Branching Chat Demo'
 const DESC =
@@ -14,11 +15,13 @@ export const metadata: Metadata = {
     description: DESC,
     url: 'https://nodea.ai/demo',
     type: 'website',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: TITLE,
     description: DESC,
+    images: TWITTER_IMAGES,
   },
 }
 

@@ -4,6 +4,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import './glossary.css'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: 'Glossary — Branching AI Chat Terminology',
@@ -16,11 +17,13 @@ export const metadata: Metadata = {
       'Definitions of branching AI chat terminology: nodes, branches, forks, canvases, tree-of-thought, and more.',
     url: 'https://nodea.ai/glossary',
     type: 'article',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Branching AI Chat Glossary',
     description: 'Plain-English definitions of branching AI chat terminology.',
+    images: TWITTER_IMAGES,
   },
 }
 

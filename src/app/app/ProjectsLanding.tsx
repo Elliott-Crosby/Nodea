@@ -286,7 +286,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           Organize your conversations
         </h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 24 }}>
-          Projects group related chats together — give each one a color and icon, and pin your favorites to the sidebar.
+          Projects group related chats. Give each one a color and icon, and pin your favorites to the sidebar.
         </p>
         <button
           type="button"

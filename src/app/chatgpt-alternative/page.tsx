@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: { absolute: 'ChatGPT Alternative: Branching AI Chat | Nodea AI' },
@@ -15,11 +16,13 @@ export const metadata: Metadata = {
       'A ChatGPT alternative that branches. Fork any reply into a new node, compare paths side-by-side, and run on Anthropic Claude.',
     url: 'https://nodea.ai/chatgpt-alternative',
     type: 'website',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Nodea — A Branching ChatGPT Alternative',
     description: 'A ChatGPT alternative that branches. Fork any reply, compare paths, run on Claude.',
+    images: TWITTER_IMAGES,
   },
 }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ComparePage from '../ComparePage'
+import { OG_IMAGES } from '@/lib/og'
 import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
     title: 'Nodea vs Claude Projects — Honest Comparison',
     description: 'Both run on Claude. One is a branching canvas, one is a project workspace. Side-by-side comparison.',
     url: 'https://nodea.ai/compare/nodea-vs-claude-projects',
+    images: OG_IMAGES,
   },
 }
 

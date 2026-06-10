@@ -206,7 +206,7 @@ export default function SearchModal() {
           <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>
             {mode === 'keyword'
               ? 'Exact text match'
-              : 'AI finds related ideas — even if the wording differs'}
+              : 'AI finds related ideas, even when the wording differs'}
           </span>
         </div>
 

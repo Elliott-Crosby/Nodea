@@ -13,8 +13,8 @@ export default function HowItWorks() {
             <span className="ln-step-num">01 / ASK</span>
             <h3>Start a conversation</h3>
             <p>
-              Type anything — a question, a problem, a half-formed idea.
-              Claude responds just like you expect.
+              Type a question, a problem, a half-formed idea.
+              Claude answers.
             </p>
             <div className="ln-step-art">
               <svg viewBox="0 0 200 80" preserveAspectRatio="xMidYMid meet">
@@ -33,8 +33,8 @@ export default function HowItWorks() {
             <span className="ln-step-num">02 / BRANCH</span>
             <h3>Fork any moment</h3>
             <p>
-              Hover any message and hit branch. A new path opens —
-              your original is preserved exactly where you left it.
+              Hover any message and hit branch. A new path opens;
+              the original stays where you left it.
             </p>
             <div className="ln-step-art">
               <svg viewBox="0 0 180 80" preserveAspectRatio="xMidYMid meet">
@@ -65,8 +65,8 @@ export default function HowItWorks() {
             <span className="ln-step-num">03 / NAVIGATE</span>
             <h3>Jump between paths</h3>
             <p>
-              Click any node in the canvas to instantly switch context —
-              full conversation history, no scrolling.
+              Click any node to switch paths instantly.
+              Full history, no scrolling.
             </p>
             <div className="ln-step-art">
               <svg viewBox="0 0 180 80" preserveAspectRatio="xMidYMid meet">

@@ -5,6 +5,7 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import '../blog.css'
 import { getPost } from '../posts'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 const SLUG = 'fork-chatgpt-conversation'
 const post = getPost(SLUG)!
@@ -20,11 +21,13 @@ export const metadata: Metadata = {
     url: `https://nodea.ai/blog/${SLUG}`,
     type: 'article',
     publishedTime: post.publishedAt,
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: post.title,
     description: post.description,
+    images: TWITTER_IMAGES,
   },
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { OG_IMAGES } from '@/lib/og'
 
 const SITE_URL = 'https://nodea.ai'
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
     title: 'Pricing — Nodea',
     description: 'Free with generous limits. Pro is $8/mo for Claude Opus, doubled daily tokens, and a 1M monthly budget.',
     url: `${SITE_URL}/upgrade`,
+    images: OG_IMAGES,
   },
 }
 

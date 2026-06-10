@@ -26,7 +26,7 @@ In a normal AI chat, every message stacks onto one thread. The moment you want t
 
 Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. You pan and zoom the tree, fork any node into a new path, and compare branches side by side without destroying the original.
 
-What's built today: the canvas, forking, side-by-side branches, projects to group conversations, and a Chrome extension that imports a Claude.ai chat (including its hidden edit/regenerate branches) as a tree. Models are Anthropic Claude only — Haiku 4.5, Sonnet 4.6, Opus — with automatic routing by complexity.
+What's built today: the canvas, forking, side-by-side branches, projects to group conversations, and a Chrome extension that imports a Claude.ai chat (including its hidden edit/regenerate branches) as a tree. Models are Anthropic Claude only — Haiku 4.5, Sonnet 4.6, Opus 4.7 — with automatic routing by complexity.
 
 What's NOT built yet, honestly: bring-your-own-key, plugins, and full export. Those are roadmap, not shipped.
 
@@ -44,7 +44,7 @@ A few implementation notes and honest limitations, since this crowd will ask:
 
 - **Data model.** A conversation is a tree of message nodes in Postgres (each node stores parent_id, role, content, model). Forking is just creating a child node from any point, so the "tree" is literal, not a UI metaphor. Supabase RLS isolates every user's rows; anonymous sign-in is supported so you can try it without an account.
 
-- **Why Claude-only.** I didn't want to ship a model picker that pretends every model is equivalent. It's Haiku 4.5 / Sonnet 4.6 / Opus, routed automatically by complexity, via the Vercel AI SDK. Multi-provider isn't a goal right now.
+- **Why Claude-only.** I didn't want to ship a model picker that pretends every model is equivalent. It's Haiku 4.5 / Sonnet 4.6 / Opus 4.7, routed automatically by complexity, via the Vercel AI SDK. Multi-provider isn't a goal right now.
 
 - **The Chrome extension.** It reads your *own* open Claude.ai conversation through Claude's own API using your existing login (read-only, no scraping endpoint of mine), reconstructs the hidden branch tree from edits/regenerations, and hands it to your Nodea account on an explicit click. No conversation text touches my servers unless you import. Not affiliated with Anthropic.
 

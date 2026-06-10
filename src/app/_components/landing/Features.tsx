@@ -6,15 +6,15 @@ export default function Features() {
           <span className="ln-kicker">Features</span>
           <h2 className="ln-h2">Built around the idea<br />that thinking <em>forks.</em></h2>
           <p className="ln-lede ln-features-lede">
-            Every feature exists to make branching feel natural — not
-            like a workaround bolted onto a chat interface.
+            Every feature exists to make branching feel natural,
+            not bolted on.
           </p>
         </div>
 
         <div className="ln-bento">
           {/* 1: Branch from any message */}
           <div className="ln-bcard wide">
-            <span className="ln-bcard-num">01 — branch</span>
+            <span className="ln-bcard-num">01 / branch</span>
             <h3>Branch from any message.</h3>
             <p>Hover a reply, hit branch, ask the question a different way. The old path stays put. You explore in parallel instead of starting over.</p>
             <div className="ln-bcard-art">
@@ -43,9 +43,9 @@ export default function Features() {
 
           {/* 2: See your thinking */}
           <div className="ln-bcard wide">
-            <span className="ln-bcard-num">02 — canvas</span>
+            <span className="ln-bcard-num">02 / canvas</span>
             <h3>See your thinking, not just your scroll.</h3>
-            <p>Every conversation becomes a live tree. Drag, zoom, jump to any node. The shape of your thought becomes visible — and editable.</p>
+            <p>Every conversation becomes a live tree. Drag, zoom, jump to any node. Your thinking takes a shape you can see and edit.</p>
             <div className="ln-bcard-art">
               <svg viewBox="0 0 260 120" style={{ overflow: 'visible' }}>
                 {/* Root */}
@@ -80,7 +80,7 @@ export default function Features() {
 
           {/* 3: Color-code */}
           <div className="ln-bcard wide">
-            <span className="ln-bcard-num">03 — color</span>
+            <span className="ln-bcard-num">03 / color</span>
             <h3>Color-code the keepers.</h3>
             <p>Tag the answers worth remembering. Skim a project at a glance.</p>
             <div className="ln-bcard-art">
@@ -96,7 +96,7 @@ export default function Features() {
 
           {/* 4: Search */}
           <div className="ln-bcard wide">
-            <span className="ln-bcard-num">04 — search</span>
+            <span className="ln-bcard-num">04 / search</span>
             <h3>Search across every path.</h3>
             <p>One ⌘K, every node, every branch. The good thought is never more than a keystroke away.</p>
             <div className="ln-bcard-art">

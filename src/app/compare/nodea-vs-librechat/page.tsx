@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ComparePage from '../ComparePage'
+import { OG_IMAGES } from '@/lib/og'
 import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
     title: 'Nodea vs LibreChat — Honest Comparison',
     description: 'A hosted branching canvas on Claude vs an open-source, self-hosted multi-provider chat UI.',
     url: 'https://nodea.ai/compare/nodea-vs-librechat',
+    images: OG_IMAGES,
   },
 }
 
@@ -34,7 +36,7 @@ export default function NodeaVsLibreChat() {
         { feature: 'Bring-your-own keys',   competitor: 'Yes — required',                nodea: 'Roadmap; today managed' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',              nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Cost model',            competitor: 'Free app + your infra & API',   nodea: 'Free 25k/day · 450k/mo; Pro $8/mo' },
-        { feature: 'Open source',           competitor: 'Yes (MIT)',                     nodea: 'No' },
+        { feature: 'Open source',           competitor: 'Yes (MIT)',                     nodea: 'Yes (MIT) — hosted for you' },
       ]}
       whenCompetitor={{
         heading: 'When LibreChat is the better choice',

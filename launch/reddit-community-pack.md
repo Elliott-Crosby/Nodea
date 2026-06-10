@@ -53,7 +53,7 @@ Maker here. I kept hitting the same wall in every AI chat: I'd be three good ans
 So I built Nodea AI (nodea.ai). It's a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. You can fork any reply into a new node, pan/zoom around the tree, compare two branches side-by-side, and keep every path you've explored.
 
 A few honest details:
-- It runs on Anthropic's Claude only (Haiku 4.5, Sonnet 4.6, Opus), with automatic model routing by complexity so simple turns don't burn a big model.
+- It runs on Anthropic's Claude only (Haiku 4.5, Sonnet 4.6, Opus 4.7), with automatic model routing by complexity so simple turns don't burn a big model.
 - Conversations live in Supabase with per-user isolation; you can group them into projects.
 - There's a Chrome extension ("Nodea Tree for Claude") that imports your existing claude.ai chats as a branching tree.
 - Free during beta — no credit card. Free tier is ~25k tokens/day. Pro is $8/mo when billing turns on.
@@ -83,7 +83,7 @@ Claude actually stores conversations as a tree internally (every edit/regenerate
 
 For people already deep in claude.ai: there's a "Nodea Tree for Claude" Chrome extension that reads your existing conversation's branch tree (via your own login, read-only) and can import the whole thing into Nodea as a visual tree.
 
-Models are Claude only — Haiku 4.5, Sonnet 4.6, Opus — with automatic routing by complexity. Free during beta, no card.
+Models are Claude only — Haiku 4.5, Sonnet 4.6, Opus 4.7 — with automatic routing by complexity. Free during beta, no card.
 
 Not affiliated with Anthropic. Honest about what's not done yet: BYOK, plugins, and full export are still on the roadmap. If you regularly branch your Claude chats, I'd love to know whether the visual tree actually matches your mental model or not.
 ```

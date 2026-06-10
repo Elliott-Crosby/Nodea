@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ComparePage from '../ComparePage'
+import { OG_IMAGES } from '@/lib/og'
 import '@/app/_components/landing/landing.css'
 import '../compare.css'
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
     title: 'Nodea vs TypingMind — Honest Comparison',
     description: 'A branching canvas on Claude vs a multi-model BYOK chat frontend.',
     url: 'https://nodea.ai/compare/nodea-vs-typingmind',
+    images: OG_IMAGES,
   },
 }
 

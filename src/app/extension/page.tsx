@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: { absolute: 'Nodea Tree for Claude — Import Chats as a Branching Tree' },
@@ -15,11 +16,13 @@ export const metadata: Metadata = {
       'Merge branches, drop sticky notes, color your tree, and search everything. The features that only live in the full Nodea app.',
     url: 'https://nodea.ai/extension',
     type: 'website',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Do more with your imported chats — Nodea',
     description: 'The features that only live in the full Nodea app.',
+    images: TWITTER_IMAGES,
   },
 }
 

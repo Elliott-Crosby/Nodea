@@ -4,7 +4,7 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Nodea',
+  title: 'Privacy Policy',
   description:
     'How Nodea and the "Nodea Tree for Claude" browser extension collect, use, store, and transmit your data.',
   alternates: { canonical: '/privacy' },

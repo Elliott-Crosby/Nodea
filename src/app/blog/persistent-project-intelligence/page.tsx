@@ -5,6 +5,7 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import '../blog.css'
 import { getPost } from '../posts'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 const SLUG = 'persistent-project-intelligence'
 const post = getPost(SLUG)!
@@ -20,11 +21,13 @@ export const metadata: Metadata = {
     url: `https://nodea.ai/blog/${SLUG}`,
     type: 'article',
     publishedTime: post.publishedAt,
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: post.title,
     description: post.description,
+    images: TWITTER_IMAGES,
   },
 }
 
@@ -399,7 +402,7 @@ no exclamation points, no second-person pep talk.`}</code></pre>
               branches as text for handoff.
             </p>
 
-            <h3>What if the model changes (Sonnet 4.6 → Sonnet 4.7, etc.)?</h3>
+            <h3>What if the model changes (e.g. Sonnet 4.6 → a newer Sonnet)?</h3>
             <p>
               Your project tree is independent of the model. Each branch
               records which model generated each reply, and you can

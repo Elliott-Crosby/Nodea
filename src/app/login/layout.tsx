@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { OG_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: 'Sign in to Nodea',
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
     title: 'Sign in to Nodea',
     description: 'Free during beta. No credit card. No waitlist.',
     url: 'https://nodea.ai/login',
+    images: OG_IMAGES,
   },
 }
 

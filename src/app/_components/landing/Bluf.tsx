@@ -20,15 +20,13 @@ export default function Bluf() {
             </h2>
             <p className="ln-bluf-lede">
               <strong>Nodea is a branching AI chat canvas.</strong> Every reply
-              from the AI becomes a node you can fork from — your conversation
-              grows as a tree of branches, not one long thread that you keep
-              scrolling. Built on Anthropic Claude (Haiku 4.5, Sonnet 4.6, Opus
-              4.7).
+              becomes a node you can fork from. Your conversation grows as a
+              tree of branches, not one long thread. Built on Anthropic Claude
+              (Haiku 4.5, Sonnet 4.6, Opus 4.7).
             </p>
             <p className="ln-bluf-sub">
-              Think of it as ChatGPT, except every reply is a junction. Don&rsquo;t
-              like an answer? Branch and ask again — the original stays exactly
-              where it was, side-by-side with the new path.
+              Don&rsquo;t like an answer? Branch and ask again. The original
+              stays put, right next to the new path.
             </p>
           </div>
 
@@ -47,7 +45,7 @@ export default function Bluf() {
             </li>
             <li>
               <span className="ln-bluf-k">Sign-up</span>
-              <span className="ln-bluf-v">Anonymous mode — no email needed</span>
+              <span className="ln-bluf-v">Anonymous mode, no email needed</span>
             </li>
             <li>
               <span className="ln-bluf-k">Source</span>

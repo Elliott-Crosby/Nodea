@@ -1404,7 +1404,7 @@ export default function TreePanel() {
                     {/* Merge-selection badge: which node is the base vs a source. */}
                     {mergeMode && isSelForMerge && mergeOrderIdx !== undefined && (
                       <div
-                        title={mergeOrderIdx === 0 ? 'Base — the merged prompt grows from here' : 'Source — merged into the base'}
+                        title={mergeOrderIdx === 0 ? 'Base: the merged prompt grows from here' : 'Source: merged into the base'}
                         style={{
                           position: 'absolute', left: -8, top: -8, zIndex: 6,
                           height: 18, padding: '0 6px', borderRadius: 9,
@@ -1422,7 +1422,7 @@ export default function TreePanel() {
                     {/* Persistent "Source" badge while its merged node is on the active path. */}
                     {isMergeSourceHL && (
                       <div
-                        title="Source — this branch is merged into the selected node"
+                        title="Source: this branch is merged into the selected node"
                         style={{
                           position: 'absolute', left: -8, top: -8, zIndex: 6,
                           height: 18, padding: '0 6px', borderRadius: 9,
@@ -1950,7 +1950,7 @@ export default function TreePanel() {
         const mergeLabel = canMerge
           ? `Merge ${mergeSel.length - 1} into “${baseTitle}”`
           : mergeSel.length === 1
-          ? 'Base set — now pick branches to merge in'
+          ? 'Base set. Now pick branches to merge in.'
           : 'Click the base node first'
 
         return (
@@ -2029,7 +2029,7 @@ export default function TreePanel() {
                 {pairs.length >= 2 && (
                   <button
                     onClick={() => setMergeMode(true)}
-                    title="Merge branches — converge two or more into one prompt"
+                    title="Merge branches: converge two or more into one prompt"
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 12px',
                       background: 'var(--modal-bg)', color: MERGE_BLUE,
@@ -2126,7 +2126,7 @@ export default function TreePanel() {
                 <button
                   type="button"
                   disabled={hasBranches}
-                  title={hasBranches ? 'This node has branches below it — delete those first' : 'Delete this prompt & reply'}
+                  title={hasBranches ? 'This node has branches below it. Delete those first.' : 'Delete this prompt & reply'}
                   onClick={() => { if (!hasBranches) setColorMenu({ ...colorMenu, confirmDelete: true }) }}
                   onMouseEnter={e => { if (!hasBranches) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error-bg)' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
@@ -2146,7 +2146,7 @@ export default function TreePanel() {
                 </button>
                 {hasBranches && (
                   <div style={{ fontSize: 10.5, color: 'var(--text-muted)', padding: '3px 8px 0', lineHeight: 1.35 }}>
-                    Has branches below — delete those first.
+                    Has branches below. Delete those first.
                   </div>
                 )}
               </>

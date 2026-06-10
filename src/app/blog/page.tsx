@@ -5,6 +5,7 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import './blog.css'
 import { POSTS } from './posts'
+import { OG_IMAGES } from '@/lib/og'
 
 const SITE_URL = 'https://nodea.ai'
 
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
       'Essays and guides on branching AI chat, prompt design, Claude vs ChatGPT, and non-linear AI workflows.',
     url: `${SITE_URL}/blog`,
     type: 'website',
+    images: OG_IMAGES,
   },
 }
 

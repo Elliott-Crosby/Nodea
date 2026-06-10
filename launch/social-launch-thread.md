@@ -44,7 +44,7 @@ Color your nodes to mark what's working. Group conversations into Projects so a 
 *[Attach: screenshot — Projects view]*
 
 **Tweet 6 — the models**
-Under the hood it's Anthropic Claude only — Haiku 4.5, Sonnet 4.6, and Opus — with automatic routing by complexity, so simple branches stay cheap and hard ones get the strong model. You think; it picks.
+Under the hood it's Anthropic Claude only — Haiku 4.5, Sonnet 4.6, and Opus 4.7 — with automatic routing by complexity, so simple branches stay cheap and hard ones get the strong model. You think; it picks.
 
 **Tweet 7 — bring your Claude chats with you**
 *[Attach: "Nodea Tree for Claude" extension tile]*
@@ -93,7 +93,7 @@ That's the problem I built Nodea AI to solve.
 
 Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread. From any reply you can spin off a new direction without losing the original. You can pan and zoom the whole tree, compare branches side by side, color the nodes that are working, and group everything into Projects so a week of real thinking doesn't scatter across twenty browser tabs.
 
-It runs on Anthropic's Claude models — Haiku 4.5, Sonnet 4.6, and Opus — with automatic routing by complexity, so easy branches stay cheap and the hard ones get the strong model. And if you already work in Claude.ai, our Chrome extension reads your existing conversation's branch structure and imports it as a tree you can keep building on.
+It runs on Anthropic's Claude models — Haiku 4.5, Sonnet 4.6, and Opus 4.7 — with automatic routing by complexity, so easy branches stay cheap and the hard ones get the strong model. And if you already work in Claude.ai, our Chrome extension reads your existing conversation's branch structure and imports it as a tree you can keep building on.
 
 I'll be honest about where it is: the canvas, Projects, and the Claude import are live now, free during the beta, no credit card. Bring-your-own-keys, plugins, full export, and a project-wide connected canvas are on the roadmap — not shipped yet. I'd rather tell you what's real than oversell.
 

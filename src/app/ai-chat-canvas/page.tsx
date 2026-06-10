@@ -4,6 +4,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import './ai-chat-canvas.css'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: { absolute: 'AI Chat Canvas — Nodea AI' },
@@ -16,11 +17,13 @@ export const metadata: Metadata = {
       'A canvas for AI conversations instead of one long thread. Fork any reply, map your chat as a tree, and compare branches side-by-side. Built on Claude.',
     url: 'https://nodea.ai/ai-chat-canvas',
     type: 'article',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'AI Chat Canvas — Nodea AI',
     description: 'A visual, branching canvas for AI conversations. Built on Claude.',
+    images: TWITTER_IMAGES,
   },
 }
 

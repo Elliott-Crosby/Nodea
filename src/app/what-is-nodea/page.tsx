@@ -4,6 +4,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import './what-is-nodea.css'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: 'What is Nodea? Branching AI Chat Explained',
@@ -16,11 +17,13 @@ export const metadata: Metadata = {
       'A non-linear, tree-based interface for AI conversations. Fork any reply, compare branches side-by-side, and never lose context again.',
     url: 'https://nodea.ai/what-is-nodea',
     type: 'article',
+    images: OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'What is Nodea? Branching AI Chat Explained',
     description: 'A non-linear, tree-based interface for AI conversations.',
+    images: TWITTER_IMAGES,
   },
 }
 
@@ -43,7 +46,7 @@ const FAQ = [
   },
   {
     q: 'Is Nodea open source?',
-    a: 'The Nodea admin dashboard is open source under the MIT license. The hosted product runs at nodea.ai.',
+    a: 'Yes — the Nodea source is MIT-licensed and available on GitHub. The hosted product runs at nodea.ai; you can self-host the same codebase against your own Supabase project and Anthropic API key.',
   },
   {
     q: 'Can I bring my own Anthropic API key?',

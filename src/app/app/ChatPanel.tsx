@@ -367,7 +367,7 @@ function ImportedUpsellBanner() {
     >
       <span style={{ fontSize: 15, flexShrink: 0 }} aria-hidden>✨</span>
       <span style={{ flex: 1, minWidth: 0 }}>
-        You imported this chat — now it&apos;s a canvas. Only the full app lets you{' '}
+        Your imported chat is now a canvas. Only the full app lets you{' '}
         <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>merge branches</strong>,{' '}
         <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>drop sticky notes</strong>, and{' '}
         <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>color your tree</strong>.
@@ -424,7 +424,7 @@ function TopBar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         {activeConvIsImported && (
           <button
-            title={isUpdatingSource ? 'Checking Claude for new branches…' : 'Update from Claude — pull in any new branches'}
+            title={isUpdatingSource ? 'Checking Claude for new branches…' : 'Pull any new branches in from Claude'}
             onClick={() => { if (!isUpdatingSource) void updateFromSource() }}
             disabled={isUpdatingSource}
             style={{
@@ -778,7 +778,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 'auto' }}>
-                Saving forks a new version — your original is kept.
+                Saving forks a new version. The original is kept.
               </span>
               <button
                 type="button"
@@ -1125,7 +1125,7 @@ export default function ChatPanel() {
     if (files.length === 0) {
       if (hadUriOnly) {
         setFileError(
-          'File not available locally — it may be cloud-only. In OneDrive, right-click it and choose "Always keep on this device", then drop it again.'
+          'File not available locally; it may be cloud-only. In OneDrive, right-click it and choose "Always keep on this device", then drop it again.'
         )
       }
       return
@@ -1304,7 +1304,7 @@ export default function ChatPanel() {
                 {userName ? `What's on your mind, ${userName}?` : "What's on your mind?"}
               </h2>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                Send a message to start — every reply becomes a node you can branch from.
+                Send a message to start. Every reply becomes a node you can branch from.
               </div>
             </div>
             <div style={{ width: '100%', maxWidth: 720 }}>

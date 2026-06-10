@@ -4,6 +4,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import './compare.css'
+import { OG_IMAGES } from '@/lib/og'
 
 const SITE_URL = 'https://nodea.ai'
 
@@ -79,6 +80,7 @@ export const metadata: Metadata = {
       'Side-by-side comparisons of Nodea AI against ChatGPT, Claude Projects, Perplexity, and more. When each tool wins, and how to decide.',
     url: `${SITE_URL}/compare`,
     type: 'website',
+    images: OG_IMAGES,
   },
 }
 

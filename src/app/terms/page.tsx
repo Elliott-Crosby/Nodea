@@ -4,7 +4,7 @@ import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Nodea',
+  title: 'Terms of Service',
   description:
     'The terms that govern your use of Nodea, the branching AI chat canvas at nodea.ai, and the "Nodea Tree for Claude" browser extension.',
   alternates: { canonical: '/terms' },
