@@ -43,7 +43,7 @@ export default function HeroVideo() {
               Keep every thread you ever explored.
             </p>
             <div className="ln-split-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Create your first canvas
               </Link>
               <Link href="/demo" className="ln-btn ln-btn-outline ln-btn-lg">

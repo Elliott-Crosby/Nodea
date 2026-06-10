@@ -260,7 +260,7 @@ export default function AiForDeepWorkPost() {
                 Nodea is a branching canvas for Claude. Variants, tangents,
                 and restarts all happen without losing what you built.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -412,7 +412,7 @@ export default function AiForDeepWorkPost() {
           <div className="ln-container">
             <h2>Deep work deserves a deeper tool.</h2>
             <p>Open a canvas that stays out of your way while you iterate.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

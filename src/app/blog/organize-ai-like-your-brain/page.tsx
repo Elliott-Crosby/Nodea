@@ -228,7 +228,7 @@ export default function OrganizeAiLikeYourBrainPost() {
                 Nodea turns each Claude reply into a node you can branch
                 from — a canvas, not a scroll bar.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -377,7 +377,7 @@ export default function OrganizeAiLikeYourBrainPost() {
           <div className="ln-container">
             <h2>Your tools should match how your mind works.</h2>
             <p>Branch, explore, return. The canvas remembers everything.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

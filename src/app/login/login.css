@@ -292,53 +292,13 @@
 .au-tab.active { color: var(--text-primary); }
 .au-tab:hover:not(.active) { color: var(--text-secondary); }
 
-/* ── SSO ─────────────────────────────────────────────────────── */
-.au-sso {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.au-sso-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--au-elev-1);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: border-color .15s, background .15s, transform .1s;
-}
-.au-sso-btn:hover {
-  border-color: var(--border-strong);
-  background: var(--au-elev-2);
-}
-.au-sso-btn:active { transform: translateY(1px); }
-
-/* ── Divider ─────────────────────────────────────────────────── */
-.au-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 2px 0 10px;
-  font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+/* ── Consent (signup) ────────────────────────────────────────── */
+.au-consent {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--text-muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.au-divider::before,
-.au-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
+  text-align: center;
 }
 
 /* ── Banners ─────────────────────────────────────────────────── */

@@ -288,7 +288,7 @@ export default function PersistentProjectIntelligencePost() {
                 root context, named decisions, live branches, all in one
                 durable canvas.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -433,7 +433,7 @@ no exclamation points, no second-person pep talk.`}</code></pre>
           <div className="ln-container">
             <h2>Your projects deserve more than a chat scroll.</h2>
             <p>Open a Nodea canvas and give your work a place to compound.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

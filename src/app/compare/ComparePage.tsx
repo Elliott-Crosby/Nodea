@@ -125,7 +125,7 @@ export default function ComparePage(props: ComparePageProps) {
         <section className="cmp-cta">
           <h2>See for yourself in 30 seconds.</h2>
           <p>Free during beta. No credit card. No waitlist.</p>
-          <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+          <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
             Open a Nodea canvas
           </Link>
         </section>

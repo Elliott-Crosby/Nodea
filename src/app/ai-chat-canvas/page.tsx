@@ -134,7 +134,7 @@ export default function AiChatCanvas() {
             </p>
 
             <div className="cc-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open a canvas — free
               </Link>
               <Link href="/what-is-nodea" className="ln-btn ln-btn-outline ln-btn-lg">
@@ -290,7 +290,7 @@ export default function AiChatCanvas() {
             <h2 className="cc-h2 cc-cta-h2">Trade the thread for a canvas</h2>
             <p className="cc-cta-sub">Free during beta. No credit card. No waitlist.</p>
             <div className="cc-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open your first canvas
               </Link>
               <Link href="/upgrade" className="ln-btn ln-btn-outline ln-btn-lg">

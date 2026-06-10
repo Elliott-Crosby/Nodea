@@ -228,7 +228,7 @@ export default function NeverLoseThinkingPost() {
                 a node you can fork from, so no draft, tangent, or alternative
                 ever gets buried.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -381,7 +381,7 @@ export default function NeverLoseThinkingPost() {
           <div className="ln-container">
             <h2>Every idea you have is worth keeping.</h2>
             <p>Open a canvas where no draft, tangent, or alternative gets lost.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

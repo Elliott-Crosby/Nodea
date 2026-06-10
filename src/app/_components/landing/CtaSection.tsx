@@ -13,7 +13,7 @@ export default function CtaSection() {
           across Claude Haiku, Sonnet, and Opus on managed keys.
         </p>
         <div className="ln-cta-btns">
-          <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+          <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
             Create your first canvas
           </Link>
           <a href="#how-it-works" className="ln-btn ln-btn-outline ln-btn-lg">

@@ -260,7 +260,7 @@ export default function CompareAIOutputsPost() {
                 Nodea lets you branch the same conversation to compare Claude outputs
                 — parallel branches, independent context, visible on one canvas.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -393,7 +393,7 @@ export default function CompareAIOutputsPost() {
           <div className="ln-container">
             <h2>Compare in context, not in tabs.</h2>
             <p>Branch the same prompt and read both answers on one canvas.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

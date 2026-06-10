@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { track } from '@vercel/analytics'
 import { Sun, Moon, Mail, Lock, AlertTriangle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -24,41 +25,29 @@ function strengthScore(p: string): number {
 const STRENGTH_LABELS = ['', 'too short', 'weak', 'fair', 'good', 'strong']
 const STRENGTH_COLORS = ['', '#f87171', '#fbbf24', '#facc15', '#34d399', '#34d399']
 
-/* ── SSO icon components ────────────────────────────────────── */
-function GoogleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M15.545 6.558a9.4 9.4 0 0 0-.139-1.6H8v3.03h4.234a3.62 3.62 0 0 1-1.569 2.376v1.976h2.542c1.49-1.37 2.338-3.39 2.338-5.782z" fill="#4285F4"/>
-      <path d="M8 16c2.137 0 3.93-.709 5.24-1.918l-2.542-1.976C9.898 12.74 9.004 13.04 8 13.04c-2.068 0-3.82-1.396-4.443-3.272H.936v2.04A7.997 7.997 0 0 0 8 16z" fill="#34A853"/>
-      <path d="M3.557 9.768a4.79 4.79 0 0 1 0-3.04V4.688H.936a8.002 8.002 0 0 0 0 7.12l2.621-2.04z" fill="#FBBC05"/>
-      <path d="M8 2.96a4.33 4.33 0 0 1 3.066 1.198L13.32 1.91A7.696 7.696 0 0 0 8 0a7.997 7.997 0 0 0-7.064 4.688l2.621 2.04C4.18 4.356 5.932 2.96 8 2.96z" fill="#EA4335"/>
-    </svg>
-  )
-}
-
-function GitHubIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-    </svg>
-  )
-}
-
 /* ── Main component ─────────────────────────────────────────── */
-export default function LoginPage() {
+function LoginForm() {
   const { theme, toggleTheme } = useTheme()
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
-  const [mode, setMode] = useState<Mode>('signin')
+  // CTAs across the site deep-link to /login?mode=signup so new visitors
+  // land on the signup form, not "welcome back".
+  const initialMode: Mode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
+
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [remember, setRemember] = useState(true)
-  const [agree, setAgree] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({})
+
+  useEffect(() => {
+    if (initialMode === 'signup') track('signup_started')
+  }, [initialMode])
 
   function switchMode(next: Mode) {
     if (next === 'signup') track('signup_started')
@@ -84,10 +73,6 @@ export default function LoginPage() {
     }
     if (mode !== 'forgot' && !password) {
       setTouched(t => ({ ...t, password: true }))
-      return
-    }
-    if (mode === 'signup' && !agree) {
-      setError('Please agree to the Terms and Privacy Policy to continue.')
       return
     }
 
@@ -233,25 +218,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* SSO */}
-          {mode !== 'forgot' && (
-            <div className="au-sso">
-              <button type="button" className="au-sso-btn" disabled>
-                <GoogleIcon />
-                Google
-              </button>
-              <button type="button" className="au-sso-btn" disabled>
-                <GitHubIcon />
-                GitHub
-              </button>
-            </div>
-          )}
-
-          {/* Divider */}
-          {mode !== 'forgot' && (
-            <div className="au-divider" aria-hidden="true">OR WITH EMAIL</div>
-          )}
-
           {/* Error banner */}
           {error && (
             <div className="au-banner au-banner-error" role="alert">
@@ -355,29 +321,20 @@ export default function LoginPage() {
               </label>
             )}
 
-            {/* Checkbox — "agree to terms" for signup */}
-            {mode === 'signup' && (
-              <label className="au-checkbox-row">
-                <input
-                  type="checkbox"
-                  className="au-checkbox"
-                  checked={agree}
-                  onChange={e => setAgree(e.target.checked)}
-                />
-                <span>
-                  I agree to the{' '}
-                  <button type="button" className="au-field-link">Terms</button>
-                  {' '}and{' '}
-                  <button type="button" className="au-field-link">Privacy Policy</button>.
-                </span>
-              </label>
-            )}
-
             {/* Submit */}
             <button type="submit" className="au-submit" disabled={loading || !!success}>
               {loading && <span className="au-spinner" aria-hidden="true" />}
               {submitLabel}
             </button>
+
+            {/* Implicit consent — signup only */}
+            {mode === 'signup' && (
+              <p className="au-consent">
+                By creating an account you agree to the{' '}
+                <Link href="/terms" className="au-field-link">Terms</Link> and{' '}
+                <Link href="/privacy" className="au-field-link">Privacy Policy</Link>.
+              </p>
+            )}
           </form>
 
           {/* Bottom prompt */}
@@ -408,5 +365,15 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// useSearchParams requires a Suspense boundary so the rest of the route can
+// still be prerendered (see Next docs: use-search-params).
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }
