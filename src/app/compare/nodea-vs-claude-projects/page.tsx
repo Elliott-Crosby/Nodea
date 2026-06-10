@@ -24,7 +24,7 @@ export default function NodeaVsClaudeProjects() {
       competitorName="Claude Projects"
       title="Nodea vs Claude Projects"
       description="Both Nodea and Claude Projects sit on top of Anthropic&rsquo;s Claude models. The difference is what they optimize for. Claude Projects is built for persistent project context. Nodea is built for non-linear exploration."
-      tldr={'Pick Claude Projects if your workflow is "same big context, many sessions" — uploaded files, instructions, persistent memory. Pick Nodea if your workflow is "same starting point, many alternatives" — branching, forking, side-by-side comparison. Many users keep both.'}
+      tldr={'Pick Claude Projects if your workflow is "same big context, many sessions": uploaded files, instructions, persistent memory. Pick Nodea if your workflow is "same starting point, many alternatives": branching, forking, side-by-side comparison. Many users keep both.'}
       rows={[
         { feature: 'Conversation shape',  competitor: 'Linear thread per chat',  nodea: 'Tree of nodes (branching)', nodeaWins: true },
         { feature: 'Fork any reply',      competitor: 'Regenerate only',         nodea: 'Branch any node',           nodeaWins: true },
@@ -50,7 +50,7 @@ export default function NodeaVsClaudeProjects() {
         heading: 'When Nodea is the better choice',
         bullets: [
           "You want to explore multiple framings of the same question without losing any of them.",
-          "You think visually — you want to see your conversation as a map, not a scroll.",
+          "You think visually and want to see your conversation as a map, not a scroll.",
           "You want to fork from any message, not just regenerate the last reply.",
           "You want anonymous sign-in and a free tier that’s actually usable.",
           "You’d rather pay $8/mo than $20/mo.",
@@ -59,7 +59,7 @@ export default function NodeaVsClaudeProjects() {
       faq={[
         {
           q: "Do Nodea and Claude Projects use the same AI?",
-          a: "Yes — both run on Anthropic’s Claude models (Haiku, Sonnet, Opus). The model output quality is functionally identical; the differentiator is the interface around the model.",
+          a: "Yes. Both run on Anthropic’s Claude models (Haiku, Sonnet, Opus). The model output quality is functionally identical; the differentiator is the interface around the model.",
         },
         {
           q: "Can I branch in Claude Projects?",
@@ -67,7 +67,7 @@ export default function NodeaVsClaudeProjects() {
         },
         {
           q: "Does Nodea support project-style file uploads?",
-          a: "You can attach images, PDFs, and text files to individual messages in Nodea. We don’t yet have Claude-Projects-style global file context that persists across every conversation — it’s on the roadmap.",
+          a: "You can attach images, PDFs, and text files to individual messages in Nodea. We don’t yet have Claude-Projects-style global file context that persists across every conversation; it’s on the roadmap.",
         },
         {
           q: "Is Nodea cheaper than Claude.ai?",

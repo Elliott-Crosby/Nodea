@@ -23,18 +23,18 @@ export default function NodeaVsChatGPT() {
       slug="nodea-vs-chatgpt"
       competitorName="ChatGPT"
       title="Nodea vs ChatGPT"
-      description="ChatGPT is the default AI chatbot. Nodea is built for non-linear thinking. Here&rsquo;s how they actually compare — without the marketing fluff."
-      tldr="If you have one question and want one answer, ChatGPT is fine. If you regularly explore alternatives, compare framings, or get frustrated losing context, Nodea&rsquo;s tree-shaped canvas pays for itself on the first session. Both run on top-tier models — ChatGPT on GPT-4o/5, Nodea on Claude Haiku, Sonnet, and Opus."
+      description="ChatGPT is the default AI chatbot. Nodea is built for non-linear thinking. Here&rsquo;s how they actually compare, without the marketing fluff."
+      tldr="If you have one question and want one answer, ChatGPT is fine. If you regularly explore alternatives, compare framings, or get frustrated losing context, Nodea&rsquo;s tree-shaped canvas pays for itself on the first session. Both run on top-tier models: ChatGPT on GPT-4o/5, Nodea on Claude Haiku, Sonnet, and Opus."
       rows={[
         { feature: 'Conversation shape',     competitor: 'Linear thread',             nodea: 'Tree (branching canvas)', nodeaWins: true },
         { feature: 'Fork any reply',         competitor: 'Only via edit (hidden)',    nodea: 'Click any node, branch',  nodeaWins: true },
         { feature: 'Visual map of chats',    competitor: 'Sidebar list',              nodea: 'Pan-and-zoom tree canvas', nodeaWins: true },
         { feature: 'Underlying model',       competitor: 'GPT-4o / GPT-5',            nodea: 'Claude Haiku 4.5 / Sonnet 4.6 / Opus 4.7' },
         { feature: 'Auto model routing',     competitor: 'Manual model picker',       nodea: 'Auto by prompt complexity', nodeaWins: true },
-        { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'Yes — no email needed', nodeaWins: true },
+        { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'No email needed', nodeaWins: true },
         { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
         { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$8/mo (Opus + 50k/day · 1M/mo)', nodeaWins: true },
-        { feature: 'Open source',            competitor: 'No',                        nodea: 'Yes — MIT, source on GitHub', nodeaWins: true },
+        { feature: 'Open source',            competitor: 'No',                        nodea: 'Yes, MIT, source on GitHub', nodeaWins: true },
         { feature: 'Data isolation',         competitor: 'OpenAI cloud',              nodea: 'Supabase Postgres with RLS' },
       ]}
       whenCompetitor={{
@@ -49,7 +49,7 @@ export default function NodeaVsChatGPT() {
       whenNodea={{
         heading: 'When Nodea is the better choice',
         bullets: [
-          "You routinely explore alternatives — different tones, different framings, different plans — and hate losing the original.",
+          "You routinely explore alternatives (different tones, different framings, different plans) and hate losing the original.",
           "You prefer Claude’s writing and reasoning quality (Sonnet and Opus are widely considered best-in-class for nuanced text).",
           "You want a visual map of your thinking, not a buried scroll history.",
           "You want anonymous sign-in to try without committing an email address.",
@@ -59,7 +59,7 @@ export default function NodeaVsChatGPT() {
       faq={[
         {
           q: "Is Nodea a ChatGPT clone?",
-          a: "No. Nodea uses Anthropic’s Claude models, not OpenAI’s GPT. More importantly, the data model is fundamentally different — Nodea stores conversations as trees, ChatGPT stores them as lists.",
+          a: "No. Nodea uses Anthropic’s Claude models, not OpenAI’s GPT. More importantly, the data model is fundamentally different: Nodea stores conversations as trees, ChatGPT stores them as lists.",
         },
         {
           q: "Can I fork a conversation in ChatGPT?",

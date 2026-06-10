@@ -107,6 +107,20 @@ export default function TreeOfThoughtPost() {
               the wrong shape for it.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-screenshot-conversation-tree.png"
+                width={1920}
+                height={1200}
+                alt="The Nodea app showing a conversation in the centre and its full branching tree in the right-hand panel."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Tree of Thought is easier when the interface is actually a tree — each
+                reasoning path becomes a visible, addressable branch.
+              </figcaption>
+            </figure>
+
             <h2 id="what-is-tot">What is Tree of Thought prompting?</h2>
             <p>
               Tree of Thought is a prompting framework introduced in a 2023 paper by

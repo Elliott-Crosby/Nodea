@@ -23,7 +23,7 @@ const COMPARISONS: CompareEntry[] = [
     competitor: 'ChatGPT',
     title: 'Nodea vs ChatGPT',
     blurb:
-      'The default linear chatbot vs a tree-shaped canvas. Branching, model routing, data ownership, and price — when each one wins.',
+      'The default linear chatbot vs a tree-shaped canvas. Branching, model routing, data ownership, and price: when each one wins.',
   },
   {
     slug: 'nodea-vs-claude-projects',
@@ -119,7 +119,7 @@ export default function CompareIndex() {
             <h1 className="cmp-h1">Nodea vs the alternatives.</h1>
             <p className="cmp-lede">
               Nodea is a branching AI chat canvas. Every reply becomes a node you
-              can fork from — your conversation grows as a tree of branches, not
+              can fork from. Your conversation grows as a tree of branches, not
               one long thread. Here&rsquo;s how it stacks up against the tools you
               already know, without the marketing fluff.
             </p>
@@ -142,7 +142,7 @@ export default function CompareIndex() {
         </section>
 
         <section className="cmp-cta">
-          <h2>Skip the comparison — just try it.</h2>
+          <h2>Skip the comparison. Just try it.</h2>
           <p>Free during beta. No credit card. No waitlist.</p>
           <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
             Open a Nodea canvas

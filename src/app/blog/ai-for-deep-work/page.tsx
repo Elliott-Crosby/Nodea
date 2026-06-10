@@ -110,6 +110,20 @@ export default function AiForDeepWorkPost() {
               fights you.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-branching-chat-canvas.png"
+                width={3600}
+                height={1890}
+                alt="Nodea's branching chat canvas with the tagline 'Stop scrolling. Start branching.', showing a launch-plan conversation and its tree."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                A canvas you can hold in your head: fork any reply, keep the thread,
+                and stay in flow instead of re-explaining context.
+              </figcaption>
+            </figure>
+
             <h2 id="shallow-by-default">AI chat is built for shallow work by default</h2>
             <p>
               Look at how the major AI chat products are framed. The empty

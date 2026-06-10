@@ -108,6 +108,20 @@ export default function PersistentProjectIntelligencePost() {
               productivity promise quietly leaks out.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-screenshot-projects.png"
+                width={1920}
+                height={1200}
+                alt="The Nodea Projects view showing a project with multiple conversations, each previewed as the shape of its branching tree."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Projects keep every conversation in one place, so context accumulates
+                across weeks instead of dying with the tab.
+              </figcaption>
+            </figure>
+
             <h2 id="the-problem">The problem: every chat starts from zero</h2>
             <p>
               Here is the typical lifecycle of a serious AI conversation

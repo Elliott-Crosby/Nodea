@@ -33,8 +33,7 @@ export default function SupportPage() {
                 marginBottom: '2.5rem',
               }}
             >
-              Questions, bug reports, billing, or feedback on Nodea — the branching
-              AI chat canvas — all reach the same place. Send a message below or
+              Questions, bug reports, billing, and feedback all reach the same place. Send a message below or
               email{' '}
               <a href="mailto:nodea.ai@gmail.com" style={{ color: 'var(--accent-text)' }}>
                 nodea.ai@gmail.com
@@ -47,20 +46,20 @@ export default function SupportPage() {
               <p>A few answers already live on the site:</p>
               <ul>
                 <li>
-                  <Link href="/what-is-nodea">What is Nodea</Link> — how branching
+                  <Link href="/what-is-nodea">What is Nodea</Link>: how branching
                   works and what it&rsquo;s for.
                 </li>
                 <li>
-                  <Link href="/upgrade">Pricing &amp; plans</Link> — what&rsquo;s
+                  <Link href="/upgrade">Pricing &amp; plans</Link>: what&rsquo;s
                   free, what&rsquo;s paid, and how billing works.
                 </li>
                 <li>
-                  <Link href="/extension">Nodea Tree for Claude</Link> — the browser
+                  <Link href="/extension">Nodea Tree for Claude</Link>: the browser
                   extension that turns your Claude chats into a visual tree.
                 </li>
                 <li>
                   <Link href="/privacy">Privacy</Link> and{' '}
-                  <Link href="/terms">Terms</Link> — how we handle your data and the
+                  <Link href="/terms">Terms</Link>: how we handle your data and the
                   rules of the road.
                 </li>
               </ul>
@@ -68,8 +67,8 @@ export default function SupportPage() {
               <h2>Send us a message</h2>
               <p>
                 Include your account email if it differs from your reply address, and
-                as much detail as you can — steps to reproduce a bug, a screenshot, or
-                the conversation you were working in all help us help you faster.
+                as much detail as you can: steps to reproduce a bug, a screenshot, or
+                the conversation you were working in all help us faster.
               </p>
             </div>
 

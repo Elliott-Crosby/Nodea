@@ -46,7 +46,7 @@ export default function SupportForm() {
   if (status === 'sent') {
     return (
       <div className="ln-form-status ok" role="status">
-        Thanks — your message is on its way. We&rsquo;ll reply to your email,
+        Thanks, your message is on its way. We&rsquo;ll reply to your email,
         usually within 1–2 business days.
       </div>
     )

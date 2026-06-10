@@ -24,11 +24,11 @@ export default function NodeaVsPoe() {
       competitorName="Poe"
       title="Nodea vs Poe"
       description="Poe (by Quora) aggregates many AI bots and model providers in one app with linear chats. Nodea is a branching AI chat canvas built specifically for non-linear exploration on Claude."
-      tldr={'Pick Poe if you want breadth — hundreds of bots and models (GPT, Claude, Gemini, image and video models) in one place, with a points-based plan that lets you switch tools mid-task. Pick Nodea if you want non-linear exploration as a first-class feature: a visual pan-and-zoom tree where every branch lives on one canvas, plus automatic Claude model routing and zero setup.'}
+      tldr={'Pick Poe if you want breadth: hundreds of bots and models (GPT, Claude, Gemini, image and video models) in one place, with a points-based plan that lets you switch tools mid-task. Pick Nodea if you want non-linear exploration as a first-class feature: a visual pan-and-zoom tree where every branch lives on one canvas, plus automatic Claude model routing and zero setup.'}
       rows={[
         { feature: 'Conversation shape',    competitor: 'Linear chats',                  nodea: 'Tree (branching canvas)',    nodeaWins: true },
-        { feature: 'Branch from a reply',   competitor: 'Yes — copies into a new chat',  nodea: 'Fork any node in place' },
-        { feature: 'Visual canvas',         competitor: 'No — separate threads',         nodea: 'Pan-and-zoom tree',          nodeaWins: true },
+        { feature: 'Branch from a reply',   competitor: 'Yes, copied into a new chat',   nodea: 'Fork any node in place' },
+        { feature: 'Visual canvas',         competitor: 'No, separate threads',          nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Compare branches',      competitor: 'Switch between chats',          nodea: 'Side-by-side on one canvas', nodeaWins: true },
         { feature: 'Model providers',       competitor: 'Many (GPT, Claude, Gemini, +)', nodea: 'Anthropic Claude' },
         { feature: 'Breadth of bots',       competitor: 'Hundreds, plus custom bots',    nodea: 'Focused on Claude chat' },
@@ -40,7 +40,7 @@ export default function NodeaVsPoe() {
       whenCompetitor={{
         heading: 'When Poe is the better choice',
         bullets: [
-          "You want breadth — many models and bots from different providers (GPT, Claude, Gemini, image and video models) in a single app.",
+          "You want breadth: many models and bots from different providers (GPT, Claude, Gemini, image and video models) in a single app.",
           "You like switching tools mid-task and trying community or custom bots without leaving one interface.",
           "You want image and video generation alongside text chat in the same product.",
           "A points-based plan that spreads across many models fits how you work better than a single-provider budget.",
@@ -49,9 +49,9 @@ export default function NodeaVsPoe() {
       whenNodea={{
         heading: 'When Nodea is the better choice',
         bullets: [
-          "You think in branches and want a real visual canvas — a pan-and-zoom tree, not a list of separate chats.",
+          "You think in branches and want a real visual canvas: a pan-and-zoom tree, not a list of separate chats.",
           "You want to compare alternative branches side by side on one canvas instead of switching between threads.",
-          "You want zero setup — open an account, get free tokens, start exploring.",
+          "You want zero setup: open an account, get free tokens, start exploring.",
           "You want automatic model routing across Claude tiers so you’re not picking a bot for every conversation.",
           "You prefer Claude specifically and don’t need a hundred other bots in the same tool.",
         ],
@@ -59,11 +59,11 @@ export default function NodeaVsPoe() {
       faq={[
         {
           q: "Can Poe branch conversations?",
-          a: "Yes — Poe lets you branch from any message, which copies the conversation up to that point into a new chat. It’s a genuinely useful feature. The difference is shape: Poe branches become separate linear chats, while Nodea keeps every branch on one visual pan-and-zoom canvas so you can see and compare the whole tree at once.",
+          a: "Yes. Poe lets you branch from any message, which copies the conversation up to that point into a new chat. It’s a genuinely useful feature. The difference is shape: Poe branches become separate linear chats, while Nodea keeps every branch on one visual pan-and-zoom canvas so you can see and compare the whole tree at once.",
         },
         {
           q: "Does Nodea support multiple model providers like Poe?",
-          a: "No — Nodea is Claude-only by design (Haiku 4.5, Sonnet 4.6, Opus) with automatic routing by complexity. Poe’s strength is breadth: hundreds of bots and models from many providers, plus image and video tools, in one app.",
+          a: "No. Nodea is Claude-only by design (Haiku 4.5, Sonnet 4.6, Opus) with automatic routing by complexity. Poe’s strength is breadth: hundreds of bots and models from many providers, plus image and video tools, in one app.",
         },
         {
           q: "Which is better for exploring lots of alternatives at once?",
@@ -71,11 +71,11 @@ export default function NodeaVsPoe() {
         },
         {
           q: "How does pricing compare?",
-          a: "Poe uses points-based subscription tiers, where heavier models consume points faster — flexible across many models. Nodea is a single $8/mo flat plan (free during beta, no credit card) with a daily Claude token budget. If you want many providers, Poe’s model fits; if you want predictable Claude usage, Nodea’s does.",
+          a: "Poe uses points-based subscription tiers, where heavier models consume points faster, flexible across many models. Nodea is a single $8/mo flat plan (free during beta, no credit card) with a daily Claude token budget. If you want many providers, Poe’s model fits; if you want predictable Claude usage, Nodea’s does.",
         },
         {
           q: "Can I export my conversations from Nodea?",
-          a: "Yes — your data lives in your Supabase row, isolated by RLS. Full export tooling is on the roadmap.",
+          a: "Yes. Your data lives in your Supabase row, isolated by RLS. Full export tooling is on the roadmap.",
         },
       ]}
     />

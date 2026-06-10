@@ -194,6 +194,26 @@
   font-style: italic;
 }
 
+/* Inline article figure */
+.bl-figure {
+  margin: 36px 0;
+}
+.bl-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+.bl-figcaption {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* TOC */
 .bl-toc {
   background: var(--bg-subtle);

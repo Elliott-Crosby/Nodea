@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is Nodea a free ChatGPT alternative?',
-    a: 'Nodea is free during beta with a 25,000 daily / 450,000 monthly token budget and access to Claude Haiku 4.5 and Sonnet 4.6 — no credit card required. The Pro plan is $8/month (versus ChatGPT Plus at $20/month) and unlocks Claude Opus plus a 50,000 daily / 1,000,000 monthly budget.',
+    a: 'Nodea is free during beta with a 25,000 daily / 450,000 monthly token budget and access to Claude Haiku 4.5 and Sonnet 4.6. No credit card required. The Pro plan is $8/month (versus ChatGPT Plus at $20/month) and unlocks Claude Opus plus a 50,000 daily / 1,000,000 monthly budget.',
   },
   {
     q: 'What makes Nodea different from ChatGPT?',
@@ -37,7 +37,7 @@ const FAQ = [
   },
   {
     q: 'Which AI models does this ChatGPT alternative use?',
-    a: 'Nodea runs exclusively on Anthropic Claude — Haiku 4.5 for fast replies, Sonnet 4.6 for balanced reasoning, and Opus for the heaviest tasks. The model is selected automatically based on prompt complexity and your plan, so you do not have to pick one manually.',
+    a: 'Nodea runs exclusively on Anthropic Claude: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced reasoning, and Opus for the heaviest tasks. The model is selected automatically based on prompt complexity and your plan, so you do not have to pick one manually.',
   },
   {
     q: 'Can I switch to Nodea without losing my Claude history?',
@@ -45,11 +45,11 @@ const FAQ = [
   },
   {
     q: 'Do I need to create an account to try it?',
-    a: 'No email is required to start. Nodea supports anonymous sign-in — a real account is created without an email address, so you can open a canvas, branch, and save projects immediately, then link an email later to claim your data with no migration needed.',
+    a: 'No email is required to start. Nodea supports anonymous sign-in: a real account without an email address, so you can open a canvas, branch, and save projects immediately, then link an email later with no migration needed.',
   },
   {
     q: 'Can I use ChatGPT and Nodea together?',
-    a: 'Yes — they are complementary. Many people keep ChatGPT for OpenAI-specific features like image generation or voice mode, and reach for Nodea whenever they need to explore alternatives, compare framings, or branch a reply without losing the original.',
+    a: 'Yes, they are complementary. Many people keep ChatGPT for OpenAI-specific features like image generation or voice mode, and reach for Nodea whenever they need to explore alternatives, compare framings, or branch a reply without losing the original.',
   },
 ]
 
@@ -62,7 +62,7 @@ const DIFFS = [
   {
     feature: 'Exploring an alternative',
     chatgpt: 'Edit (overwrites) or start a new chat (loses context)',
-    nodea: 'Fork any reply into a new node — keep every path',
+    nodea: 'Fork any reply into a new node, keep every path',
   },
   {
     feature: 'Comparing answers',
@@ -72,7 +72,7 @@ const DIFFS = [
   {
     feature: 'Underlying model',
     chatgpt: 'OpenAI GPT',
-    nodea: 'Anthropic Claude — Haiku 4.5, Sonnet 4.6, Opus',
+    nodea: 'Anthropic Claude: Haiku 4.5, Sonnet 4.6, Opus',
   },
   {
     feature: 'Model selection',
@@ -82,12 +82,12 @@ const DIFFS = [
   {
     feature: 'Getting started',
     chatgpt: 'Email required',
-    nodea: 'Anonymous sign-in — no email needed',
+    nodea: 'Anonymous, no email needed',
   },
   {
     feature: 'Paid tier',
     chatgpt: '$20/mo',
-    nodea: '$8/mo — free during beta',
+    nodea: '$8/mo, free during beta',
   },
 ]
 
@@ -142,7 +142,7 @@ export default function ChatGPTAlternative() {
             </h1>
             <p className="ln-hero-sub">
               Nodea is a branching AI chat canvas. Every reply becomes a node you
-              can fork from — your conversation grows as a tree of branches, not
+              can fork from. Your conversation grows as a tree of branches, not
               one long thread. Built on Anthropic Claude.
             </p>
             <div className="ln-hero-ctas">
@@ -168,14 +168,14 @@ export default function ChatGPTAlternative() {
                 </h2>
                 <p className="ln-bluf-lede">
                   <strong>Nodea is a branching AI chat canvas.</strong> Every reply
-                  becomes a node you can fork from — your conversation grows as a
+                  becomes a node you can fork from. Your conversation grows as a
                   tree of branches, not one long thread. Where ChatGPT gives you a
                   single linear path, Nodea lets you keep every alternative and
                   compare them side-by-side.
                 </p>
                 <p className="ln-bluf-sub">
                   It runs on Anthropic Claude (Haiku 4.5, Sonnet 4.6, Opus) with
-                  automatic model routing — so you spend your time thinking, not
+                  automatic model routing, so you stay focused on thinking, not
                   picking a model.
                 </p>
               </div>
@@ -195,7 +195,7 @@ export default function ChatGPTAlternative() {
                 </li>
                 <li>
                   <span className="ln-bluf-k">Sign-up</span>
-                  <span className="ln-bluf-v">Anonymous mode — no email needed</span>
+                  <span className="ln-bluf-v">No email needed</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Switching</span>
@@ -216,7 +216,7 @@ export default function ChatGPTAlternative() {
               </h2>
               <p className="ln-lede ln-features-lede">
                 If you have one question and want one answer, ChatGPT is fine. The
-                friction shows up the moment you want to explore — and that is
+                friction shows up the moment you want to explore, and that is
                 exactly where a branching canvas pays off.
               </p>
             </div>
@@ -228,7 +228,7 @@ export default function ChatGPTAlternative() {
                 <p>
                   In a linear thread, editing a prompt overwrites the old reply and
                   starting a new chat drops your context. In Nodea, you fork from
-                  any reply into a new node — the original path stays exactly where
+                  any reply into a new node. The original path stays exactly where
                   it was.
                 </p>
               </div>
@@ -237,7 +237,7 @@ export default function ChatGPTAlternative() {
                 <h3>You compare instead of scroll</h3>
                 <p>
                   Two framings of the same question, three different plans, an A/B
-                  on a prompt — every branch sits side-by-side on a pan-and-zoom
+                  on a prompt. Every branch sits side-by-side on a pan-and-zoom
                   canvas, not buried in a scroll-back history.
                 </p>
               </div>
@@ -245,8 +245,8 @@ export default function ChatGPTAlternative() {
                 <span className="ln-bcard-num">03</span>
                 <h3>You get Claude, routed automatically</h3>
                 <p>
-                  Nodea runs on Anthropic Claude — Haiku 4.5, Sonnet 4.6, and Opus
-                  — and picks the right model by prompt complexity, so you do not
+                  Nodea runs on Anthropic Claude: Haiku 4.5, Sonnet 4.6, and Opus.
+                  It picks the right model by prompt complexity, so you do not
                   manage a model dropdown.
                 </p>
               </div>
@@ -256,7 +256,7 @@ export default function ChatGPTAlternative() {
                 <p>
                   Anonymous sign-in means no email to try it, and the Chrome
                   extension imports your existing Claude.ai chats as a branching
-                  tree — so switching does not mean starting over.
+                  tree, so switching does not mean starting over.
                 </p>
               </div>
             </div>
@@ -300,7 +300,7 @@ export default function ChatGPTAlternative() {
                 <p>
                   Branch from any message to explore an alternative. Compare
                   answers side-by-side. Keep the keepers. Search across every path
-                  at once — on a canvas built for Claude.
+                  at once, on a canvas built for Claude.
                 </p>
                 <div className="ln-mini-tree">
                   <svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet">
@@ -370,7 +370,7 @@ export default function ChatGPTAlternative() {
                 <h2 className="ln-bluf-h2">What Nodea is not</h2>
                 <p className="ln-bluf-lede">
                   Nodea is a focused tool, not a drop-in clone of everything
-                  ChatGPT does. It runs on Claude only — there is no GPT model, no
+                  ChatGPT does. It runs on Claude only. No GPT model, no
                   image generation, and no voice mode. Several things are on the
                   roadmap, not shipped, and we would rather say so than imply
                   otherwise.
@@ -386,19 +386,19 @@ export default function ChatGPTAlternative() {
               <ul className="ln-bluf-facts" aria-label="Roadmap and limitations">
                 <li>
                   <span className="ln-bluf-k">Models</span>
-                  <span className="ln-bluf-v">Claude only — no GPT, no image or voice</span>
+                  <span className="ln-bluf-v">Claude only, no GPT, image, or voice</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">BYOK</span>
-                  <span className="ln-bluf-v">On the roadmap — not shipped yet</span>
+                  <span className="ln-bluf-v">Roadmap, not yet shipped</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Plugins</span>
-                  <span className="ln-bluf-v">On the roadmap — not shipped yet</span>
+                  <span className="ln-bluf-v">Roadmap, not yet shipped</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Full export</span>
-                  <span className="ln-bluf-v">On the roadmap — not shipped yet</span>
+                  <span className="ln-bluf-v">Roadmap, not yet shipped</span>
                 </li>
               </ul>
             </div>
@@ -435,8 +435,7 @@ export default function ChatGPTAlternative() {
               Stop scrolling.<br />Start <em>branching.</em>
             </h2>
             <p className="ln-cta-sub">
-              Free during beta — no credit card, no waitlist. Branch any reply
-              across Claude Haiku, Sonnet, and Opus on managed keys.
+              Free during beta. No credit card, no waitlist. Haiku, Sonnet, and Opus on managed keys.
             </p>
             <div className="ln-cta-btns">
               <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">

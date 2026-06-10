@@ -104,6 +104,21 @@ export default function CompareAIOutputsPost() {
               subjective evaluation, and recency bias. This guide explains how.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-screenshot-colored-branches.png"
+                width={2256}
+                height={1504}
+                alt="A Nodea canvas with several colour-coded branches fanning out from one question, each exploring a different option in parallel."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Branch the same question several ways and read the answers side by
+                side — each branch stays isolated, so there&rsquo;s no context bleed
+                between them.
+              </figcaption>
+            </figure>
+
             <h2 id="why-comparison-is-hard">Why model comparison is harder than it looks</h2>
             <p>
               The naive approach — send the same question to two models, compare — fails

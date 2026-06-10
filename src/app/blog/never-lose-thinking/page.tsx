@@ -105,6 +105,20 @@ export default function NeverLoseThinkingPost() {
               transcript you&rsquo;ll never scroll back through.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-live-demo-conversation-tree.png"
+                width={3840}
+                height={2160}
+                alt="A Nodea tree of message nodes branching from a brand-positioning prompt, with every direction preserved as its own node."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Every tangent becomes a node you can return to — nothing is buried in
+                scroll, and nothing is overwritten.
+              </figcaption>
+            </figure>
+
             <h2 id="the-graveyard">The graveyard of half-finished thoughts</h2>
             <p>
               Linear chat is structurally optimistic. It assumes every reply

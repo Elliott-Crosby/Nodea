@@ -105,6 +105,20 @@ export default function OrganizeAiLikeYourBrainPost() {
               you switch to a tool that doesn&rsquo;t require the translation.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-wordmark-think-in-branches.png"
+                width={3840}
+                height={2160}
+                alt="The Nodea wordmark with the tagline 'Think in branches' on a dotted canvas with branch lines."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Your thinking branches. Nodea lets the conversation branch with it,
+                instead of flattening every idea into a single column.
+              </figcaption>
+            </figure>
+
             <h2 id="thinking-isnt-linear">Thinking isn&rsquo;t linear, even when you write it down</h2>
             <p>
               Cognitive scientists call this &ldquo;associative cognition&rdquo;:

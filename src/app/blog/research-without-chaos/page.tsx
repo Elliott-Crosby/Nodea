@@ -108,6 +108,20 @@ export default function ResearchWithoutChaosPost() {
               matches the shape of the work.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-screenshot-marketing-canvas.png"
+                width={1920}
+                height={1200}
+                alt="A Nodea research canvas with a long analysis on the left and a branching tree of follow-up threads on the right."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Branch each hypothesis and source into its own thread — the
+                investigation stays legible no matter how deep it goes.
+              </figcaption>
+            </figure>
+
             <h2 id="why-chaos">Why AI research tends toward chaos</h2>
             <p>
               Three structural problems make AI research messy by default:

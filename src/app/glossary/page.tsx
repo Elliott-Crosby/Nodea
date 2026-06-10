@@ -40,7 +40,7 @@ const TERMS: Term[] = [
     id: 'branching-ai-chat',
     name: 'Branching AI chat',
     short: 'A conversation interface where each message is a node in a tree, and any node can spawn a new branch.',
-    long: 'In a branching AI chat, the conversation is stored as a directed tree of messages instead of a flat list. From any reply, the user can fork a new branch — a divergent path that explores an alternative response without overwriting or losing the original. The current "chat view" is the path from the root of the tree to the currently selected node.',
+    long: 'In a branching AI chat, the conversation is stored as a directed tree of messages instead of a flat list. From any reply, the user can fork a new branch: a divergent path that explores an alternative without overwriting or losing the original. The current "chat view" is the path from the root of the tree to the currently selected node.',
     alsoKnownAs: ['non-linear chat', 'tree-shaped chat', 'forking chat'],
   },
   {
@@ -54,20 +54,20 @@ const TERMS: Term[] = [
     id: 'node',
     name: 'Node',
     short: 'A single message in a branching conversation, with a parent and zero or more children.',
-    long: 'A node represents one message — from either the user or the AI — in the conversation tree. Each node has exactly one parent (or null if it is the root) and any number of children. In Nodea, nodes live in the Postgres `nodes` table with columns for role, content, parent_id, and position coordinates for canvas layout.',
+    long: 'A node represents one message (from either the user or the AI) in the conversation tree. Each node has exactly one parent (or null if it is the root) and any number of children. In Nodea, nodes live in the Postgres `nodes` table with columns for role, content, parent_id, and position coordinates for canvas layout.',
   },
   {
     id: 'branch',
     name: 'Branch',
     short: 'A divergent path from a node, created by attaching a new child to an existing message.',
-    long: 'A branch is born the moment a node has more than one child. From that point, the original child remains and a new child (a new question or a regenerated answer) is attached alongside it. Each branch is independent — only the path from root to the currently selected node is sent to the AI on the next turn, so sibling branches never bleed into each other.',
+    long: 'A branch is born the moment a node has more than one child. From that point, the original child remains and a new child (a new question or a regenerated answer) is attached alongside it. Each branch is independent: only the path from root to the currently selected node is sent to the AI on the next turn, so sibling branches never affect each other.',
     alsoKnownAs: ['fork', 'alternative path'],
   },
   {
     id: 'fork',
     name: 'Fork (a conversation)',
-    short: 'The action of creating a new branch from an existing node — the verb form of "branch."',
-    long: 'To fork a conversation is to pick a node and attach a new child to it, opening a parallel exploration. In Nodea, forking is a one-click action on any message. In linear chat tools, forking is approximated by editing a previous message or by opening a new conversation and re-pasting context — both lossy workarounds.',
+    short: 'The action of creating a new branch from an existing node. The verb form of "branch."',
+    long: 'To fork a conversation is to pick a node and attach a new child to it, opening a parallel exploration. In Nodea, forking is a one-click action on any message. In linear chat tools, forking is approximated by editing a previous message or by opening a new conversation and re-pasting context, both lossy workarounds.',
   },
   {
     id: 'canvas',
@@ -86,12 +86,12 @@ const TERMS: Term[] = [
     id: 'path',
     name: 'Path (in a conversation tree)',
     short: 'The ordered chain of nodes from the root of the tree down to a selected node.',
-    long: 'A path is what gets sent to the AI model on each turn. In Nodea, when the user selects a node, the system walks the tree backwards from that node to the root, collects every message along the way, and sends that ordered sequence as the conversation history. Sibling branches are never included — each path is independent.',
+    long: 'A path is what gets sent to the AI model on each turn. In Nodea, when the user selects a node, the system walks the tree backwards from that node to the root, collects every message along the way, and sends that ordered sequence as the conversation history. Sibling branches are never included; each path is independent.',
   },
   {
     id: 'project',
     name: 'Project',
-    short: 'A single top-level conversation tree — a discrete topic or workspace.',
+    short: 'A single top-level conversation tree: one discrete topic or workspace.',
     long: 'In Nodea, a project is one conversation tree: one root node and everything that branches from it. A user has many projects, listed in the sidebar. Projects are stored in the `projects` table and their nodes are stored in the `nodes` table, linked by `project_id`.',
     alsoKnownAs: ['conversation', 'chat tree'],
   },
@@ -111,7 +111,7 @@ const TERMS: Term[] = [
     id: 'anonymous-signin',
     name: 'Anonymous sign-in',
     short: 'A real user account created without requiring an email address, claimable later by linking credentials.',
-    long: 'Anonymous sign-in (a Supabase feature Nodea uses) creates a row in `auth.users` with no email — the user gets a stable identity and can save data, but never had to commit a real email. Later, the same user can "link" credentials (email + password, OAuth) and the data carries over without migration.',
+    long: 'Anonymous sign-in (a Supabase feature Nodea uses) creates a row in `auth.users` with no email. The user gets a stable identity and can save data without committing a real email. Later, the same user can "link" credentials (email + password, OAuth) and the data carries over without migration.',
   },
 ]
 
@@ -191,7 +191,7 @@ export default function GlossaryPage() {
         <section className="gl-cta">
           <div className="ln-container">
             <h2>See the canvas behind the words.</h2>
-            <p>Open a Nodea canvas — free, no credit card.</p>
+            <p>Open a Nodea canvas. Free, no credit card.</p>
             <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Try Nodea
             </Link>

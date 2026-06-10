@@ -106,6 +106,20 @@ export default function ForkChatGPTPost() {
               where they fail.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-extension-claude-reveal.png"
+                width={1920}
+                height={1200}
+                alt="A Claude.ai conversation with the Nodea panel open, showing the same chat rebuilt as a forkable tree of nodes with an 'Open in Nodea' button."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Nodea turns a flat Claude or ChatGPT thread into a tree you can fork
+                from any node — no edit tricks, no hidden version history.
+              </figcaption>
+            </figure>
+
             <h2 id="what-forking-means">What &ldquo;forking&rdquo; a conversation actually means</h2>
             <p>
               In software, forking a repository means creating an independent copy from a

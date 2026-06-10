@@ -34,11 +34,11 @@ const FAQ = [
   },
   {
     q: 'How is a canvas different from a normal AI chat thread?',
-    a: 'A thread is a single line — each new message is appended, and exploring an alternative means either overwriting an earlier message or starting a fresh chat and losing context. A canvas keeps every message as a node in a tree. You can branch from any point, see all the directions you took at once, and switch between them instantly.',
+    a: 'A thread is a single line: each new message is appended, and exploring an alternative means either overwriting an earlier message or starting a fresh chat and losing context. A canvas keeps every message as a node in a tree. You can branch from any point, see all the directions you took at once, and switch between them instantly.',
   },
   {
     q: 'Which AI models power the Nodea canvas?',
-    a: 'Nodea runs on Anthropic Claude only — Haiku 4.5 for fast replies, Sonnet 4.6 for balanced work, and Opus for the heaviest reasoning. The model is routed automatically based on the complexity of your prompt and your plan.',
+    a: 'Nodea runs on Anthropic Claude only: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced work, and Opus for the heaviest reasoning. The model is routed automatically based on the complexity of your prompt and your plan.',
   },
   {
     q: 'Can I compare AI responses side-by-side on the canvas?',
@@ -46,11 +46,11 @@ const FAQ = [
   },
   {
     q: 'Do I need to sign up to try the canvas?',
-    a: 'No email is required to start. Nodea supports anonymous sign-in through Supabase, so you can open a canvas, branch, and save your tree right away. You can later link an email to keep your work — no data migration needed.',
+    a: 'No email is required to start. Nodea supports anonymous sign-in through Supabase, so you can open a canvas, branch, and save your tree right away. You can later link an email to keep your work, with no data migration needed.',
   },
   {
     q: 'Is the AI chat canvas free?',
-    a: 'Yes — Nodea is free during beta with roughly 25,000 daily and 450,000 monthly tokens, and no credit card. The $8/month Pro plan unlocks Claude Opus and a larger token budget.',
+    a: 'Yes. Nodea is free during beta with roughly 25,000 daily and 450,000 monthly tokens, and no credit card. The $8/month Pro plan unlocks Claude Opus and a larger token budget.',
   },
   {
     q: 'Can I import my existing Claude chats onto the canvas?',
@@ -61,7 +61,7 @@ const FAQ = [
 const WHO = [
   {
     title: 'Writers and editors',
-    body: 'Draft three openings from the same brief, keep all of them on the canvas, and pick the one that lands — without losing the others to the scroll.',
+    body: 'Draft three openings from the same brief, keep all of them on the canvas, and pick the one that lands. The others stay put.',
   },
   {
     title: 'Researchers and analysts',
@@ -126,7 +126,7 @@ export default function AiChatCanvas() {
             <p className="cc-lede">
               <strong>
                 Nodea is a branching AI chat canvas. Every reply becomes a node
-                you can fork from — your conversation grows as a tree of
+                you can fork from. Your conversation grows as a tree of
                 branches, not one long thread.
               </strong>
             </p>
@@ -154,7 +154,7 @@ export default function AiChatCanvas() {
               <div className="cc-card cc-card-thread">
                 <p className="cc-card-label">A linear thread</p>
                 <ul>
-                  <li>One scrolling line — the latest message is all you see.</li>
+                  <li>Each new message is appended. The latest reply is all you see.</li>
                   <li>Exploring an alternative means <strong>overwriting</strong> an earlier message or starting over.</li>
                   <li>Earlier ideas get buried in the scroll and are easy to lose.</li>
                   <li>You re-type context the model already had.</li>
@@ -163,10 +163,10 @@ export default function AiChatCanvas() {
               <div className="cc-card cc-card-canvas">
                 <p className="cc-card-label">A Nodea canvas</p>
                 <ul>
-                  <li>A pan-and-zoom <strong>tree</strong> — every message is a node you can see at once.</li>
+                  <li>A pan-and-zoom <strong>tree</strong>: every message is a node you can see at once.</li>
                   <li>Fork any reply into a new branch; the original <strong>stays put</strong>.</li>
                   <li>Every direction you took is kept and laid out visually.</li>
-                  <li>Each branch carries its own path from the root — no re-typing.</li>
+                  <li>Each branch carries its own path from the root. No re-typing.</li>
                 </ul>
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function AiChatCanvas() {
             <h2 className="cc-h2">From a single line to a map of your thinking</h2>
 
             <p>
-              Most AI chat tools — ChatGPT, Claude.ai, and the rest — give you a
+              Most AI chat tools (ChatGPT, Claude.ai, and the rest) give you a
               single linear thread per conversation. That works for one question
               and one answer. The moment you want to explore an alternative, the
               thread fights you: you either edit an earlier message and overwrite
@@ -192,17 +192,17 @@ export default function AiChatCanvas() {
               your chat is a tree of nodes, rendered on a free pan-and-zoom
               surface. You can stand back and see every direction you took, zoom
               into any one of them, and branch a new path from any point. Nothing
-              is overwritten and nothing is lost in the scroll — the structure of
+              is overwritten and nothing is lost in the scroll. The structure of
               your thinking is right there in front of you.
             </p>
 
             <h3 className="cc-h3">How branching works</h3>
             <p>
-              Every message — yours and the AI&rsquo;s — is a node in the tree.
+              Every message, yours and the AI&rsquo;s, is a node in the tree.
               To branch, you pick any existing node and ask a new question from
               there. That creates a child node, and a new path is born. The
               prompt sent to Claude for any node is <em>the path from the root to
-              that node</em> — not the entire tree and never a sibling branch — so
+              that node</em>, not the entire tree and never a sibling branch, so
               each branch is completely independent.
             </p>
             <ul>
@@ -221,14 +221,14 @@ export default function AiChatCanvas() {
                 against each other.
               </li>
               <li>
-                <strong>Keep every path.</strong> Nothing is overwritten — every
+                <strong>Keep every path.</strong> Nothing is overwritten. Every
                 branch you have ever explored is saved in your tree.
               </li>
             </ul>
 
             <h3 className="cc-h3">Built on Claude, routed automatically</h3>
             <p>
-              The canvas runs on Anthropic Claude only — Haiku 4.5 for fast
+              The canvas runs on Anthropic Claude only: Haiku 4.5 for fast
               replies, Sonnet 4.6 for balanced work, and Opus for the heaviest
               reasoning. Nodea routes to the right model automatically based on
               the complexity of your prompt and your plan, so you can stay focused
@@ -243,7 +243,7 @@ export default function AiChatCanvas() {
               you start without an email, and the &ldquo;Nodea Tree for Claude&rdquo;
               Chrome extension can import your existing Claude.ai chats onto the
               canvas as a branching tree. Bring-your-own-API-keys, plugins, and
-              full export tooling are on the roadmap — not shipped yet, but where
+              full export tooling are on the roadmap, not shipped yet, but where
               the canvas is headed.
             </p>
           </div>

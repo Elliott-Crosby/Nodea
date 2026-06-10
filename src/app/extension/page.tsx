@@ -36,7 +36,7 @@ const FEATURES = [
   {
     emoji: '📝',
     title: 'Sticky notes',
-    body: 'Drop notes anywhere on the canvas — plan a thread, leave yourself a reminder, label a region of the tree. Your annotations live right next to the conversation.',
+    body: 'Drop notes anywhere on the canvas: plan a thread, leave a reminder, label a region. Your annotations live right next to the conversation.',
   },
   {
     emoji: '🎨',
@@ -46,7 +46,7 @@ const FEATURES = [
   {
     emoji: '🔍',
     title: 'Search everything',
-    body: 'Find any message across every conversation — by keyword, or by meaning with concept search. Your whole history becomes a place you can actually look things up.',
+    body: 'Find any message across every conversation, by keyword or meaning. Your whole history becomes a place you can actually look things up.',
   },
   {
     emoji: '🧠',
@@ -79,7 +79,7 @@ export default function ExtensionUpsell() {
         {/* ── Hero ─────────────────────────────────────── */}
         <section style={{ padding: '88px 0 56px' }}>
           <div className="ln-container" style={{ maxWidth: 760, textAlign: 'center' }}>
-            <span className="ln-kicker">You imported a chat — here&rsquo;s the rest</span>
+            <span className="ln-kicker">You imported a chat. Here&rsquo;s the rest.</span>
             <h1 style={{ fontSize: 'clamp(34px, 5vw, 52px)', lineHeight: 1.08, letterSpacing: '-0.02em', margin: '14px 0 18px' }}>
               The extension captures.<br />The canvas is where you work.
             </h1>
@@ -119,7 +119,7 @@ export default function ExtensionUpsell() {
                 </div>
                 <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--ln-text, #333)' }}>
                   Grabs your Claude chat and shows it as a tree. Great for capturing
-                  and viewing — but it&rsquo;s read-only by nature.
+                  and viewing, but it&rsquo;s read-only by nature.
                 </p>
               </div>
               <div
@@ -133,7 +133,7 @@ export default function ExtensionUpsell() {
                 </div>
                 <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--ln-text, #333)' }}>
                   Merge, annotate, color, search, and remember. Everything below only
-                  exists at nodea.ai — your imported chats are already waiting there.
+                  exists at nodea.ai. Your imported chats are already waiting there.
                 </p>
               </div>
             </div>

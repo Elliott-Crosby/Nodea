@@ -116,6 +116,20 @@ export default function PillarPost() {
               branching natively. It&rsquo;s long. Use the table of contents above.
             </p>
 
+            <figure className="bl-figure">
+              <img
+                src="/media/nodea-ai-linear-vs-branching-canvas.png"
+                width={3600}
+                height={1890}
+                alt="Side-by-side comparison: a linear chat where an earlier answer is buried in scroll, versus a Nodea canvas where every path stays visible as branches."
+                loading="lazy"
+              />
+              <figcaption className="bl-figcaption">
+                Same model, different shape. A linear chat overwrites the path you
+                didn&rsquo;t take; a branching canvas keeps every option side by side.
+              </figcaption>
+            </figure>
+
             <h2 id="what-is-branching">What is branching AI chat?</h2>
             <p>
               <strong>Branching AI chat</strong> is a conversation interface

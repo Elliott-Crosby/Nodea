@@ -24,13 +24,13 @@ export default function NodeaVsTypingMind() {
       competitorName="TypingMind"
       title="Nodea vs TypingMind"
       description="TypingMind is a polished bring-your-own-key frontend that supports many model providers. Nodea is a branching AI chat canvas built specifically for non-linear conversations on Claude."
-      tldr={'Pick TypingMind if you want to bring your own API keys, swap between providers (OpenAI, Anthropic, Gemini, local), and use a linear chat UI with plugins and prompt libraries. Pick Nodea if you want branching as a first-class feature, automatic model routing, and zero setup — open an account, open a canvas.'}
+      tldr={'Pick TypingMind if you want to bring your own API keys, swap between providers (OpenAI, Anthropic, Gemini, local), and use a linear chat UI with plugins and prompt libraries. Pick Nodea if you want branching as a first-class feature, automatic model routing, and zero setup: open an account, open a canvas.'}
       rows={[
         { feature: 'Conversation shape',    competitor: 'Linear with folders',         nodea: 'Tree (branching canvas)',    nodeaWins: true },
         { feature: 'Fork any reply',        competitor: 'Limited (regenerate)',        nodea: 'Click any node, branch',     nodeaWins: true },
         { feature: 'Visual canvas',         competitor: 'No',                          nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Model providers',       competitor: 'OpenAI, Anthropic, Gemini, local', nodea: 'Anthropic Claude' },
-        { feature: 'Bring-your-own keys',   competitor: 'Yes — required',              nodea: 'Roadmap; today managed' },
+        { feature: 'Bring-your-own keys',   competitor: 'Yes, required',               nodea: 'Roadmap; today managed' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',            nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'No (local storage)',          nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
         { feature: 'Free tier',             competitor: 'Free app, pay your own API',  nodea: 'Free 25k/day · 450k/mo, ours' },
@@ -50,7 +50,7 @@ export default function NodeaVsTypingMind() {
         heading: 'When Nodea is the better choice',
         bullets: [
           "You think in branches and want a real visual canvas, not a flat thread list.",
-          "You want zero-setup — open an account, get free tokens, start chatting.",
+          "You want zero setup: open an account, get free tokens, start chatting.",
           "You want automatic model routing so you’re not constantly thinking about which model to use.",
           "You prefer Claude specifically and don’t need GPT or other providers in the same tool.",
           "You don’t want to manage and rotate your own API keys yet.",
