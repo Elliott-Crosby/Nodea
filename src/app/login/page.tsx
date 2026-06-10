@@ -98,7 +98,7 @@ function LoginForm() {
         })
         if (error) throw error
         track('password_reset_requested')
-        setSuccess('Password reset link sent — check your email.')
+        setSuccess('Password reset link sent. Check your email.')
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -124,7 +124,7 @@ function LoginForm() {
   const subCopy =
     mode === 'signin' ? 'Sign in to pick up where your last branch left off.' :
     mode === 'signup' ? 'Free while in beta. No credit card. Open an account, open a canvas.' :
-                        "Enter the email you signed up with — we'll send you a reset link."
+                        "Enter your email and we'll send you a reset link."
 
   const submitLabel =
     loading        ? 'Just a sec…' :
@@ -155,8 +155,7 @@ function LoginForm() {
         <div className="au-brand-foot">
           <h2>Think in <em className="au-accent">branches.</em></h2>
           <p className="au-brand-sub">
-            Every conversation in Nodea becomes a map. Branch from any answer, compare paths,
-            and keep the keepers &mdash; without losing the thread.
+            Every conversation becomes a map. Branch from any answer, compare paths, keep the keepers.
           </p>
           <blockquote className="au-quote">
             <p>&ldquo;It&apos;s the first AI app that feels like the way I actually think &mdash; recursively, with a lot of half-finished detours.&rdquo;</p>

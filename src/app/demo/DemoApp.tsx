@@ -6,6 +6,7 @@ import { track } from '@vercel/analytics'
 import { Play, X, Sun, Moon } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { useIsMobile } from '@/lib/useIsMobile'
+import { NAV_LINKS } from '@/app/_components/landing/navLinks'
 import MobileDemo from './MobileDemo'
 import DemoTree from './DemoTree'
 import {
@@ -118,7 +119,7 @@ const DEMO_VIDEO_SRC =
   `?autoplay=1&rel=0&modestbranding=1&playsinline=1&vq=hd1080&hd=1`
 
 const WALL_BENEFITS = [
-  'Smarter models — Sonnet & Opus',
+  'Smarter models: Sonnet & Opus',
   'Full-length, in-depth answers',
   'Save your canvases & projects',
   'Far more messages each day',
@@ -239,7 +240,7 @@ export default function DemoApp() {
       if (!res.ok || !res.body) {
         const msg =
           res.status === 429
-            ? 'The demo is busy right now — give it a minute and try again.'
+            ? 'The demo is busy right now. Give it a minute and try again.'
             : 'Something went wrong. Please try again.'
         throw new Error(msg)
       }
@@ -301,12 +302,13 @@ export default function DemoApp() {
         <div className="demo-nav-left">
           <Link href="/" className="demo-wordmark">Nodea</Link>
           <ul className="demo-nav-links">
-            <li><Link href="/what-is-nodea">What is Nodea</Link></li>
-            <li><Link href="/#how-it-works">How it works</Link></li>
-            <li><Link href="/#features">Features</Link></li>
-            <li><Link href="/blog">Blog</Link></li>
-            <li><Link href="/upgrade">Pricing</Link></li>
-            <li><Link href="/demo" className="demo-nav-active" aria-current="page">Demo</Link></li>
+            {NAV_LINKS.map(({ label, href }) => (
+              <li key={href}>
+                {href === '/demo'
+                  ? <Link href={href} className="demo-nav-active" aria-current="page">{label}</Link>
+                  : <Link href={href}>{label}</Link>}
+              </li>
+            ))}
           </ul>
         </div>
         <div className="demo-nav-actions">
@@ -329,8 +331,8 @@ export default function DemoApp() {
 
       {/* ── Banner ── */}
       <div className="demo-banner">
-        Demo mode — a lightweight model, short replies, and {DEMO_MESSAGE_LIMIT} messages.{' '}
-        <span className="demo-banner-muted">The full canvas is smarter — and free during beta, no credit card.</span>
+        Demo mode: a small model, short replies, {DEMO_MESSAGE_LIMIT} messages.{' '}
+        <span className="demo-banner-muted">The full canvas runs smarter models and is free during beta.</span>
       </div>
 
       {/* ── Main: chat + tree ── */}
@@ -352,7 +354,7 @@ export default function DemoApp() {
             ))}
 
             <p className="demo-hint">
-              Tip: click any node in the tree, then ask something — your reply starts a new branch.
+              Tip: click any node in the tree, then ask something. Your reply starts a new branch.
             </p>
           </div>
 
@@ -363,7 +365,7 @@ export default function DemoApp() {
             {showNudge && (
               <div className="demo-nudge">
                 <span className="demo-nudge-text">
-                  Liking it? The full canvas is <strong>free during beta</strong> — smarter models, unlimited branching.
+                  Liking it? The full canvas is <strong>free during beta</strong>: smarter models, unlimited branching.
                 </span>
                 <Link
                   href="/login?mode=signup"
@@ -448,7 +450,7 @@ export default function DemoApp() {
             </button>
             <h2 className="demo-wall-title">You&rsquo;ve reached the demo limit</h2>
             <p className="demo-wall-sub">
-              Create a free account to keep branching — with smarter models and a lot more room.
+              Create a free account to keep branching, with smarter models and a lot more room.
             </p>
             <ul className="demo-wall-list">
               {WALL_BENEFITS.map((b) => (
@@ -465,7 +467,7 @@ export default function DemoApp() {
             >
               Sign up free
             </Link>
-            <p className="demo-wall-fine">Free during beta — no credit card.</p>
+            <p className="demo-wall-fine">Free during beta. No credit card.</p>
             <button className="demo-wall-later" onClick={() => setShowWall(false)}>
               Keep looking around
             </button>

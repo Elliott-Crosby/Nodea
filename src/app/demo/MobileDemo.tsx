@@ -20,7 +20,7 @@ import '../app/mobile/mobile.css'
 const VIOLET = '#8b5cf6'
 
 const WALL_BENEFITS = [
-  'Smarter models — Sonnet & Opus',
+  'Smarter models: Sonnet & Opus',
   'Full-length, in-depth answers',
   'Save your canvases & projects',
   'Far more messages each day',
@@ -141,7 +141,7 @@ export default function MobileDemo() {
         body: JSON.stringify({ messages: apiMessages }),
       })
       if (!res.ok || !res.body) {
-        throw new Error(res.status === 429 ? 'The demo is busy right now — give it a minute and try again.' : 'Something went wrong. Please try again.')
+        throw new Error(res.status === 429 ? 'The demo is busy right now. Give it a minute and try again.' : 'Something went wrong. Please try again.')
       }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -209,7 +209,7 @@ export default function MobileDemo() {
         </div>
 
         {view === 'chat' && (
-          <div className="nm-banner">Demo mode — a lightweight model, short replies, {DEMO_MESSAGE_LIMIT} messages. <span className="mut">The full canvas is smarter — and free during beta.</span></div>
+          <div className="nm-banner">Demo mode: a small model, short replies, {DEMO_MESSAGE_LIMIT} messages. <span className="mut">The full canvas runs smarter models, free during beta.</span></div>
         )}
 
         {view === 'chat' ? (
@@ -243,7 +243,7 @@ export default function MobileDemo() {
                     </div>
                   )
                 ))}
-                <p className="nm-hint">Tap <b>Branch from here</b> on any reply to explore a new direction — your original path stays put.</p>
+                <p className="nm-hint">Tap <b>Branch from here</b> on any reply to explore a new direction. Your original path stays put.</p>
               </div>
             </div>
 
@@ -251,7 +251,7 @@ export default function MobileDemo() {
               {error && <div className="nm-error">{error}</div>}
               {showNudge && (
                 <div className="nm-nudge">
-                  <span className="txt">The full canvas is <b>free during beta</b> — smarter models, unlimited branching.</span>
+                  <span className="txt">The full canvas is <b>free during beta</b>: smarter models, unlimited branching.</span>
                   <Link href="/login?mode=signup" className="go" onClick={() => track('demo_nudge_clicked')}>Sign up</Link>
                   <button className="x" onClick={() => setNudgeDismissed(true)} aria-label="Dismiss"><IcX s={14} /></button>
                 </div>
@@ -309,10 +309,10 @@ export default function MobileDemo() {
           <div className="nm-wall">
             <div className="wm">Nodea</div>
             <h2>You&rsquo;ve reached the demo limit</h2>
-            <p className="sub">Create a free account to keep branching — with smarter models and a lot more room.</p>
+            <p className="sub">Create a free account to keep branching, with smarter models and a lot more room.</p>
             <ul>{WALL_BENEFITS.map((b) => <li key={b}><span className="ck">✓</span>{b}</li>)}</ul>
             <Link href="/login?mode=signup" className="cta" onClick={() => track('demo_wall_cta_clicked')}>Sign up free</Link>
-            <p className="fine">Free during beta — no credit card.</p>
+            <p className="fine">Free during beta. No credit card.</p>
             <button className="later" onClick={() => setShowWall(false)}>Keep looking around</button>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function MobileDemo() {
           <div className="nm-sheet-grip" />
           <div className="nm-sheet-h">
             <div className="t" style={{ fontFamily: 'var(--font-bricolage)', color: 'var(--accent)' }}>Nodea</div>
-            <div className="s">Think in branches — a branching AI chat canvas.</div>
+            <div className="s">A branching AI chat canvas.</div>
           </div>
           <div className="nm-sheet-list">
             {NAV_LINKS.map((l) => (

@@ -111,7 +111,7 @@ export default function Features() {
                 </div>
                 <div className="ln-palette-result muted">
                   <span>Plan v3: enterprise</span>
-                  <span>—</span>
+                  <span>···</span>
                 </div>
               </div>
             </div>

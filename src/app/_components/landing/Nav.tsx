@@ -3,6 +3,7 @@
 import { useTheme } from '@/lib/theme'
 import { Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
+import { NAV_LINKS } from './navLinks'
 
 export default function Nav() {
   const { theme, toggleTheme } = useTheme()
@@ -14,13 +15,9 @@ export default function Nav() {
           <Link href="/" className="ln-wordmark">Nodea</Link>
 
           <ul className="ln-nav-links">
-            <li><Link href="/what-is-nodea">What is Nodea</Link></li>
-            <li><Link href="/glossary">Glossary</Link></li>
-            <li><Link href="/#how-it-works">How it works</Link></li>
-            <li><Link href="/#features">Features</Link></li>
-            <li><Link href="/blog">Blog</Link></li>
-            <li><Link href="/upgrade">Pricing</Link></li>
-            <li><Link href="/demo">Demo</Link></li>
+            {NAV_LINKS.map(({ label, href }) => (
+              <li key={href}><Link href={href}>{label}</Link></li>
+            ))}
           </ul>
         </div>
 

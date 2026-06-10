@@ -66,3 +66,5 @@ desktop.ini
 # Local working notes + packaged artifacts (repo is public — keep these off it)
 /HANDOFF.md
 /*.zip
+
+.claude-analytics/
