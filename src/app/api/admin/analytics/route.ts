@@ -47,10 +47,14 @@ export async function GET(req: Request) {
     .sort((a, b) => (b.total_tokens ?? 0) - (a.total_tokens ?? 0))
     .slice(0, 10)
 
-  // Fetch emails for top users
-  const topUserIds = topUsers.map((r) => r.user_id)
-  const { data: authUsers } = await service.auth.admin.listUsers()
-  const emailMap = new Map((authUsers?.users ?? []).map((u) => [u.id, u.email ?? u.id]))
+  // Fetch emails for top users by id — listUsers() only returns the first
+  // page (50), so past 50 signups top users would fall back to raw UUIDs.
+  const topUserAuth = await Promise.all(
+    topUsers.map((r) => service.auth.admin.getUserById(r.user_id)),
+  )
+  const emailMap = new Map(
+    topUserAuth.flatMap(({ data }) => (data?.user ? [[data.user.id, data.user.email ?? data.user.id] as const] : [])),
+  )
 
   const topUsersWithEmail = topUsers.map((r) => ({
     user_id:       r.user_id,

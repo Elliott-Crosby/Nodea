@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let { data: projects, error } = await supabase
+  const { data, error } = await supabase
     .from('projects')
     .select('*')
     .eq('user_id', user.id)
@@ -20,6 +20,8 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  let projects = data
 
   if (!projects?.length) {
     const { data: newProject, error: createError } = await supabase

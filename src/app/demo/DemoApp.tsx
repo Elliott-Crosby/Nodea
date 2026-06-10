@@ -289,8 +289,8 @@ export default function DemoApp() {
           <Link href="/" className="demo-wordmark">Nodea</Link>
           <ul className="demo-nav-links">
             <li><Link href="/what-is-nodea">What is Nodea</Link></li>
-            <li><a href="/#how-it-works">How it works</a></li>
-            <li><a href="/#features">Features</a></li>
+            <li><Link href="/#how-it-works">How it works</Link></li>
+            <li><Link href="/#features">Features</Link></li>
             <li><Link href="/blog">Blog</Link></li>
             <li><Link href="/upgrade">Pricing</Link></li>
             <li><Link href="/demo" className="demo-nav-active" aria-current="page">Demo</Link></li>
