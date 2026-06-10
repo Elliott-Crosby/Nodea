@@ -970,22 +970,30 @@
 }
 .ln-footer > .ln-container {
   display: flex;
-  align-items: center;
-  gap: 40px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 48px;
   flex-wrap: wrap;
 }
 .ln-footer-brand { display: flex; flex-direction: column; gap: 6px; }
 .ln-footer-tagline { font-size: 13px; color: var(--text-muted); }
 .ln-footer-links {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  flex: 1;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 28px 56px;
+}
+.ln-footer-col { display: flex; flex-direction: column; gap: 9px; }
+.ln-footer-col-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
 }
 .ln-footer-links a,
 .ln-footer-links button {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-muted);
   text-decoration: none;
   transition: color .15s;
@@ -994,19 +1002,23 @@
   cursor: pointer;
   font-family: inherit;
   padding: 0;
+  text-align: left;
 }
 .ln-footer-links a:hover,
 .ln-footer-links button:hover { color: var(--text-secondary); }
 .ln-footer-copy {
   font-size: 13px;
   color: var(--text-muted);
-  margin-left: auto;
+  margin-top: 12px;
   white-space: nowrap;
 }
+@media (max-width: 860px) {
+  .ln-footer-links { grid-template-columns: repeat(2, auto); }
+}
 @media (max-width: 720px) {
-  .ln-footer > .ln-container { flex-direction: column; gap: 24px; text-align: center; }
-  .ln-footer-copy { margin-left: 0; }
-  .ln-footer-links { justify-content: center; }
+  .ln-footer > .ln-container { flex-direction: column; align-items: center; gap: 32px; text-align: center; }
+  .ln-footer-brand { align-items: center; }
+  .ln-footer-links { justify-content: center; gap: 28px 48px; text-align: left; }
 }
 
 /* ── Social link pills — Treatment B (footer) + U2 (under the hero demo) ──
