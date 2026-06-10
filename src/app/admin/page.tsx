@@ -1,18 +1,19 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
+import { ADMIN_TZ, bucketByDay, todayStartUtc, windowStartUtc } from '@/lib/analytics-time'
+import {
+  getAdminUserIds,
+  listAllAuthUsers,
+  realSignups,
+  getAllTokenRows,
+  summarizeTokens,
+  notInList,
+  fetchCreatedAtExcludingAdmins,
+  countExcludingAdmins,
+  type ProfileRow,
+} from '@/lib/admin-stats'
 import { AdminDashboard } from './AdminDashboard'
-
-function buildDayMap(days: number): Map<string, number> {
-  const map = new Map<string, number>()
-  const now = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setUTCDate(d.getUTCDate() - i)
-    map.set(d.toISOString().slice(0, 10), 0)
-  }
-  return map
-}
 
 export default async function AdminPage() {
   const supabase = await createServerSupabaseClient()
@@ -25,92 +26,86 @@ export default async function AdminPage() {
   const service = createServiceSupabaseClient()
   if (!service) return <div>Service client unavailable.</div>
 
-  const now = new Date()
+  const now          = new Date()
+  const todayStart   = todayStartUtc(ADMIN_TZ)
+  const weekStart    = windowStartUtc(7, ADMIN_TZ)
+  const thirtyStart  = windowStartUtc(30, ADMIN_TZ)
 
-  const todayStart = new Date(now)
-  todayStart.setUTCHours(0, 0, 0, 0)
-
-  const weekStart = new Date(now)
-  weekStart.setUTCDate(weekStart.getUTCDate() - 6)
-  weekStart.setUTCHours(0, 0, 0, 0)
-
-  const thirtyDaysAgo = new Date(now)
-  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 29)
-  thirtyDaysAgo.setUTCHours(0, 0, 0, 0)
+  // Admin ids first — every other query depends on excluding them.
+  const adminIds   = await getAdminUserIds(service)
+  const adminList  = notInList(adminIds)
 
   const [
-    { count: totalUsers },
-    { count: usersToday },
-    { count: usersThisWeek },
-    { data: tokenRows },
-    { count: totalProjects },
-    { data: userCreatedRows },
-    { data: projectCreatedRows },
-    { data: planRows },
+    authUsers,
+    tokenRows,
+    { data: profileRows },
+    conversationsTotal,
+    projectsTotal,
+    conversationCreatedAt,
+    projectCreatedAt,
   ] = await Promise.all([
-    service.from('user_profiles').select('*', { count: 'exact', head: true }),
-    service.from('user_profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
-    service.from('user_profiles').select('*', { count: 'exact', head: true }).gte('created_at', weekStart.toISOString()),
-    service.from('user_token_usage').select('user_id, daily_tokens, monthly_tokens, total_tokens'),
-    service.from('projects').select('*', { count: 'exact', head: true }),
-    service.from('user_profiles').select('created_at').gte('created_at', thirtyDaysAgo.toISOString()),
-    service.from('projects').select('created_at').gte('created_at', thirtyDaysAgo.toISOString()),
-    service.from('user_profiles').select('plan, is_admin'),
+    listAllAuthUsers(service),
+    getAllTokenRows(service),
+    service.from('user_profiles').select('user_id, plan, is_admin, stripe_customer_id'),
+    countExcludingAdmins(service, 'projects', adminList),
+    countExcludingAdmins(service, 'chat_projects', adminList),
+    fetchCreatedAtExcludingAdmins(service, 'projects', thirtyStart.toISOString(), adminList),
+    fetchCreatedAtExcludingAdmins(service, 'chat_projects', thirtyStart.toISOString(), adminList),
   ])
 
-  // User registrations by day
-  const userDayMap = buildDayMap(30)
-  for (const row of userCreatedRows ?? []) {
-    const day = (row.created_at as string).slice(0, 10)
-    if (userDayMap.has(day)) userDayMap.set(day, userDayMap.get(day)! + 1)
-  }
-  const usersByDay = Array.from(userDayMap, ([day, count]) => ({ day, count }))
+  // ── Signups (from auth.users, excluding admins + anonymous) ──────────────────
+  const signups        = realSignups(authUsers, adminIds)
+  const totalUsers     = signups.length
+  const usersToday     = signups.filter(u => new Date(u.created_at) >= todayStart).length
+  const usersThisWeek  = signups.filter(u => new Date(u.created_at) >= weekStart).length
+  const usersByDay     = bucketByDay(signups.map(u => u.created_at), 30, ADMIN_TZ)
 
-  // Projects by day
-  const projDayMap = buildDayMap(30)
-  for (const row of projectCreatedRows ?? []) {
-    const day = (row.created_at as string).slice(0, 10)
-    if (projDayMap.has(day)) projDayMap.set(day, projDayMap.get(day)! + 1)
-  }
-  const projectsByDay = Array.from(projDayMap, ([day, count]) => ({ day, count }))
+  // ── Conversations + Projects by day (EST, admin-excluded) ────────────────────
+  const conversationsByDay = bucketByDay(conversationCreatedAt, 30, ADMIN_TZ)
+  const projectsByDay      = bucketByDay(projectCreatedAt, 30, ADMIN_TZ)
 
-  // Plan breakdown
-  const planBreakdown = { free: 0, pro: 0, admin: 0 }
-  for (const row of planRows ?? []) {
-    if (row.is_admin) planBreakdown.admin++
-    else if (row.plan === 'pro') planBreakdown.pro++
-    else planBreakdown.free++
-  }
+  // ── Plan breakdown (Free vs Pro among real signups; admins excluded) ─────────
+  // Pro must carry a stripe_customer_id — a 'pro' row without one is self-granted
+  // and unlocks nothing (see src/lib/plan.ts).
+  const proUserIds = new Set(
+    (profileRows as ProfileRow[] | null ?? [])
+      .filter(p => p.plan === 'pro' && !!p.stripe_customer_id && !adminIds.has(p.user_id))
+      .map(p => p.user_id),
+  )
+  const signupIds  = new Set(signups.map(u => u.id))
+  const proCount   = [...proUserIds].filter(id => signupIds.has(id)).length
+  const planBreakdown = { free: Math.max(0, totalUsers - proCount), pro: proCount }
 
-  // Token totals
-  const totalTokensAllTime = (tokenRows ?? []).reduce((s, r) => s + (r.total_tokens ?? 0), 0)
-  const totalTokensToday   = (tokenRows ?? []).reduce((s, r) => s + (r.daily_tokens  ?? 0), 0)
-  const totalTokensMonth   = (tokenRows ?? []).reduce((s, r) => s + (r.monthly_tokens ?? 0), 0)
+  // ── Token totals + top users (admin-excluded, live windows only) ─────────────
+  const tokens = summarizeTokens(tokenRows, adminIds, now)
 
-  // Top users with emails
-  const topUsers = [...(tokenRows ?? [])].sort((a, b) => (b.total_tokens ?? 0) - (a.total_tokens ?? 0)).slice(0, 10)
-  const { data: authUsers } = await service.auth.admin.listUsers()
-  const emailMap = new Map((authUsers?.users ?? []).map(u => [u.id, u.email ?? u.id]))
-  const topUsersWithEmail = topUsers.map(r => ({
-    email:          emailMap.get(r.user_id) ?? r.user_id,
-    total_tokens:   r.total_tokens   ?? 0,
-    daily_tokens:   r.daily_tokens   ?? 0,
-    monthly_tokens: r.monthly_tokens ?? 0,
-  }))
+  const emailMap = new Map(authUsers.map(u => [u.id, u.email ?? u.id]))
+  const topUsers = tokenRows
+    .filter(r => !adminIds.has(r.user_id))
+    .sort((a, b) => (b.total_tokens ?? 0) - (a.total_tokens ?? 0))
+    .slice(0, 10)
+    .map(r => ({
+      email:          emailMap.get(r.user_id) ?? r.user_id,
+      total_tokens:   r.total_tokens   ?? 0,
+      daily_tokens:   r.daily_reset_at && new Date(r.daily_reset_at) > now ? (r.daily_tokens ?? 0) : 0,
+      monthly_tokens: r.monthly_reset_at && new Date(r.monthly_reset_at) > now ? (r.monthly_tokens ?? 0) : 0,
+    }))
 
   return (
     <AdminDashboard
-      totalUsers={totalUsers ?? 0}
-      usersToday={usersToday ?? 0}
-      usersThisWeek={usersThisWeek ?? 0}
-      totalProjects={totalProjects ?? 0}
-      totalTokensAllTime={totalTokensAllTime}
-      totalTokensToday={totalTokensToday}
-      totalTokensMonth={totalTokensMonth}
+      totalUsers={totalUsers}
+      usersToday={usersToday}
+      usersThisWeek={usersThisWeek}
+      totalConversations={conversationsTotal}
+      totalProjects={projectsTotal}
+      totalTokensAllTime={tokens.all}
+      totalTokensToday={tokens.today}
+      totalTokensMonth={tokens.month}
       usersByDay={usersByDay}
+      conversationsByDay={conversationsByDay}
       projectsByDay={projectsByDay}
       planBreakdown={planBreakdown}
-      topUsers={topUsersWithEmail}
+      topUsers={topUsers}
     />
   )
 }

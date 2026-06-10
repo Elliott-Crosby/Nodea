@@ -9,14 +9,23 @@ export interface DashboardData {
   totalUsers: number
   usersToday: number
   usersThisWeek: number
+  totalConversations: number
   totalProjects: number
   totalTokensAllTime: number
   totalTokensToday: number
   totalTokensMonth: number
   usersByDay: DayCount[]
+  conversationsByDay: DayCount[]
   projectsByDay: DayCount[]
-  planBreakdown: { free: number; pro: number; admin: number }
+  planBreakdown: { free: number; pro: number }
   topUsers: { email: string; total_tokens: number; daily_tokens: number; monthly_tokens: number }[]
+}
+
+interface DemoSummary {
+  views: number
+  visitors: number
+  byDay: DayCount[]
+  avgDurationMs: number | null
 }
 
 interface TrafficData {
@@ -30,6 +39,7 @@ interface TrafficData {
   avgSessionDurationMs: number | null
   recentEvents: { event_name: string; created_at: string; properties: Record<string, unknown> | null }[]
   eventBreakdown: { event_name: string; count: number }[]
+  demo: DemoSummary
 }
 
 type Days = 7 | 30 | 90
@@ -55,8 +65,11 @@ function fmtDuration(ms: number | null): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`
 }
 
+// Event timestamps are shown in Eastern time to match the rest of the dashboard.
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York',
+  })
 }
 
 function trendDelta(arr: DayCount[]): number {
@@ -188,11 +201,10 @@ function SparkChart({ data, label, color = 'var(--accent)' }: { data: DayCount[]
 }
 
 // ── Plan distribution ──────────────────────────────────────────────────────────
-function PlanDistribution({ free, pro, admin, total }: { free: number; pro: number; admin: number; total: number }) {
+function PlanDistribution({ free, pro, total }: { free: number; pro: number; total: number }) {
   const segments = [
     { label: 'Free',  count: free,  color: 'var(--border-strong)' },
     { label: 'Pro',   count: pro,   color: 'var(--accent)' },
-    { label: 'Admin', count: admin, color: '#a78bfa' },
   ].filter(s => s.count > 0)
 
   return (
@@ -498,22 +510,27 @@ function EventStream({ events }: { events: TrafficData['recentEvents'] }) {
   )
 }
 
-// ── Growth section (user + project sparklines with range toggle) ───────────────
-function GrowthSection({ initialUsersByDay, initialProjectsByDay }: {
+// ── Growth section (signups + conversations + projects, with range toggle) ─────
+function GrowthSection({ initialUsersByDay, initialConversationsByDay, initialProjectsByDay }: {
   initialUsersByDay: DayCount[]
+  initialConversationsByDay: DayCount[]
   initialProjectsByDay: DayCount[]
 }) {
-  const [days,          setDays]          = useState<Days>(30)
-  const [usersByDay,    setUsersByDay]    = useState(initialUsersByDay)
-  const [projectsByDay, setProjectsByDay] = useState(initialProjectsByDay)
-  const [loading,       setLoading]       = useState(false)
+  const [days,               setDays]               = useState<Days>(30)
+  const [usersByDay,         setUsersByDay]         = useState(initialUsersByDay)
+  const [conversationsByDay, setConversationsByDay] = useState(initialConversationsByDay)
+  const [projectsByDay,      setProjectsByDay]      = useState(initialProjectsByDay)
+  const [loading,            setLoading]            = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    fetch(`/api/admin/growth?days=${days}&tz=${encodeURIComponent(tz)}`)
+    fetch(`/api/admin/growth?days=${days}`)
       .then(r => r.json())
-      .then(d => { setUsersByDay(d.usersByDay); setProjectsByDay(d.projectsByDay) })
+      .then(d => {
+        setUsersByDay(d.usersByDay)
+        setConversationsByDay(d.conversationsByDay)
+        setProjectsByDay(d.projectsByDay)
+      })
       .finally(() => setLoading(false))
   }, [days])
 
@@ -523,11 +540,69 @@ function GrowthSection({ initialUsersByDay, initialProjectsByDay }: {
         <SectionLabel>Growth</SectionLabel>
         <RangeToggle days={days} onChange={setDays} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
-        <SparkChart data={usersByDay}    label={`User signups — ${days}d`} />
-        <SparkChart data={projectsByDay} label={`Projects created — ${days}d`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 12, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+        <SparkChart data={usersByDay}         label={`User signups — ${days}d`} />
+        <SparkChart data={conversationsByDay} label={`Conversations created — ${days}d`} color="#22c55e" />
+        <SparkChart data={projectsByDay}      label={`Projects created — ${days}d`} color="#a78bfa" />
       </div>
     </>
+  )
+}
+
+// ── Demo section (/demo page-view funnel) ──────────────────────────────────────
+function DemoSection() {
+  const [days,    setDays]    = useState<Days>(30)
+  const [demo,    setDemo]    = useState<DemoSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/admin/traffic?days=${days}`)
+      .then(r => r.json())
+      .then(d => { if (d.demo) setDemo(d.demo) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [days])
+
+  const headerRow = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <SectionLabel>Demo · /demo</SectionLabel>
+      <RangeToggle days={days} onChange={setDays} />
+    </div>
+  )
+
+  if (loading && !demo) {
+    return (
+      <div style={{ marginBottom: 32 }}>
+        {headerRow}
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '28px 22px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          Loading demo…
+        </div>
+      </div>
+    )
+  }
+
+  if (!demo) return null
+
+  return (
+    <div style={{ marginBottom: 32, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+      {headerRow}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <TrafficSparkline data={demo.byDay} label={`Demo visits — ${days}d`} color="#f59e0b" total={demo.views} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+          <StatCard label="Demo visits"       value={fmt(demo.views)} />
+          <StatCard label="Unique visitors"   value={fmt(demo.visitors)} />
+          <StatCard label="Avg time on /demo" value={fmtDuration(demo.avgDurationMs)} />
+        </div>
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 20px' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            The interactive demo runs client-side with no account or database, so these page-view
+            metrics are the server-side signal. The in-demo funnel (messages sent, sign-up CTA
+            clicks, conversions) is tracked in Vercel Analytics.
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -565,8 +640,7 @@ function TrafficSection() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    fetch(`/api/admin/traffic?days=${days}&tz=${encodeURIComponent(tz)}`)
+    fetch(`/api/admin/traffic?days=${days}`)
       .then(r => r.json())
       .then(d => { if (d.error) setError(d.error); else setData(d) })
       .catch(() => setError('Network error loading traffic data.'))
@@ -666,9 +740,9 @@ CREATE POLICY "service_insert_event" ON public.events FOR INSERT WITH CHECK (tru
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 export function AdminDashboard(props: DashboardData) {
   const {
-    totalUsers, usersToday, usersThisWeek, totalProjects,
+    totalUsers, usersToday, usersThisWeek, totalConversations, totalProjects,
     totalTokensAllTime, totalTokensToday, totalTokensMonth,
-    usersByDay, projectsByDay, planBreakdown, topUsers,
+    usersByDay, conversationsByDay, projectsByDay, planBreakdown, topUsers,
   } = props
 
   return (
@@ -679,7 +753,7 @@ export function AdminDashboard(props: DashboardData) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>Analytics</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Admin view</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Admin view · admins excluded · times in ET</div>
           </div>
           <a
             href="/app"
@@ -696,13 +770,23 @@ export function AdminDashboard(props: DashboardData) {
         {/* Users */}
         <SectionLabel>Users</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
-          <StatCard label="Total"         value={totalUsers} />
+          <StatCard label="Total signups" value={totalUsers} />
           <StatCard label="New today"     value={usersToday} />
           <StatCard label="New this week" value={usersThisWeek} />
+        </div>
+
+        {/* Content — conversations (legacy `projects` table) vs Projects (chat_projects) */}
+        <SectionLabel>Content</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <StatCard label="Conversations" value={totalConversations} />
           <StatCard label="Projects"      value={totalProjects} />
         </div>
 
-        <GrowthSection initialUsersByDay={usersByDay} initialProjectsByDay={projectsByDay} />
+        <GrowthSection
+          initialUsersByDay={usersByDay}
+          initialConversationsByDay={conversationsByDay}
+          initialProjectsByDay={projectsByDay}
+        />
 
         <div style={{ marginBottom: 32 }}>
           <PlanDistribution {...planBreakdown} total={totalUsers} />
@@ -710,14 +794,20 @@ export function AdminDashboard(props: DashboardData) {
 
         {/* Tokens */}
         <SectionLabel>Token usage</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 8 }}>
           <StatCard label="All time"   value={fmt(totalTokensAllTime)} />
           <StatCard label="This month" value={fmt(totalTokensMonth)} />
           <StatCard label="Today"      value={fmt(totalTokensToday)} />
         </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+          Token windows reset at midnight UTC (daily) and the 1st UTC (monthly) — only live counters are summed.
+        </div>
         <div style={{ marginBottom: 32 }}>
           <TopUsersPanel users={topUsers} />
         </div>
+
+        {/* Demo */}
+        <DemoSection />
 
         {/* Traffic */}
         <TrafficSection />

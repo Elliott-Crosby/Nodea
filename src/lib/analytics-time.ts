@@ -4,6 +4,13 @@
 
 const DEFAULT_TZ = 'UTC'
 
+// Canonical timezone for the admin analytics dashboard. The whole dashboard
+// (signup/conversation/project buckets, "today"/"this week" boundaries, event
+// timestamps) is reported in US Eastern time so the numbers match the operator's
+// wall clock rather than UTC. America/New_York is DST-aware (EST in winter, EDT
+// in summer) — the correct IANA zone for "EST".
+export const ADMIN_TZ = 'America/New_York'
+
 // Validate an IANA timezone string; fall back to UTC if unusable.
 export function resolveTz(tz: string | null | undefined): string {
   if (!tz) return DEFAULT_TZ
@@ -74,4 +81,19 @@ export function windowStartUtc(days: number, tz: string): Date {
 // UTC instant marking the start of today in `tz`.
 export function todayStartUtc(tz: string): Date {
   return tzMidnightUtc(dayInTz(new Date(), tz), tz)
+}
+
+// Bucket a list of timestamps into the last `days` calendar days in `tz`.
+// Timestamps outside the window are ignored.
+export function bucketByDay(
+  dates: Array<string | Date>,
+  days: number,
+  tz: string,
+): Array<{ day: string; count: number }> {
+  const map = buildDayMap(days, tz)
+  for (const d of dates) {
+    const day = dayInTz(typeof d === 'string' ? new Date(d) : d, tz)
+    if (map.has(day)) map.set(day, map.get(day)! + 1)
+  }
+  return Array.from(map, ([day, count]) => ({ day, count }))
 }

@@ -1,7 +1,18 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
-import { resolveTz, todayStartUtc, windowStartUtc } from '@/lib/analytics-time'
+import { ADMIN_TZ, todayStartUtc, windowStartUtc } from '@/lib/analytics-time'
+import {
+  getAdminUserIds,
+  listAllAuthUsers,
+  realSignups,
+  getAllTokenRows,
+  summarizeTokens,
+  notInList,
+  countExcludingAdmins,
+} from '@/lib/admin-stats'
 
+// JSON summary of the dashboard's headline numbers. Mirrors the server component
+// in src/app/admin/page.tsx — admins excluded, signups from auth.users, EST.
 export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -13,87 +24,50 @@ export async function GET(req: Request) {
   const service = createServiceSupabaseClient()
   if (!service) return new Response('Service client unavailable', { status: 500 })
 
-  const tz = resolveTz(new URL(req.url).searchParams.get('tz'))
-  const todayStart = todayStartUtc(tz)
-  const weekStart = windowStartUtc(7, tz)
+  const now        = new Date()
+  const todayStart = todayStartUtc(ADMIN_TZ)
+  const weekStart  = windowStartUtc(7, ADMIN_TZ)
 
-  // PostgREST caps unbounded selects (default max-rows 1000), which would
-  // silently truncate the token sums and top-10 — page through all rows.
-  async function allTokenRows() {
-    const PAGE = 1000
-    const rows: { user_id: string; daily_tokens: number | null; monthly_tokens: number | null; total_tokens: number | null }[] = []
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await service!
-        .from('user_token_usage')
-        .select('user_id, daily_tokens, monthly_tokens, total_tokens')
-        .order('user_id')
-        .range(from, from + PAGE - 1)
-      if (error || !data?.length) break
-      rows.push(...data)
-      if (data.length < PAGE) break
-    }
-    return rows
-  }
+  const adminIds   = await getAdminUserIds(service)
+  const adminList  = notInList(adminIds)
 
-  const [
-    { count: totalUsers },
-    { count: usersToday },
-    { count: usersThisWeek },
-    tokenRows,
-    { count: totalProjects },
-  ] = await Promise.all([
-    service.from('user_profiles').select('*', { count: 'exact', head: true }),
-    service
-      .from('user_profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString()),
-    service
-      .from('user_profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', weekStart.toISOString()),
-    allTokenRows(),
-    service.from('projects').select('*', { count: 'exact', head: true }),
+  const [authUsers, tokenRows, conversationsTotal, projectsTotal] = await Promise.all([
+    listAllAuthUsers(service),
+    getAllTokenRows(service),
+    countExcludingAdmins(service, 'projects', adminList),
+    countExcludingAdmins(service, 'chat_projects', adminList),
   ])
 
-  const totalTokensAllTime = (tokenRows ?? []).reduce((sum, r) => sum + (r.total_tokens ?? 0), 0)
-  const totalTokensToday   = (tokenRows ?? []).reduce((sum, r) => sum + (r.daily_tokens ?? 0), 0)
-  const totalTokensMonth   = (tokenRows ?? []).reduce((sum, r) => sum + (r.monthly_tokens ?? 0), 0)
+  const signups = realSignups(authUsers, adminIds)
+  const tokens  = summarizeTokens(tokenRows, adminIds, now)
 
-  const topUsers = [...(tokenRows ?? [])]
+  const emailMap = new Map(authUsers.map(u => [u.id, u.email ?? u.id]))
+  const topUsers = tokenRows
+    .filter(r => !adminIds.has(r.user_id))
     .sort((a, b) => (b.total_tokens ?? 0) - (a.total_tokens ?? 0))
     .slice(0, 10)
-
-  // Fetch emails for top users by id — listUsers() only returns the first
-  // page (50), so past 50 signups top users would fall back to raw UUIDs.
-  const topUserAuth = await Promise.all(
-    topUsers.map((r) => service.auth.admin.getUserById(r.user_id)),
-  )
-  const emailMap = new Map(
-    topUserAuth.flatMap(({ data }) => (data?.user ? [[data.user.id, data.user.email ?? data.user.id] as const] : [])),
-  )
-
-  const topUsersWithEmail = topUsers.map((r) => ({
-    user_id:       r.user_id,
-    email:         emailMap.get(r.user_id) ?? r.user_id,
-    total_tokens:  r.total_tokens ?? 0,
-    daily_tokens:  r.daily_tokens ?? 0,
-    monthly_tokens: r.monthly_tokens ?? 0,
-  }))
+    .map(r => ({
+      user_id:        r.user_id,
+      email:          emailMap.get(r.user_id) ?? r.user_id,
+      total_tokens:   r.total_tokens ?? 0,
+      daily_tokens:   r.daily_reset_at && new Date(r.daily_reset_at) > now ? (r.daily_tokens ?? 0) : 0,
+      monthly_tokens: r.monthly_reset_at && new Date(r.monthly_reset_at) > now ? (r.monthly_tokens ?? 0) : 0,
+    }))
 
   return Response.json({
+    timezone: ADMIN_TZ,
     users: {
-      total:      totalUsers ?? 0,
-      today:      usersToday ?? 0,
-      this_week:  usersThisWeek ?? 0,
+      total:     signups.length,
+      today:     signups.filter(u => new Date(u.created_at) >= todayStart).length,
+      this_week: signups.filter(u => new Date(u.created_at) >= weekStart).length,
     },
     tokens: {
-      all_time: totalTokensAllTime,
-      today:    totalTokensToday,
-      month:    totalTokensMonth,
+      all_time: tokens.all,
+      today:    tokens.today,
+      month:    tokens.month,
     },
-    projects: {
-      total: totalProjects ?? 0,
-    },
-    top_users: topUsersWithEmail,
+    conversations: { total: conversationsTotal },
+    projects:      { total: projectsTotal },
+    top_users:     topUsers,
   })
 }

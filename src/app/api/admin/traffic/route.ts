@@ -1,6 +1,6 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
-import { resolveTz, buildDayMap, windowStartUtc, dayInTz } from '@/lib/analytics-time'
+import { ADMIN_TZ, buildDayMap, windowStartUtc, dayInTz } from '@/lib/analytics-time'
 
 export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
@@ -15,7 +15,8 @@ export async function GET(req: Request) {
 
   const url  = new URL(req.url)
   const days = Math.min(90, Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10)))
-  const tz   = resolveTz(url.searchParams.get('tz'))
+  // Always Eastern time, regardless of the viewer's browser timezone.
+  const tz   = ADMIN_TZ
 
   const since = windowStartUtc(days, tz)
 
@@ -41,6 +42,14 @@ export async function GET(req: Request) {
   const sessionPages:  Map<string, number>    = new Map() // session_id → page count
   const sessionDurs:   Map<string, number>    = new Map() // session_id → total duration ms
 
+  // ── /demo funnel (page-view side) ────────────────────────────────────────────
+  // The interactive demo runs entirely client-side with no auth or DB writes, so
+  // page_views for path '/demo' is the only server-side signal we have for it.
+  const demoMap         = buildDayMap(days, tz)
+  const demoSessions    = new Set<string>()
+  const demoDurations:  number[] = []
+  let   demoViews       = 0
+
   for (const row of rows ?? []) {
     const day = dayInTz(new Date(row.created_at as string), tz)
     if (pvMap.has(day)) {
@@ -50,6 +59,16 @@ export async function GET(req: Request) {
     }
 
     const p = row.path as string
+
+    if (p === '/demo') {
+      demoViews++
+      if (demoMap.has(day)) demoMap.set(day, demoMap.get(day)! + 1)
+      const sid = row.session_id as string | null
+      if (sid) demoSessions.add(sid)
+      const d = row.duration_ms as number | null
+      if (d && d > 0) demoDurations.push(d)
+    }
+
     pathCounts.set(p, (pathCounts.get(p) ?? 0) + 1)
 
     const sid = row.session_id as string | null
@@ -116,9 +135,21 @@ export async function GET(req: Request) {
     .sort((a, b) => b[1] - a[1])
     .map(([event_name, count]) => ({ event_name, count }))
 
+  // ── /demo summary ─────────────────────────────────────────────────────────
+  const demoByDay = Array.from(demoMap, ([day, count]) => ({ day, count }))
+  const demoAvgDurationMs = demoDurations.length > 0
+    ? Math.round(demoDurations.reduce((s, d) => s + d, 0) / demoDurations.length)
+    : null
+  const demo = {
+    views:         demoViews,
+    visitors:      demoSessions.size,
+    byDay:         demoByDay,
+    avgDurationMs: demoAvgDurationMs,
+  }
+
   return Response.json({
     pageviews, visitors, totalPageviews, totalVisitors, topPages,
     bounceRate, avgPagesPerSession, avgSessionDurationMs,
-    recentEvents, eventBreakdown,
+    recentEvents, eventBreakdown, demo,
   })
 }

@@ -1,6 +1,13 @@
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/admin'
-import { resolveTz, buildDayMap, windowStartUtc, dayInTz } from '@/lib/analytics-time'
+import { ADMIN_TZ, bucketByDay, windowStartUtc } from '@/lib/analytics-time'
+import {
+  getAdminUserIds,
+  listAllAuthUsers,
+  realSignups,
+  notInList,
+  fetchCreatedAtExcludingAdmins,
+} from '@/lib/admin-stats'
 
 export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
@@ -15,29 +22,24 @@ export async function GET(req: Request) {
 
   const url  = new URL(req.url)
   const days = Math.min(90, Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10)))
-  const tz   = resolveTz(url.searchParams.get('tz'))
 
-  const since = windowStartUtc(days, tz)
+  // The admin dashboard is always reported in Eastern time, regardless of the
+  // viewer's browser timezone.
+  const since     = windowStartUtc(days, ADMIN_TZ)
+  const adminIds  = await getAdminUserIds(service)
+  const adminList = notInList(adminIds)
 
-  const [{ data: userRows }, { data: projectRows }] = await Promise.all([
-    service.from('user_profiles').select('created_at').gte('created_at', since.toISOString()),
-    service.from('projects').select('created_at').gte('created_at', since.toISOString()),
+  const [authUsers, conversationCreatedAt, projectCreatedAt] = await Promise.all([
+    listAllAuthUsers(service),
+    fetchCreatedAtExcludingAdmins(service, 'projects', since.toISOString(), adminList),
+    fetchCreatedAtExcludingAdmins(service, 'chat_projects', since.toISOString(), adminList),
   ])
 
-  const userDayMap = buildDayMap(days, tz)
-  for (const row of userRows ?? []) {
-    const day = dayInTz(new Date(row.created_at as string), tz)
-    if (userDayMap.has(day)) userDayMap.set(day, userDayMap.get(day)! + 1)
-  }
-
-  const projDayMap = buildDayMap(days, tz)
-  for (const row of projectRows ?? []) {
-    const day = dayInTz(new Date(row.created_at as string), tz)
-    if (projDayMap.has(day)) projDayMap.set(day, projDayMap.get(day)! + 1)
-  }
+  const signups = realSignups(authUsers, adminIds).map(u => u.created_at)
 
   return Response.json({
-    usersByDay:    Array.from(userDayMap,    ([day, count]) => ({ day, count })),
-    projectsByDay: Array.from(projDayMap, ([day, count]) => ({ day, count })),
+    usersByDay:         bucketByDay(signups, days, ADMIN_TZ),
+    conversationsByDay: bucketByDay(conversationCreatedAt, days, ADMIN_TZ),
+    projectsByDay:      bucketByDay(projectCreatedAt, days, ADMIN_TZ),
   })
 }
