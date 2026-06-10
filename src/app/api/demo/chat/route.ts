@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const ip = clientIp(req)
 
   if (rateLimited(`demo:${ip}`, RATE_LIMIT, RATE_WINDOW_MS)) {
-    return new Response('The demo is busy right now — please try again in a few minutes.', { status: 429 })
+    return new Response('The demo is busy right now. Please try again in a few minutes.', { status: 429 })
   }
 
   let body: { messages?: unknown }

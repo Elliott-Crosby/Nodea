@@ -256,7 +256,7 @@ export default function UpgradePage() {
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mo</span>
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>$15</span>
               </div>
-              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>47% off — rate locked forever</p>
+              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>47% off, rate locked forever</p>
             </div>
 
             <div style={{ padding: '20px 28px 24px', display: 'flex', flexDirection: 'column', flex: 1 }}>

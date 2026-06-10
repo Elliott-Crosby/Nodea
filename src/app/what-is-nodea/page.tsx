@@ -38,15 +38,15 @@ const FAQ = [
   },
   {
     q: 'Which AI models does Nodea use?',
-    a: 'Nodea routes to Anthropic Claude models — Haiku 4.5 for fast replies, Sonnet 4.6 for balanced tasks, and Opus 4.7 for the heaviest reasoning. The model is selected automatically based on prompt complexity and your plan.',
+    a: 'Nodea routes to Anthropic Claude models: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced tasks, and Opus 4.7 for the heaviest reasoning. The model is selected automatically based on prompt complexity and your plan.',
   },
   {
     q: 'Is Nodea free?',
-    a: 'Yes — Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Haiku and Sonnet. The $8/month Pro plan unlocks Claude Opus, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features.',
+    a: 'Yes. Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Haiku and Sonnet. The $8/month Pro plan unlocks Claude Opus, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features.',
   },
   {
     q: 'Is Nodea open source?',
-    a: 'Yes — the Nodea source is MIT-licensed and available on GitHub. The hosted product runs at nodea.ai; you can self-host the same codebase against your own Supabase project and Anthropic API key.',
+    a: 'Yes. The Nodea source is MIT-licensed and available on GitHub. The hosted product runs at nodea.ai; you can self-host the same codebase against your own Supabase project and Anthropic API key.',
   },
   {
     q: 'Can I bring my own Anthropic API key?',
@@ -65,7 +65,7 @@ const STACK = [
   { layer: 'Database',        tech: 'Supabase Postgres',                              note: 'Row-level security, two tables: projects (conversations) and nodes (messages)' },
   { layer: 'Auth',            tech: 'Supabase Auth',                                  note: 'Email/password plus anonymous sign-in for friction-free trials' },
   { layer: 'AI streaming',    tech: 'Vercel AI SDK v6 (`ai` + `@ai-sdk/anthropic`)',  note: 'Token-by-token streaming, server-side rate limiting' },
-  { layer: 'Models',          tech: 'Anthropic Claude — Haiku 4.5, Sonnet 4.6, Opus 4.7', note: 'Auto-routing by prompt complexity and plan tier' },
+  { layer: 'Models',          tech: 'Anthropic Claude: Haiku 4.5, Sonnet 4.6, Opus 4.7', note: 'Auto-routing by prompt complexity and plan tier' },
   { layer: 'Billing',         tech: 'Stripe Checkout + Customer Portal',              note: 'Webhook-driven plan updates, no manual reconciliation' },
   { layer: 'Canvas',          tech: 'XYFlow (React Flow)',                            note: 'Free pan + zoom over an arbitrary-size tree' },
   { layer: 'Deployment',      tech: 'Vercel',                                         note: 'Edge functions for streaming, Speed Insights, Web Analytics' },
@@ -127,12 +127,12 @@ export default function WhatIsNodea() {
             <p className="wn-lede">
               <strong>Nodea is a branching AI chat canvas.</strong> Every reply from
               the AI becomes a node you can fork from. Instead of one long thread
-              that you keep scrolling, you get a tree — a visual map of every
+              that you keep scrolling, you get a tree: a visual map of every
               direction your conversation took, all kept side-by-side.
             </p>
             <p className="wn-lede wn-lede-sub">
               Think of it as ChatGPT, except every answer is a junction. Don&rsquo;t
-              like a reply? Branch and ask again — the original stays exactly
+              like a reply? Branch and ask again. The original stays exactly
               where it was.
             </p>
 
@@ -154,7 +154,7 @@ export default function WhatIsNodea() {
               <h2 className="wn-tldr-title">Nodea at a glance</h2>
               <ul className="wn-tldr-list">
                 <li><strong>What it is:</strong> a tree-shaped chat interface for Claude.</li>
-                <li><strong>Who it&rsquo;s for:</strong> people who think by exploring alternatives — writers, researchers, founders, engineers.</li>
+                <li><strong>Who it&rsquo;s for:</strong> people who think by exploring alternatives: writers, researchers, founders, engineers.</li>
                 <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $8/mo for Claude Opus and a doubled daily + 1M monthly token budget.</li>
                 <li><strong>What powers it:</strong> Claude Haiku 4.5, Sonnet 4.6, and Opus 4.7, auto-routed by prompt complexity.</li>
                 <li><strong>What you keep:</strong> every message you&rsquo;ve ever sent, every branch you&rsquo;ve ever explored, in one queryable tree.</li>
@@ -170,7 +170,7 @@ export default function WhatIsNodea() {
             <h2 className="wn-h2">How Nodea actually works</h2>
 
             <p>
-              The rest of this page is the long version — what Nodea looks like
+              The rest of this page is the long version: what Nodea looks like
               under the hood, how the tree is stored, how branches are computed,
               and the engineering decisions behind every node on the canvas. If
               you want to evaluate Nodea for your team, or you&rsquo;re a developer
@@ -185,17 +185,17 @@ export default function WhatIsNodea() {
             </p>
             <ul>
               <li>
-                <strong>Sidebar</strong> — collapsible left panel (220&nbsp;px ↔ 54&nbsp;px)
+                <strong>Sidebar</strong>: collapsible left panel (220&nbsp;px ↔ 54&nbsp;px)
                 listing every conversation (&ldquo;project&rdquo;) the user has created. Search,
                 new-project, and account controls live here.
               </li>
               <li>
-                <strong>Chat panel</strong> — the linear view of the currently
+                <strong>Chat panel</strong>: the linear view of the currently
                 selected branch. New user messages stream a Claude response into
                 this panel via Server-Sent Events.
               </li>
               <li>
-                <strong>Tree panel</strong> — the canvas. A free pan-and-zoom
+                <strong>Tree panel</strong>: the canvas. A free pan-and-zoom
                 XYFlow surface rendering the entire conversation as a directed
                 tree. Clicking any node selects that branch and rewrites the
                 chat panel to the path from root to that node.
@@ -205,7 +205,7 @@ export default function WhatIsNodea() {
               The panels share a React context (<code>AppContext</code>) that
               holds the current project, the selected node, the layout positions,
               and the streaming state. Layout is recomputed in pure JS whenever
-              the tree changes — no layout engine, just a deterministic
+              the tree changes; no layout engine, just a deterministic
               breadth-first walk that places parents above children with
               horizontal spread per subtree width.
             </p>
@@ -233,8 +233,8 @@ nodes (
   created_at  timestamptz
 )`}</pre>
             <p>
-              That&rsquo;s it. A conversation is a project. Every message — user
-              or assistant — is a node with a single <code>parent_id</code>.
+              That&rsquo;s it. A conversation is a project. Every message (user
+              or assistant) is a node with a single <code>parent_id</code>.
               Branching is just inserting a new node whose <code>parent_id</code>{' '}
               points to some existing node. The chat panel for a given selected
               node is the chain you get by walking <code>parent_id</code> back to
@@ -259,7 +259,7 @@ nodes (
               <em>the path from root to the currently selected node</em>, not the
               entire project. Clicking a different node re-selects a different
               path and rebuilds the prompt accordingly. Every branch is
-              completely independent — no &ldquo;memory&rdquo; from a sibling branch
+              completely independent; no &ldquo;memory&rdquo; from a sibling branch
               bleeds in.
             </p>
             <p>
@@ -277,16 +277,16 @@ nodes (
             </p>
             <ul>
               <li>
-                <code>claude-haiku-4-5-20251001</code> — fastest, lowest cost,
+                <code>claude-haiku-4-5-20251001</code>: fastest, lowest cost,
                 used by default on free plans for short / simple prompts.
               </li>
               <li>
-                <code>claude-sonnet-4-6</code> — balanced reasoning quality,
+                <code>claude-sonnet-4-6</code>: balanced reasoning quality,
                 supports web search, used for complex prompts on free plans and
                 default on Pro.
               </li>
               <li>
-                <code>claude-opus-4-7</code> — heaviest reasoning, Pro-only,
+                <code>claude-opus-4-7</code>: heaviest reasoning, Pro-only,
                 automatically selected for complex prompts.
               </li>
             </ul>
@@ -305,7 +305,7 @@ nodes (
               calls <code>streamText</code> from the Vercel AI SDK. Tokens are
               estimated up front (using a 4&nbsp;chars-per-token approximation), checked
               against the user&rsquo;s daily budget, and the actual usage is recorded
-              after the stream completes — so a runaway response can&rsquo;t silently
+              after the stream completes, so a runaway response can&rsquo;t silently
               drain a quota past the cap.
             </p>
             <p>
@@ -319,18 +319,18 @@ nodes (
             </p>
 
             {/* Search */}
-            <h3 className="wn-h3">6. Search — keyword and semantic</h3>
+            <h3 className="wn-h3">6. Search: keyword and semantic</h3>
             <p>
               The search modal supports two modes:
             </p>
             <ul>
               <li>
-                <strong>Keyword search</strong> — live, client-side substring
+                <strong>Keyword search</strong>: live, client-side substring
                 match across project names and node content. Instant; no network
                 round-trip.
               </li>
               <li>
-                <strong>Concept search</strong> — sends the query plus a
+                <strong>Concept search</strong>: sends the query plus a
                 compacted index of the user&rsquo;s nodes to Claude (Haiku for free,
                 Sonnet for Pro) and asks it to return the most semantically
                 relevant matches with reasoning. Slower, network-dependent, but
@@ -346,16 +346,16 @@ nodes (
             </p>
             <ul>
               <li>
-                <strong>Email + password</strong> — standard sign-up with email
+                <strong>Email + password</strong>: standard sign-up with email
                 verification and a password-reset flow at{' '}
                 <code>/login/update-password</code>.
               </li>
               <li>
-                <strong>Anonymous sign-in</strong> — Supabase&rsquo;s anonymous user
+                <strong>Anonymous sign-in</strong>: Supabase&rsquo;s anonymous user
                 feature creates a real <code>auth.users</code> row without
                 requiring an email. Anonymous users can chat, branch, and save
                 projects exactly like signed-up users. They can later &ldquo;claim&rdquo;
-                their data by linking an email — no data migration required.
+                their data by linking an email, with no data migration required.
               </li>
             </ul>
 
@@ -363,7 +363,7 @@ nodes (
             <h3 className="wn-h3">8. Privacy and data flow</h3>
             <p>
               Nodea sends only the path from root to the selected node to Claude
-              on each turn — never the entire tree, never sibling branches. The
+              on each turn, never the entire tree, never sibling branches. The
               user&rsquo;s data lives in their own Supabase row, isolated by RLS.
               Anthropic&rsquo;s API terms prohibit training on the data sent through
               their commercial endpoints, so nothing you write in a Nodea
@@ -401,7 +401,7 @@ nodes (
             <ul>
               <li>
                 <strong>Branching is a thinking pattern, not a feature.</strong>{' '}
-                The tree isn&rsquo;t a sidebar on top of a chat — it&rsquo;s the data model.
+                The tree isn&rsquo;t a sidebar on top of a chat; it&rsquo;s the data model.
                 Everything else (the chat panel, the sidebar) is just a view
                 onto the tree.
               </li>

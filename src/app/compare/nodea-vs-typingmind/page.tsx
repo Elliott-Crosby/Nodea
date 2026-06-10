@@ -59,11 +59,11 @@ export default function NodeaVsTypingMind() {
       faq={[
         {
           q: "Does Nodea support bring-your-own-key like TypingMind?",
-          a: "Not yet — it’s on the roadmap. Today, Nodea uses managed Anthropic keys and gives you a per-plan daily token budget. TypingMind is BYOK from the start.",
+          a: "Not yet. It’s on the roadmap. Today, Nodea uses managed Anthropic keys and gives you a per-plan daily token budget. TypingMind is BYOK from the start.",
         },
         {
           q: "Can I use models other than Claude in Nodea?",
-          a: "No — Nodea is Claude-only by design. TypingMind supports OpenAI, Anthropic, Gemini, and local LLMs in one app.",
+          a: "No. Nodea is Claude-only by design. TypingMind supports OpenAI, Anthropic, Gemini, and local LLMs in one app.",
         },
         {
           q: "Does TypingMind support branching?",
@@ -75,7 +75,7 @@ export default function NodeaVsTypingMind() {
         },
         {
           q: "Can I export my conversations from Nodea?",
-          a: "Yes — your data lives in your Supabase row, isolated by RLS. Full export tooling is on the roadmap.",
+          a: "Yes. Your data lives in your Supabase row, isolated by RLS. Full export tooling is on the roadmap.",
         },
       ]}
     />

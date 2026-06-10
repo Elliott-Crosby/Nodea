@@ -43,7 +43,7 @@ export default function PrivacyPage() {
                 structure of conversations you already have on{' '}
                 <a href="https://claude.ai">claude.ai</a> and draws them as a visual
                 tree inside the page. It does this using your existing, logged-in
-                Claude session — we never ask for, see, or store your Claude
+                Claude session; we never ask for, see, or store your Claude
                 credentials.
               </p>
 
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
               <ul>
                 <li>
                   <strong>Your Claude conversation content</strong>{' '}(messages, branch
-                  structure, message IDs) — read from Claude&rsquo;s own API in your
+                  structure, message IDs), read from Claude&rsquo;s own API in your
                   browser, solely to render the tree and to power the
                   &ldquo;Open in Nodea&rdquo; and &ldquo;Update Conversation&rdquo;
                   features.
@@ -92,17 +92,17 @@ export default function PrivacyPage() {
                 When you create a Nodea account, we store your email address (for
                 authentication) and the conversations you create or import. Chat
                 messages you send are processed by our AI provider to generate
-                responses. We use this data only to operate the product — show you
+                responses. We use this data only to operate the product: show you
                 your conversations, generate replies, and manage your plan and usage.
               </p>
 
               <h2>Service providers</h2>
               <p>We rely on the following processors to run Nodea:</p>
               <ul>
-                <li><strong>Supabase</strong> — authentication and database (stores your account and conversations).</li>
-                <li><strong>Anthropic</strong> — the Claude AI models that generate replies.</li>
-                <li><strong>Stripe</strong> — payment processing for paid plans (we never see your full card details).</li>
-                <li><strong>Vercel</strong> — application hosting.</li>
+                <li><strong>Supabase</strong>: authentication and database (stores your account and conversations).</li>
+                <li><strong>Anthropic</strong>: the Claude AI models that generate replies.</li>
+                <li><strong>Stripe</strong>: payment processing for paid plans (we never see your full card details).</li>
+                <li><strong>Vercel</strong>: application hosting.</li>
               </ul>
 
               <h2>Data retention &amp; deletion</h2>
