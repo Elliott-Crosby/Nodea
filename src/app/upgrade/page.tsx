@@ -176,7 +176,7 @@ export default function UpgradePage() {
             <div style={{ marginTop: 'auto' }}>
               {authState === 'anonymous' && (
                 <Link
-                  href="/login"
+                  href="/login?mode=signup"
                   className="ln-btn ln-btn-ghost"
                   style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }}
                 >

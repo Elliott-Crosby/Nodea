@@ -143,7 +143,7 @@ export default function ChatGPTAlternative() {
               one long thread. Built on Anthropic Claude.
             </p>
             <div className="ln-hero-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open a canvas — free
               </Link>
               <Link href="/demo" className="ln-btn ln-btn-outline ln-btn-lg">
@@ -436,7 +436,7 @@ export default function ChatGPTAlternative() {
               across Claude Haiku, Sonnet, and Opus on managed keys.
             </p>
             <div className="ln-cta-btns">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open your first canvas
               </Link>
               <Link href="/demo" className="ln-btn ln-btn-outline ln-btn-lg">

@@ -189,7 +189,7 @@ export default function GlossaryPage() {
           <div className="ln-container">
             <h2>See the canvas behind the words.</h2>
             <p>Open a Nodea canvas — free, no credit card.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Try Nodea
             </Link>
           </div>

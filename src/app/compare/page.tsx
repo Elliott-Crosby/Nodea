@@ -142,7 +142,7 @@ export default function CompareIndex() {
         <section className="cmp-cta">
           <h2>Skip the comparison — just try it.</h2>
           <p>Free during beta. No credit card. No waitlist.</p>
-          <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+          <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
             Open a Nodea canvas
           </Link>
         </section>

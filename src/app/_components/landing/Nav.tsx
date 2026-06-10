@@ -33,7 +33,7 @@ export default function Nav() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <Link href="/login" className="ln-btn ln-btn-ghost">Sign in</Link>
-          <Link href="/login" className="ln-btn ln-btn-primary">Get started</Link>
+          <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">Get started free</Link>
         </div>
       </div>
     </nav>

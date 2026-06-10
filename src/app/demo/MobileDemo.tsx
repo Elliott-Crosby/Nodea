@@ -51,6 +51,7 @@ export default function MobileDemo() {
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [sentCount, setSentCount] = useState(0)
   const [showWall, setShowWall] = useState(false)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
   const [menu, setMenu] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'chat' | 'tree'>('chat')
@@ -62,9 +63,21 @@ export default function MobileDemo() {
   const idRef = useRef(1000)
   const scrollRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const nudgeTracked = useRef(false)
 
   const atLimit = sentCount >= DEMO_MESSAGE_LIMIT
   const remaining = Math.max(0, DEMO_MESSAGE_LIMIT - sentCount)
+
+  // Soft signup nudge at the moment of engagement (2 messages in), not just
+  // at the hard wall. Dismissible; the wall takes over once the limit is hit.
+  const showNudge = !atLimit && !nudgeDismissed && sentCount >= 2 && !isStreaming
+
+  useEffect(() => {
+    if (showNudge && !nudgeTracked.current) {
+      nudgeTracked.current = true
+      track('demo_nudge_shown')
+    }
+  }, [showNudge])
 
   // colors: seed (keyed by assistant pair id) + live branch colors
   const colorMap = useMemo(() => ({ ...SEED_COLORS, ...liveColors }), [liveColors])
@@ -196,7 +209,7 @@ export default function MobileDemo() {
         </div>
 
         {view === 'chat' && (
-          <div className="nm-banner">Demo mode — a lightweight model, short replies, {DEMO_MESSAGE_LIMIT} messages. <span className="mut">The full canvas is smarter and unlimited.</span></div>
+          <div className="nm-banner">Demo mode — a lightweight model, short replies, {DEMO_MESSAGE_LIMIT} messages. <span className="mut">The full canvas is smarter — and free during beta.</span></div>
         )}
 
         {view === 'chat' ? (
@@ -236,6 +249,13 @@ export default function MobileDemo() {
 
             <div className="nm-composer">
               {error && <div className="nm-error">{error}</div>}
+              {showNudge && (
+                <div className="nm-nudge">
+                  <span className="txt">The full canvas is <b>free during beta</b> — smarter models, unlimited branching.</span>
+                  <Link href="/login?mode=signup" className="go" onClick={() => track('demo_nudge_clicked')}>Sign up</Link>
+                  <button className="x" onClick={() => setNudgeDismissed(true)} aria-label="Dismiss"><IcX s={14} /></button>
+                </div>
+              )}
               {atLimit ? (
                 <button className="nm-locked" onClick={() => setShowWall(true)}>You&rsquo;ve used your {DEMO_MESSAGE_LIMIT} demo messages — sign up to keep going</button>
               ) : (
@@ -291,7 +311,8 @@ export default function MobileDemo() {
             <h2>You&rsquo;ve reached the demo limit</h2>
             <p className="sub">Create a free account to keep branching — with smarter models and a lot more room.</p>
             <ul>{WALL_BENEFITS.map((b) => <li key={b}><span className="ck">✓</span>{b}</li>)}</ul>
-            <Link href="/login" className="cta">Sign up free</Link>
+            <Link href="/login?mode=signup" className="cta" onClick={() => track('demo_wall_cta_clicked')}>Sign up free</Link>
+            <p className="fine">Free during beta — no credit card.</p>
             <button className="later" onClick={() => setShowWall(false)}>Keep looking around</button>
           </div>
         </div>
@@ -311,7 +332,7 @@ export default function MobileDemo() {
                 <span className="chev"><IcChevR s={16} /></span>
               </Link>
             ))}
-            <Link href="/login" className="nm-pick add" onClick={() => setMenu(false)} style={{ borderStyle: 'solid', background: 'var(--accent)', color: '#fff' }}>Get started — free</Link>
+            <Link href="/login?mode=signup" className="nm-pick add" onClick={() => setMenu(false)} style={{ borderStyle: 'solid', background: 'var(--accent)', color: '#fff' }}>Get started — free</Link>
           </div>
         </div>
       </div>

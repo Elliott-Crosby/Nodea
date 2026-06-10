@@ -288,7 +288,7 @@ Background:
                 gets its own branch, each conclusion has provenance, and
                 you never lose the question you started with.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -456,7 +456,7 @@ Background:
           <div className="ln-container">
             <h2>Investigate without losing the thread.</h2>
             <p>Run hypotheses in parallel branches and end with a real conclusion.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

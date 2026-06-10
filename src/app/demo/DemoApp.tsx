@@ -139,14 +139,27 @@ export default function DemoApp() {
   const [showWall, setShowWall]     = useState(false)
   const [error, setError]           = useState<string | null>(null)
   const [showVideo, setShowVideo]   = useState(false)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
 
   const idRef       = useRef(1000)
   const scrollRef   = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const nudgeTracked = useRef(false)
 
   const atLimit = sentCount >= DEMO_MESSAGE_LIMIT
   const remaining = Math.max(0, DEMO_MESSAGE_LIMIT - sentCount)
   const canSend = !isStreaming && input.trim().length > 0
+
+  // Soft signup nudge at the moment of engagement (2 messages in), not just
+  // at the hard wall. Dismissible; the wall takes over once the limit is hit.
+  const showNudge = !atLimit && !nudgeDismissed && sentCount >= 2 && !isStreaming
+
+  useEffect(() => {
+    if (showNudge && !nudgeTracked.current) {
+      nudgeTracked.current = true
+      track('demo_nudge_shown')
+    }
+  }, [showNudge])
 
   // Messages shown in the chat panel: the path from root to the selected node.
   const thread = useMemo(() => pathTo(nodes, selectedId), [nodes, selectedId])
@@ -310,14 +323,14 @@ export default function DemoApp() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <Link href="/login" className="demo-nav-ghost">Sign in</Link>
-          <Link href="/login" className="demo-btn demo-btn-primary demo-btn-sm">Get started</Link>
+          <Link href="/login?mode=signup" className="demo-btn demo-btn-primary demo-btn-sm">Get started free</Link>
         </div>
       </header>
 
       {/* ── Banner ── */}
       <div className="demo-banner">
         Demo mode — a lightweight model, short replies, and {DEMO_MESSAGE_LIMIT} messages.{' '}
-        <span className="demo-banner-muted">The full canvas is smarter and unlimited.</span>
+        <span className="demo-banner-muted">The full canvas is smarter — and free during beta, no credit card.</span>
       </div>
 
       {/* ── Main: chat + tree ── */}
@@ -346,6 +359,24 @@ export default function DemoApp() {
           {/* ── Composer ── */}
           <div className="demo-composer">
             {error && <div className="demo-error">{error}</div>}
+
+            {showNudge && (
+              <div className="demo-nudge">
+                <span className="demo-nudge-text">
+                  Liking it? The full canvas is <strong>free during beta</strong> — smarter models, unlimited branching.
+                </span>
+                <Link
+                  href="/login?mode=signup"
+                  className="demo-btn demo-btn-primary demo-btn-sm"
+                  onClick={() => track('demo_nudge_clicked')}
+                >
+                  Create free account
+                </Link>
+                <button className="demo-nudge-x" onClick={() => setNudgeDismissed(true)} aria-label="Dismiss">
+                  ✕
+                </button>
+              </div>
+            )}
 
             {atLimit ? (
               <button className="demo-btn demo-btn-primary demo-composer-locked" onClick={() => setShowWall(true)}>
@@ -427,9 +458,14 @@ export default function DemoApp() {
                 </li>
               ))}
             </ul>
-            <Link href="/login" className="demo-btn demo-btn-primary demo-btn-lg demo-wall-cta">
+            <Link
+              href="/login?mode=signup"
+              className="demo-btn demo-btn-primary demo-btn-lg demo-wall-cta"
+              onClick={() => track('demo_wall_cta_clicked')}
+            >
               Sign up free
             </Link>
+            <p className="demo-wall-fine">Free during beta — no credit card.</p>
             <button className="demo-wall-later" onClick={() => setShowWall(false)}>
               Keep looking around
             </button>

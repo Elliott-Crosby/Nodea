@@ -134,7 +134,7 @@ export default function WhatIsNodea() {
             </p>
 
             <div className="wn-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open a canvas — free
               </Link>
               <Link href="/#features" className="ln-btn ln-btn-outline ln-btn-lg">
@@ -439,7 +439,7 @@ nodes (
             <h2 className="wn-h2 wn-cta-h2">Ready to think in branches?</h2>
             <p className="wn-cta-sub">Free during beta. No credit card. No waitlist.</p>
             <div className="wn-ctas">
-              <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
                 Open your first canvas
               </Link>
               <Link href="/upgrade" className="ln-btn ln-btn-outline ln-btn-lg">

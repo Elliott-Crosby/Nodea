@@ -261,7 +261,7 @@ export default function PillarPost() {
                 Nodea is built for branching from day one — fork any message,
                 any node, with no destructive edits.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -401,7 +401,7 @@ export default function PillarPost() {
             <ol>
               <li>
                 <strong>The 30-second option.</strong>{' '}
-                <Link href="/login">Open a free Nodea account</Link>{' '}
+                <Link href="/login?mode=signup">Open a free Nodea account</Link>{' '}
                 (or sign in anonymously) and ask any question. After the AI replies,
                 click the answer node in the right-hand canvas and type a new prompt
                 — that&rsquo;s a branch.
@@ -479,7 +479,7 @@ export default function PillarPost() {
           <div className="ln-container">
             <h2>Stop scrolling. Start branching.</h2>
             <p>Open a free Nodea canvas — no credit card, no waitlist.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

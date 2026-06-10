@@ -257,7 +257,7 @@ export default function TreeOfThoughtPost() {
                 Nodea lets you run ToT exploration across real branches — each path
                 is its own conversation, visible on the tree.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -382,7 +382,7 @@ export default function TreeOfThoughtPost() {
           <div className="ln-container">
             <h2>Think in trees, not lists.</h2>
             <p>Open a free Nodea canvas — built for exploratory, branching reasoning.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>

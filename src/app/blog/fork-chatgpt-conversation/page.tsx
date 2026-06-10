@@ -194,7 +194,7 @@ export default function ForkChatGPTPost() {
                 Nodea is built for forking from day one — branch any node, any message,
                 user or assistant, with the full tree visible on screen.
               </p>
-              <Link href="/login" className="ln-btn ln-btn-primary">
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">
                 Try Nodea free →
               </Link>
             </div>
@@ -369,7 +369,7 @@ export default function ForkChatGPTPost() {
           <div className="ln-container">
             <h2>Forking should be one click, not a workaround.</h2>
             <p>Open a free Nodea canvas — no credit card, no waitlist.</p>
-            <Link href="/login" className="ln-btn ln-btn-primary ln-btn-lg">
+            <Link href="/login?mode=signup" className="ln-btn ln-btn-primary ln-btn-lg">
               Open my first canvas
             </Link>
           </div>
