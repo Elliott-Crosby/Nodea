@@ -47,15 +47,8 @@ export default function HeroVideo() {
                 Create your first canvas
               </Link>
               <Link href="/demo" className="ln-btn ln-btn-outline ln-btn-lg">
-                Try it live →
+                Try Demo →
               </Link>
-              <button
-                type="button"
-                className="ln-btn ln-btn-outline ln-btn-lg"
-                onClick={() => setOpen(true)}
-              >
-                <Play size={18} /> Watch demo
-              </button>
             </div>
             <div className="ln-split-chips">
               <span className="ln-split-chip"><GitBranch size={14} /> Fork any reply</span>
