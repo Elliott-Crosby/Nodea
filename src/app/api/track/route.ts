@@ -1,7 +1,12 @@
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import { clientIp, rateLimited } from '@/lib/request-limits'
 
 export async function POST(req: Request) {
   try {
+    // Unauthenticated service-role write — keep a flood backstop on it.
+    if (rateLimited(`track:${clientIp(req)}`, 60, 60_000)) {
+      return Response.json({ id: null })
+    }
     const { path, referrer, session_id } = await req.json()
     const service = createServiceSupabaseClient()
     if (service) {

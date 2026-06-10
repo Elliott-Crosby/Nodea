@@ -1,22 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isAdmin } from '@/lib/admin'
 
-/**
- * Pro gating for the Chat Projects feature. Mirrors the same check used by
- * the cross-chat memory routes — admins are always Pro, others need plan='pro'.
- */
-export async function isProUser(
-  userId: string,
-  supabase: SupabaseClient,
-): Promise<boolean> {
-  if (await isAdmin(userId, supabase)) return true
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('plan')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return data?.plan === 'pro'
-}
+// Pro gating lives in @/lib/plan (hardened, single source of truth);
+// re-exported here for existing imports.
+export { isProUser } from '@/lib/plan'
 
 // Server-side limits mirrored from the client (projectConstants.tsx). We
 // validate again here so a tampered request can't bypass UI constraints.

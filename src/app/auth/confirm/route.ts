@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/welcome'
+  // Only allow same-site paths: a single leading slash ("//host" and "/\host"
+  // are protocol-relative and would redirect off-site).
+  const rawNext = searchParams.get('next') ?? '/welcome'
+  const next = /^\/(?![/\\])/.test(rawNext) ? rawNext : '/welcome'
 
   const supabase = await createServerSupabaseClient()
 

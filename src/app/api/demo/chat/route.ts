@@ -1,6 +1,7 @@
 import { streamText } from 'ai'
 import { anthropic } from '@/lib/anthropic'
 import { MODELS } from '@/lib/models'
+import { clientIp, rateLimited } from '@/lib/request-limits'
 
 // ─── Public demo chat endpoint ────────────────────────────────────────────────
 // Unlike /api/chat this route has NO auth and NO database. Every safeguard here
@@ -41,15 +42,6 @@ const DEMO_SYSTEM_PROMPT =
 // guarantee. The per-request cost bound above is the real protection.
 const RATE_LIMIT     = 20           // requests…
 const RATE_WINDOW_MS = 10 * 60_000  // …per 10 minutes, per IP
-const hits = new Map<string, number[]>()
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now()
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS)
-  recent.push(now)
-  hits.set(ip, recent)
-  return recent.length > RATE_LIMIT
-}
 
 interface DemoMessage {
   role: 'user' | 'assistant'
@@ -57,12 +49,9 @@ interface DemoMessage {
 }
 
 export async function POST(req: Request) {
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown'
+  const ip = clientIp(req)
 
-  if (rateLimited(ip)) {
+  if (rateLimited(`demo:${ip}`, RATE_LIMIT, RATE_WINDOW_MS)) {
     return new Response('The demo is busy right now — please try again in a few minutes.', { status: 429 })
   }
 

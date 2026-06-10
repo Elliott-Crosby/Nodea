@@ -15,6 +15,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing query or projectId' }, { status: 400 })
   }
 
+  // Ownership check — projectId is client-supplied. RLS scopes the nodes
+  // query too, but verify explicitly like the sibling project routes do.
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!project) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   // Fetch all nodes for this project
   const { data: nodes, error } = await supabase
     .from('nodes')

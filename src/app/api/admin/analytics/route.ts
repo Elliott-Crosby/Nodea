@@ -17,11 +17,29 @@ export async function GET(req: Request) {
   const todayStart = todayStartUtc(tz)
   const weekStart = windowStartUtc(7, tz)
 
+  // PostgREST caps unbounded selects (default max-rows 1000), which would
+  // silently truncate the token sums and top-10 — page through all rows.
+  async function allTokenRows() {
+    const PAGE = 1000
+    const rows: { user_id: string; daily_tokens: number | null; monthly_tokens: number | null; total_tokens: number | null }[] = []
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await service!
+        .from('user_token_usage')
+        .select('user_id, daily_tokens, monthly_tokens, total_tokens')
+        .order('user_id')
+        .range(from, from + PAGE - 1)
+      if (error || !data?.length) break
+      rows.push(...data)
+      if (data.length < PAGE) break
+    }
+    return rows
+  }
+
   const [
     { count: totalUsers },
     { count: usersToday },
     { count: usersThisWeek },
-    { data: tokenRows },
+    tokenRows,
     { count: totalProjects },
   ] = await Promise.all([
     service.from('user_profiles').select('*', { count: 'exact', head: true }),
@@ -33,9 +51,7 @@ export async function GET(req: Request) {
       .from('user_profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', weekStart.toISOString()),
-    service
-      .from('user_token_usage')
-      .select('user_id, daily_tokens, monthly_tokens, total_tokens'),
+    allTokenRows(),
     service.from('projects').select('*', { count: 'exact', head: true }),
   ])
 

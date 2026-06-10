@@ -3,6 +3,7 @@ import { anthropic } from '@/lib/anthropic'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 import { checkTokenLimits, recordTokenUsage, estimateTokens } from '@/lib/token-limits'
 import { isAdmin } from '@/lib/admin'
+import { isProUser } from '@/lib/plan'
 import { selectChatModel, supportsWebSearch } from '@/lib/models'
 import { loadUserMemories, formatMemoryBlock } from '@/lib/memory'
 import { loadProjectMemoryForConversation, formatProjectMemoryBlock } from '@/lib/chat-projects'
@@ -95,16 +96,7 @@ export async function POST(req: Request) {
   const estimatedInput = estimateTokens(inputText)
 
   const admin = await isAdmin(user.id, supabase)
-
-  let isPro = admin
-  if (!admin) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('plan')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    isPro = profile?.plan === 'pro'
-  }
+  const isPro = await isProUser(user.id, supabase, admin)
 
   const limitCheck = await checkTokenLimits(user.id, estimatedInput, supabase, admin, isPro)
   if (!limitCheck.allowed) {
@@ -175,6 +167,9 @@ export async function POST(req: Request) {
     const result = streamText({
       model:    anthropic(modelId),
       messages: chatMessages,
+      // Cost ceiling per request: limits are otherwise only checked *before*
+      // a request, so a single response's spend would be unbounded.
+      maxOutputTokens: 8192,
       ...(tools ? { tools } : {}),
       // onFinish fires after the stream is fully consumed, with real token counts.
       // This is the correct hook vs after()+result.usage, which races the stream.

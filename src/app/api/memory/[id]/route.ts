@@ -1,17 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { isAdmin } from '@/lib/admin'
+import { isProUser } from '@/lib/plan'
 import { MAX_MEMORY_LENGTH } from '@/lib/memory'
-
-async function isProUser(userId: string, supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
-  if (await isAdmin(userId, supabase)) return true
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('plan')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return data?.plan === 'pro'
-}
 
 export async function PATCH(
   req: NextRequest,

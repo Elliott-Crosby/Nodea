@@ -1,12 +1,12 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { isAdmin } from '@/lib/admin'
 import type { PostgrestError } from '@supabase/supabase-js'
 
 /**
  * GET /api/debug-usage
  *
- * Diagnostic — open in browser while dev server is running to see exactly
- * why token usage tracking might be failing.
- * Remove or gate behind an admin check before deploying to production.
+ * Admin-only diagnostic — open in browser to see exactly why token usage
+ * tracking might be failing.
  */
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -17,6 +17,10 @@ export async function GET() {
       status: 'unauthenticated',
       authError: authError ? { message: authError.message } : null,
     })
+  }
+
+  if (!(await isAdmin(user.id, supabase))) {
+    return new Response('Not found', { status: 404 })
   }
 
   function fmtPgErr(e: PostgrestError | null) {
