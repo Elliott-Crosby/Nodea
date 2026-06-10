@@ -7,6 +7,9 @@ export interface PostMeta {
   publishedAt: string
   updatedAt?: string
   keywords: string[]
+  /** Hero/card media for the post — lives in /public/media. */
+  image: string
+  imageAlt: string
 }
 
 export const POSTS: PostMeta[] = [
@@ -26,6 +29,9 @@ export const POSTS: PostMeta[] = [
       'Claude conversation branching',
       'ChatGPT alternative',
     ],
+    image: '/media/nodea-ai-linear-vs-branching-canvas.png',
+    imageAlt:
+      'A linear chat where an earlier answer is buried in scroll, beside a Nodea canvas where every path stays visible as branches.',
   },
   {
     slug: 'fork-chatgpt-conversation',
@@ -43,6 +49,9 @@ export const POSTS: PostMeta[] = [
       'duplicate ChatGPT chat',
       'ChatGPT branching',
     ],
+    image: '/media/nodea-ai-extension-claude-reveal.png',
+    imageAlt:
+      'A Claude.ai conversation rebuilt as a forkable Nodea tree of nodes with an Open in Nodea button.',
   },
   {
     slug: 'tree-of-thought-prompting',
@@ -60,6 +69,9 @@ export const POSTS: PostMeta[] = [
       'tree of thought technique',
       'advanced prompting',
     ],
+    image: '/media/nodea-ai-screenshot-conversation-tree.png',
+    imageAlt:
+      'The Nodea app showing a conversation in the centre and its full branching tree in the right-hand panel.',
   },
   {
     slug: 'compare-ai-model-outputs',
@@ -77,6 +89,9 @@ export const POSTS: PostMeta[] = [
       'compare AI responses',
       'ChatGPT alternative comparison',
     ],
+    image: '/media/nodea-ai-screenshot-colored-branches.png',
+    imageAlt:
+      'A Nodea canvas with several colour-coded branches fanning out from one question, each exploring a different option.',
   },
   {
     slug: 'never-lose-thinking',
@@ -94,6 +109,9 @@ export const POSTS: PostMeta[] = [
       'conversation tree',
       'preserve AI thinking',
     ],
+    image: '/media/nodea-ai-live-demo-conversation-tree.png',
+    imageAlt:
+      'A Nodea tree of message nodes branching from a brand-positioning prompt, with every direction preserved as its own node.',
   },
   {
     slug: 'organize-ai-like-your-brain',
@@ -111,6 +129,9 @@ export const POSTS: PostMeta[] = [
       'AI workflow',
       'thinking in branches',
     ],
+    image: '/media/nodea-ai-wordmark-think-in-branches.png',
+    imageAlt:
+      'The Nodea wordmark with the tagline Think in branches on a dotted canvas with branch lines.',
   },
   {
     slug: 'persistent-project-intelligence',
@@ -128,6 +149,9 @@ export const POSTS: PostMeta[] = [
       'AI context window',
       'project intelligence',
     ],
+    image: '/media/nodea-ai-screenshot-projects.png',
+    imageAlt:
+      'The Nodea Projects view showing a project with multiple conversations, each previewed as the shape of its branching tree.',
   },
   {
     slug: 'research-without-chaos',
@@ -145,6 +169,9 @@ export const POSTS: PostMeta[] = [
       'branching research',
       'structured AI exploration',
     ],
+    image: '/media/nodea-ai-screenshot-marketing-canvas.png',
+    imageAlt:
+      'A Nodea research canvas with a long analysis on the left and a branching tree of follow-up threads on the right.',
   },
   {
     slug: 'ai-for-deep-work',
@@ -162,6 +189,9 @@ export const POSTS: PostMeta[] = [
       'focused AI workflow',
       'AI without distractions',
     ],
+    image: '/media/nodea-ai-branching-chat-canvas.png',
+    imageAlt:
+      "Nodea's branching chat canvas with the tagline Stop scrolling. Start branching., showing a launch-plan conversation and its tree.",
   },
 ]
 

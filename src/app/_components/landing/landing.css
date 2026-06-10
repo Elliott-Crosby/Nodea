@@ -844,6 +844,20 @@
   display: block;
   overflow: visible;
 }
+/* Photo media variant — fills the art frame edge-to-edge, no dotted grid/mask. */
+.ln-blog-art-photo {
+  background-image: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  overflow: hidden;
+}
+.ln-blog-art-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
 .ln-blog-body {
   padding: 20px;
   flex: 1;
