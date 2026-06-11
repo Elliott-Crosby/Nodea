@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-const LAST_UPDATED = 'June 2, 2026'
+const LAST_UPDATED = 'June 11, 2026'
 
 export default function PrivacyPage() {
   return (
@@ -37,73 +37,142 @@ export default function PrivacyPage() {
                 <strong>&ldquo;Nodea Tree for Claude&rdquo;</strong> browser extension.
               </p>
 
-              <h2>The browser extension</h2>
               <p>
                 The &ldquo;Nodea Tree for Claude&rdquo; extension reads the branch
                 structure of conversations you already have on{' '}
                 <a href="https://claude.ai">claude.ai</a> and draws them as a visual
                 tree inside the page. It does this using your existing, logged-in
                 Claude session; we never ask for, see, or store your Claude
-                credentials.
+                credentials. The sections below describe, in full, what data we
+                collect, how we use (handle) it, how and where it is stored, and how
+                it is shared.
               </p>
 
-              <h3>What the extension accesses</h3>
-              <ul>
-                <li>
-                  <strong>Your Claude conversation content</strong>{' '}(messages, branch
-                  structure, message IDs), read from Claude&rsquo;s own API in your
-                  browser, solely to render the tree and to power the
-                  &ldquo;Open in Nodea&rdquo; and &ldquo;Update Conversation&rdquo;
-                  features.
-                </li>
-                <li>
-                  <strong>Per-conversation display preferences</strong> (such as node
-                  colors), stored locally in your browser via{' '}
-                  <code>chrome.storage</code>.
-                </li>
-              </ul>
-
-              <h3>What is transmitted, and when</h3>
-              <ul>
-                <li>
-                  <strong>Reading / visualizing the tree:</strong>{' '}conversation data
-                  stays in your browser. Nothing is sent to Nodea&rsquo;s servers.
-                </li>
-                <li>
-                  <strong>Only when you click &ldquo;Open in Nodea&rdquo;</strong>
-                  {' '}(or &ldquo;Update Conversation&rdquo;): the conversation tree
-                  you chose is sent to your authenticated Nodea account so it can be
-                  rebuilt as a Nodea conversation. This happens only on your explicit
-                  action, never automatically.
-                </li>
-              </ul>
-
-              <h3>What we do NOT do</h3>
-              <ul>
-                <li>We do not sell or rent your data.</li>
-                <li>We do not use your data for advertising.</li>
-                <li>We do not transfer your data to third parties except as needed to provide the service (see &ldquo;Service providers&rdquo; below).</li>
-                <li>We do not collect data from any site other than claude.ai and nodea.ai.</li>
-                <li>We do not access your Claude data unless you have the extension installed and are using it.</li>
-              </ul>
-
-              <h2>The Nodea web app</h2>
+              <h2>1. Data we collect</h2>
               <p>
-                When you create a Nodea account, we store your email address (for
-                authentication) and the conversations you create or import. Chat
-                messages you send are processed by our AI provider to generate
-                responses. We use this data only to operate the product: show you
-                your conversations, generate replies, and manage your plan and usage.
+                Nodea collects the following categories of user data. We do not
+                collect any data not listed here.
               </p>
 
-              <h2>Service providers</h2>
-              <p>We rely on the following processors to run Nodea:</p>
+              <h3>Through the browser extension</h3>
+              <ul>
+                <li>
+                  <strong>Authentication information.</strong> When you sign in to your
+                  Nodea account from inside the extension, the sign-in form collects
+                  your Nodea <strong>email and password</strong>. The password is used
+                  only to authenticate you and is never stored by the extension. After
+                  a successful sign-in, the extension caches your Nodea{' '}
+                  <strong>session tokens</strong> (an access token, a refresh token,
+                  their expiry, and your account id and email) so the panel stays
+                  signed in across page reloads.
+                </li>
+                <li>
+                  <strong>Personal communications &amp; website content.</strong> The
+                  extension reads the content of the Claude conversation you are
+                  viewing &mdash; the message text (your prompts and Claude&rsquo;s
+                  replies), the branch structure, and message IDs &mdash; from
+                  Claude&rsquo;s own API in your browser, in order to render the visual
+                  tree and to power the &ldquo;Open in Nodea&rdquo; and
+                  &ldquo;Update Conversation&rdquo; features.
+                </li>
+                <li>
+                  <strong>Display preferences.</strong> Per-conversation settings such
+                  as node colors, which you choose, so the map keeps its appearance
+                  between visits.
+                </li>
+              </ul>
+
+              <h3>Through the Nodea web app</h3>
+              <ul>
+                <li>
+                  <strong>Personally identifiable information.</strong> Your email
+                  address, collected when you create a Nodea account, used for
+                  authentication.
+                </li>
+                <li>
+                  <strong>Conversation content.</strong> The conversations you create
+                  in Nodea or import from Claude, including the messages within them.
+                </li>
+              </ul>
+
+              <h2>2. How we use your data (handling)</h2>
+              <ul>
+                <li>
+                  <strong>Authentication information</strong> is used solely to sign you
+                  in to your Nodea account and to keep that session active in the
+                  extension panel and, when you choose, carry it over to the Nodea web
+                  app. It is not used for any other purpose.
+                </li>
+                <li>
+                  <strong>Claude conversation content</strong> read by the extension is
+                  used only to draw the branch tree in your browser and, when you
+                  explicitly click &ldquo;Open in Nodea&rdquo; or &ldquo;Update
+                  Conversation,&rdquo; to rebuild that conversation inside your own
+                  Nodea account.
+                </li>
+                <li>
+                  <strong>Conversation content in the web app</strong> is used to show
+                  you your conversations and, when you send a message, is processed by
+                  our AI provider to generate a reply.
+                </li>
+                <li>
+                  <strong>Display preferences</strong> are used only to render your map
+                  with the colors you picked.
+                </li>
+              </ul>
+              <p>
+                We do <strong>not</strong> use any of this data for advertising,
+                profiling, or to determine creditworthiness, and we do not sell or rent
+                it.
+              </p>
+
+              <h2>3. How and where your data is stored (storage)</h2>
+              <ul>
+                <li>
+                  <strong>Locally in your browser.</strong> The extension stores your
+                  Nodea session tokens, your per-conversation color preferences, and
+                  any pending &ldquo;Open in Nodea&rdquo; handoff payload using{' '}
+                  <code>chrome.storage.local</code> on your own device. The handoff
+                  payload (the conversation tree you chose to send) is written only when
+                  you click &ldquo;Open in Nodea,&rdquo; is read once to deliver it to
+                  the Nodea app, and is then immediately deleted.
+                </li>
+                <li>
+                  <strong>While visualizing the tree,</strong> the Claude conversation
+                  data stays in your browser. Nothing is sent to Nodea&rsquo;s servers
+                  unless you explicitly trigger an import.
+                </li>
+                <li>
+                  <strong>On our servers.</strong> Your Nodea account (email) and the
+                  conversations you create or import are stored in our database, hosted
+                  by Supabase. This data is protected by row-level security so it is
+                  accessible only to your account.
+                </li>
+              </ul>
+
+              <h2>4. How your data is shared (sharing)</h2>
+              <p>
+                We do not sell or rent your data, and we do not share it with third
+                parties for their own purposes. We share data only with the service
+                providers (processors) below, strictly to operate Nodea on our behalf:
+              </p>
               <ul>
                 <li><strong>Supabase</strong>: authentication and database (stores your account and conversations).</li>
-                <li><strong>Anthropic</strong>: the Claude AI models that generate replies.</li>
+                <li><strong>Anthropic</strong>: the Claude AI models that generate replies to messages you send in the web app.</li>
                 <li><strong>Stripe</strong>: payment processing for paid plans (we never see your full card details).</li>
                 <li><strong>Vercel</strong>: application hosting.</li>
               </ul>
+              <p>
+                When you click &ldquo;Open in Nodea&rdquo; or &ldquo;Update
+                Conversation,&rdquo; the conversation tree you chose is sent to{' '}
+                <strong>your own authenticated Nodea account</strong> so it can be
+                rebuilt there. This happens only on your explicit action, never
+                automatically, and the data goes only to your account &mdash; never to
+                the developer or any analytics endpoint. The extension does not collect
+                data from any site other than claude.ai and nodea.ai, and does not
+                access your Claude data unless you have the extension installed and are
+                actively using it.
+              </p>
 
               <h2>Data retention &amp; deletion</h2>
               <p>
