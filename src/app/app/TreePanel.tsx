@@ -770,8 +770,12 @@ export default function TreePanel() {
     })
   }, [activePairIds, pairPositions, fitView, nodeHMax])
 
-  // ── Smart zoom to newly-saved node ────────────────────────────────────────────
-  const smartZoomToNode = useCallback((pairId: string, chainLen: number) => {
+  // ── Center the working node front-and-center ──────────────────────────────────
+  // In autocenter mode the node you're working on — about to fork from, or just
+  // created — sits dead-centre in the viewport at a readable zoom. We preserve the
+  // user's current zoom when it's already legible, and only bump it up to the
+  // readable floor when they're zoomed too far out for the node to be useful.
+  const centerOnNode = useCallback((pairId: string) => {
     const el = containerRef.current
     if (!el) return
     const pos = pairPositions.get(pairId)
@@ -779,44 +783,45 @@ export default function TreePanel() {
 
     const cw = el.clientWidth
     const ch = el.clientHeight
+    if (cw === 0 || ch === 0) return
 
-    // Scale: fit the full chain height comfortably, clamped to readable range
-    const chainH = Math.max(1, chainLen - 1) * vSpacing + nodeHMax
-    const sByH   = (ch * 0.85) / chainH
-    const s      = Math.max(MIN_READABLE_SCALE, Math.min(1.1, sByH))
-
-    // Vertical position: fewer ancestors → node sits higher; more → bottom 25%
-    const MAX_CHAIN = 8
-    const t          = Math.min((chainLen - 1) / MAX_CHAIN, 1)
-    const targetY    = ch * (0.25 + 0.5 * t)  // 25% → 75% down
+    const s = Math.min(2.5, Math.max(MIN_READABLE_SCALE, scaleRef.current))
 
     setScale(s)
     setPan({
       x: cw / 2 - (pos.x + LAYOUT_W / 2) * s,
-      y: targetY  - (pos.y + nodeHMax / 2) * s,
+      y: ch / 2 - (pos.y + nodeHMax / 2) * s,
     })
-  }, [pairPositions, vSpacing, nodeHMax])
+  }, [pairPositions, nodeHMax])
 
+  // First load fits the whole tree; after that, autocenter drives the framing.
   useEffect(() => {
-    if (pairs.length > 0) {
-      if (!initialFitDone.current) {
-        initialFitDone.current = true
-        const t = setTimeout(fitView, 80)
-        return () => clearTimeout(t)
-      } else if (autoZoom) {
-        const t = setTimeout(fitView, 80)
-        return () => clearTimeout(t)
-      }
+    if (pairs.length > 0 && !initialFitDone.current) {
+      initialFitDone.current = true
+      const t = setTimeout(fitView, 80)
+      return () => clearTimeout(t)
     }
   }, [pairs.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Auto-zoom on new message ──────────────────────────────────────────────────
+  // ── Autocenter: keep the node just made front-and-centre ──────────────────────
   useEffect(() => {
     if (!autoZoom || !lastSavedPairId) return
-    const chainLen = getActivePairIds(pairs, lastSavedPairId).size
-    const t = setTimeout(() => smartZoomToNode(lastSavedPairId, chainLen), 80)
+    const t = setTimeout(() => centerOnNode(lastSavedPairId), 80)
     return () => clearTimeout(t)
   }, [lastSavedPairId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Autocenter: keep the node you're working on / about to fork from centred ──
+  useEffect(() => {
+    if (!autoZoom || !selectedNodeId) return
+    const pair = pairs.find((p) =>
+      p.id === selectedNodeId ||
+      p.userNode.id === selectedNodeId ||
+      (p.aiNode && p.aiNode.id === selectedNodeId)
+    )
+    if (!pair) return
+    const t = setTimeout(() => centerOnNode(pair.id), 80)
+    return () => clearTimeout(t)
+  }, [selectedNodeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Re-fit when view mode changes (full mode uses taller nodes) ──────────────
   useEffect(() => {
