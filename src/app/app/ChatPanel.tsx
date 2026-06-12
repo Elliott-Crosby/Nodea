@@ -18,12 +18,18 @@ const ACCEPTED_MIME_TYPES: Record<string, string> = {
   'text/markdown':    'Markdown file',
   'application/json': 'JSON file',
 }
-const ACCEPT_STRING = Object.keys(ACCEPTED_MIME_TYPES).join(',')
+export const ACCEPT_STRING = Object.keys(ACCEPTED_MIME_TYPES).join(',')
 
 // Max sizes (bytes)
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_PDF_SIZE   = 32 * 1024 * 1024
 const MAX_TEXT_SIZE  = 2 * 1024 * 1024
+
+// Folder drops: cap how many files we pull in (and how deep we recurse) so a
+// stray large directory can't flood the composer. Files past the cap are
+// ignored and the user is told.
+export const MAX_FOLDER_FILES = 25
+const MAX_FOLDER_DEPTH = 6
 
 // Extension → MIME fallback (for OneDrive and other sources that drop MIME type)
 const EXT_TO_MIME: Record<string, string> = {
@@ -98,17 +104,20 @@ async function compressImageIfNeeded(
   return { dataUrl: await readAsDataUrl(blob), type: outType }
 }
 
-async function processFiles(
+export async function processFiles(
   files: FileList | File[] | null,
   addAttachment: (a: AttachmentItem) => void,
 ): Promise<string | null> {
   if (!files) return null
+  const skipped: string[] = []
   for (const file of Array.from(files)) {
     const mimeType = resolveType(file)
+    // Folders pull in everything; quietly ignore types we can't attach.
     if (!ACCEPTED_MIME_TYPES[mimeType]) continue
     if (file.size > fileSizeLimit(mimeType)) {
       const mb = (fileSizeLimit(mimeType) / 1024 / 1024).toFixed(0)
-      return `"${file.name}" exceeds the ${mb} MB limit for ${ACCEPTED_MIME_TYPES[mimeType]}s.`
+      skipped.push(`"${file.name}" exceeds the ${mb} MB limit for ${ACCEPTED_MIME_TYPES[mimeType]}s`)
+      continue
     }
 
     let dataUrl: string
@@ -124,36 +133,100 @@ async function processFiles(
     addAttachment({ name: file.name, type: storedType, dataUrl })
     track('file_attached', { file_type: storedType })
   }
+
+  if (skipped.length === 1) return `${skipped[0]}.`
+  if (skipped.length > 1) return `${skipped.length} files were skipped (over the size limit).`
   return null
 }
 
-// Collect real File objects from a drop event, handling OneDrive/cloud-only quirks
-function extractDroppedFiles(e: React.DragEvent): { files: File[]; hadUriOnly: boolean } {
-  const files: File[] = []
+// Read a FileSystemFileEntry into a real File. For OneDrive/cloud-only files
+// this triggers on-demand hydration — which item.getAsFile() does not, so it
+// hands back an empty placeholder instead.
+function entryToFile(entry: FileSystemFileEntry): Promise<File | null> {
+  return new Promise((resolve) => {
+    entry.file(
+      (f) => resolve(f),
+      () => resolve(null),
+    )
+  })
+}
 
-  // Try DataTransferItemList first — more reliable than .files for synced cloud drives
+// readEntries hands back directory children in batches; keep calling until drained.
+function readAllDirEntries(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+  return new Promise((resolve) => {
+    const out: FileSystemEntry[] = []
+    const pump = () => {
+      reader.readEntries(
+        (batch) => {
+          if (batch.length === 0) resolve(out)
+          else { out.push(...batch); pump() }
+        },
+        () => resolve(out),
+      )
+    }
+    pump()
+  })
+}
+
+// Walk a dropped entry (file or folder), collecting real Files. Recurses into
+// subfolders up to MAX_FOLDER_DEPTH and stops once we hit MAX_FOLDER_FILES.
+async function collectFromEntry(entry: FileSystemEntry, files: File[], depth: number): Promise<void> {
+  if (files.length >= MAX_FOLDER_FILES) return
+  if (entry.isFile) {
+    const f = await entryToFile(entry as FileSystemFileEntry)
+    if (f && f.size > 0) files.push(f)
+  } else if (entry.isDirectory && depth < MAX_FOLDER_DEPTH) {
+    const children = await readAllDirEntries((entry as FileSystemDirectoryEntry).createReader())
+    for (const child of children) {
+      if (files.length >= MAX_FOLDER_FILES) break
+      await collectFromEntry(child, files, depth + 1)
+    }
+  }
+}
+
+// Collect real File objects from a drop event. Walks dropped folders and reads
+// files through the entry API, which hydrates OneDrive/cloud-only files on
+// demand (getAsFile() would return an empty placeholder for those).
+export async function extractDroppedFiles(
+  e: React.DragEvent,
+): Promise<{ files: File[]; hadUriOnly: boolean; truncated: boolean }> {
+  // DataTransfer is only valid synchronously inside the handler, so snapshot
+  // entries (and any fallbacks) before the first await.
+  const entries: FileSystemEntry[] = []
+  const fallbackFiles: File[] = []
   if (e.dataTransfer.items) {
     for (const item of Array.from(e.dataTransfer.items)) {
-      if (item.kind === 'file') {
+      if (item.kind !== 'file') continue
+      const entry = item.webkitGetAsEntry?.()
+      if (entry) entries.push(entry)
+      else {
         const f = item.getAsFile()
-        if (f && f.size > 0) files.push(f)
+        if (f) fallbackFiles.push(f)
       }
     }
   }
+  const plainFiles = Array.from(e.dataTransfer.files)
+  const types = Array.from(e.dataTransfer.types)
 
-  // Fallback to .files (some browsers only populate one or the other)
+  const files: File[] = []
+  for (const entry of entries) {
+    if (files.length >= MAX_FOLDER_FILES) break
+    await collectFromEntry(entry, files, 0)
+  }
+  const truncated = files.length >= MAX_FOLDER_FILES
+
+  // Entry API yielded nothing (older browsers, or non-entry drops): fall back.
   if (files.length === 0) {
-    for (const f of Array.from(e.dataTransfer.files)) {
-      if (f.size > 0) files.push(f)
-    }
+    for (const f of fallbackFiles) if (f.size > 0) files.push(f)
+  }
+  if (files.length === 0) {
+    for (const f of plainFiles) if (f.size > 0) files.push(f)
   }
 
-  // If still empty, check if this was a URI-only drop (cloud-only file)
-  const types = Array.from(e.dataTransfer.types)
   const hadUriOnly = files.length === 0 &&
     (types.includes('text/uri-list') || types.includes('Files'))
 
-  return { files, hadUriOnly }
+  return { files, hadUriOnly, truncated }
 }
 
 function formatTime(ts: number) {
@@ -507,7 +580,7 @@ function fileTypeBadge(mimeType: string): { label: string; bg: string } {
   return { label: 'FILE', bg: '#6b7280' }
 }
 
-function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; onRemove?: () => void }) {
+export function AttachmentChip({ attachment, onRemove }: { attachment: AttachmentItem; onRemove?: () => void }) {
   const isImage = attachment.type.startsWith('image/')
   const badge   = !isImage ? fileTypeBadge(attachment.type) : null
   return (
@@ -1120,12 +1193,12 @@ export default function ChatPanel() {
     dragCounter.current = 0
     setIsDragging(false)
 
-    const { files, hadUriOnly } = extractDroppedFiles(e)
+    const { files, hadUriOnly, truncated } = await extractDroppedFiles(e)
 
     if (files.length === 0) {
       if (hadUriOnly) {
         setFileError(
-          'File not available locally; it may be cloud-only. In OneDrive, right-click it and choose "Always keep on this device", then drop it again.'
+          'That file could not be read. If it’s a cloud-only OneDrive file, open it once (or right-click → "Always keep on this device") so Windows downloads a local copy, then drop it again.'
         )
       }
       return
@@ -1133,6 +1206,9 @@ export default function ChatPanel() {
 
     const err = await processFiles(files, addAttachment)
     if (err) setFileError(err)
+    else if (truncated) {
+      setFileError(`Only the first ${MAX_FOLDER_FILES} files from that folder were added.`)
+    }
   }, [addAttachment])
 
   const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'

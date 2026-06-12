@@ -13,7 +13,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { ProjectIcon, colorById, MAX_PROJECT_MEMORY_LENGTH } from './projectConstants'
 import TreeThumb, { TreeStat, type MiniTree } from './TreeThumb'
-import type { Conversation } from './App'
+import { ACCEPT_STRING, MAX_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip } from './ChatPanel'
+import type { AttachmentItem, Conversation } from './App'
 import type { ChatProject } from './chatProjectTypes'
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
   conversations: Conversation[]
   onBack: () => void
   onOpenConv: (id: string) => void
-  onNewChat: (initialMessage?: string) => void
+  onNewChat: (initialMessage?: string, attachments?: AttachmentItem[]) => void
   onConvContext: (conv: Conversation, x: number, y: number) => void
   onEdit: () => void
   onDelete: () => void
@@ -70,8 +71,24 @@ export default function ProjectPage({
   const [trees, setTrees] = useState<TreeMap>({})
   const [menuOpen, setMenuOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  // Attachments staged on the first prompt — carried into the new conversation's
+  // composer and sent with the opening message (see requestNewChatInProject).
+  const [atts, setAtts] = useState<AttachmentItem[]>([])
+  const [fileError, setFileError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const addAttachment = (a: AttachmentItem) => setAtts((prev) => [...prev, a])
+  const removeAttachment = (name: string) => setAtts((prev) => prev.filter((a) => a.name !== name))
+
+  async function handleFiles(files: FileList | File[] | null) {
+    const err = await processFiles(files, addAttachment)
+    setFileError(err)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
   // Below ~880px the 320px memory rail can't sit beside the conversations, so we
   // stack it inline (above the conversation list) rather than letting flex-wrap
   // push it off the bottom of the page where it looks like it's gone.
@@ -148,8 +165,29 @@ export default function ProjectPage({
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    onNewChat(draft.trim() || undefined)
+    const text = draft.trim()
+    if (!text && atts.length === 0) return
+    onNewChat(text || undefined, atts.length > 0 ? atts : undefined)
     setDraft('')
+    setAtts([])
+    setFileError(null)
+  }
+
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const { files, hadUriOnly, truncated } = await extractDroppedFiles(e)
+    if (files.length === 0) {
+      if (hadUriOnly) {
+        setFileError('That file could not be read. If it’s a cloud-only OneDrive file, open it once so Windows downloads a local copy, then drop it again.')
+      }
+      return
+    }
+    const err = await processFiles(files, addAttachment)
+    if (err) setFileError(err)
+    else if (truncated) setFileError(`Only the first ${MAX_FOLDER_FILES} files from that folder were added.`)
+    else setFileError(null)
   }
 
   return (
@@ -256,64 +294,112 @@ export default function ProjectPage({
           )}
         </div>
 
-        {/* Prominent new-chat input */}
-        <form
-          onSubmit={submit}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '6px 6px 6px 16px',
-            marginBottom: 28,
-            background: 'var(--input-bg)',
-            border: '1.5px solid var(--border)',
-            borderRadius: 13,
-            boxShadow: 'var(--shadow-sm)',
-            transition: 'border-color 0.15s',
-          }}
-          onFocusCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = c.hex }}
-          onBlurCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = 'var(--border)' }}
-        >
-          <span style={{
-            width: 20, height: 20, borderRadius: 6,
-            background: c.soft,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <ProjectIcon name={project.icon} size={12} color={c.hex} />
-          </span>
-          <textarea
-            ref={inputRef}
-            value={draft}
-            rows={1}
-            onChange={(e) => { setDraft(e.target.value); autoResize(e.target) }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                e.currentTarget.closest('form')?.requestSubmit()
-              }
-            }}
-            placeholder={`Start a new chat in ${project.name}…`}
+        {/* Prominent new-chat input — accepts attachments dropped or picked here,
+            which ride along with the opening message into the new conversation. */}
+        <div style={{ marginBottom: 28 }}>
+          <form
+            onSubmit={submit}
+            onDragEnter={(e) => { e.preventDefault(); dragDepth.current++; setDragging(true) }}
+            onDragOver={(e) => e.preventDefault()}
+            onDragLeave={(e) => { e.preventDefault(); dragDepth.current--; if (dragDepth.current === 0) setDragging(false) }}
+            onDrop={onDrop}
             style={{
-              flex: 1, border: 'none', outline: 'none',
-              background: 'transparent', fontSize: 14,
-              color: 'var(--text-primary)', fontFamily: 'inherit',
-              resize: 'none', lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
+              display: 'flex', flexDirection: 'column', gap: 8,
+              padding: '8px 8px 8px 8px',
+              background: 'var(--input-bg)',
+              border: `1.5px solid ${dragging ? c.hex : 'var(--border)'}`,
+              borderRadius: 13,
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'border-color 0.15s',
             }}
-          />
-          <button
-            type="submit"
-            aria-label="Start chat"
-            style={{
-              width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-              border: 'none', cursor: 'pointer',
-              background: c.hex, color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
+            onFocusCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = c.hex }}
+            onBlurCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = dragging ? c.hex : 'var(--border)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </form>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_STRING}
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+
+            {atts.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 4px 0' }}>
+                {atts.map((a) => (
+                  <AttachmentChip key={a.name} attachment={a} onRemove={() => removeAttachment(a.name)} />
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                width: 20, height: 20, borderRadius: 6,
+                background: c.soft,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, marginLeft: 8,
+              }}>
+                <ProjectIcon name={project.icon} size={12} color={c.hex} />
+              </span>
+              <textarea
+                ref={inputRef}
+                value={draft}
+                rows={1}
+                onChange={(e) => { setDraft(e.target.value); autoResize(e.target) }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    e.currentTarget.closest('form')?.requestSubmit()
+                  }
+                }}
+                placeholder={`Start a new chat in ${project.name}…`}
+                style={{
+                  flex: 1, border: 'none', outline: 'none',
+                  background: 'transparent', fontSize: 14,
+                  color: 'var(--text-primary)', fontFamily: 'inherit',
+                  resize: 'none', lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
+                }}
+              />
+              <button
+                type="button"
+                title="Attach file (images, PDF, text)"
+                aria-label="Attach file"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                  border: 'none', cursor: 'pointer',
+                  background: 'transparent',
+                  color: atts.length > 0 ? c.hex : 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'color 0.15s',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M14 8.5l-6.5 6.5A4 4 0 0 1 1.9 9.4l7.1-7.1a2.5 2.5 0 0 1 3.5 3.5L5.4 12.9a1 1 0 0 1-1.4-1.4L10.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="submit"
+                aria-label="Start chat"
+                style={{
+                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                  border: 'none', cursor: 'pointer',
+                  background: c.hex, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </form>
+          {fileError && (
+            <div style={{ fontSize: 12, color: 'var(--color-error)', margin: '8px 2px 0' }}>
+              {fileError}
+            </div>
+          )}
+        </div>
 
         {/* Memory — stacked inline on narrow widths so it never gets buried */}
         {narrow && (

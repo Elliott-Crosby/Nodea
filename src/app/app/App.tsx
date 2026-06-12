@@ -474,7 +474,7 @@ export interface AppContextType {
   openConvContext: (conv: Conversation, x: number, y: number) => void
   openProjectContext: (project: ChatProject, x: number, y: number) => void
   assignConvToProject: (convId: string, projectId: string | null) => Promise<void>
-  requestNewChatInProject: (projectId: string, initialMessage?: string) => Promise<void>
+  requestNewChatInProject: (projectId: string, initialMessage?: string, attachments?: AttachmentItem[]) => Promise<void>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -642,12 +642,18 @@ export default function App() {
   // requestNewChatInProject and delivered into the composer once the new
   // conversation has loaded (see the effect below handleSend).
   const pendingProjectMsgRef = useRef<string | null>(null)
+  // Attachments picked on a project's "start a new chat" input, stashed
+  // alongside pendingProjectMsgRef and delivered into the composer together.
+  const pendingProjectAttsRef = useRef<AttachmentItem[] | null>(null)
   // Content for a programmatic send (the project "start a new chat" prompt),
   // set synchronously right before form.requestSubmit(). handleSend reads this
   // instead of `input` so delivery never depends on React having committed the
   // setInput() that precedes the submit — otherwise the rAF-driven submit can
   // race ahead of the state update and send an empty message.
   const forcedSendRef = useRef<string | null>(null)
+  // Attachments for that same programmatic send, consumed by handleSend in lock
+  // step with forcedSendRef so a project's first prompt carries its files.
+  const forcedAttachmentsRef = useRef<AttachmentItem[] | null>(null)
   // Mirror of activeConvId, readable from async closures (saveUserNode /
   // saveAssistantNode) so we can tell if the user has navigated away by the
   // time a save resolves.
@@ -1546,9 +1552,10 @@ export default function App() {
   }, [conversations, reloadChatProjects])
 
   // ── New chat inside a project: create then assign in one shot ──────────────
-  const requestNewChatInProject = useCallback(async (projectId: string, initialMessage?: string) => {
+  const requestNewChatInProject = useCallback(async (projectId: string, initialMessage?: string, attachments?: AttachmentItem[]) => {
     if (!isPro) { setIsUpgradeOpen(true); return }
     const seed = initialMessage?.trim()
+    const seedAtts = attachments && attachments.length > 0 ? attachments : null
     // Create the conversation through the existing route.
     const res = await fetch('/api/projects', {
       method: 'POST',
@@ -1573,6 +1580,7 @@ export default function App() {
     // Stash before loading so the delivery effect sees it the moment the new
     // conversation finishes loading into the chat view.
     pendingProjectMsgRef.current = seed && seed.length > 0 ? seed : null
+    pendingProjectAttsRef.current = seedAtts
     setView('chat')
     await loadConversation(newConv.id, newConv.name)
     track('conversation_created', { in_project: true })
@@ -2089,9 +2097,15 @@ export default function App() {
       // null and fall back to the live input value.
       const forced = forcedSendRef.current
       forcedSendRef.current = null
+      // A programmatic send may also carry attachments (project first prompt),
+      // passed via forcedAttachmentsRef for the same reason as forcedSendRef:
+      // pendingAttachments state may not be committed by the time rAF submits.
+      const forcedAtts = forcedAttachmentsRef.current
+      forcedAttachmentsRef.current = null
       const resolvedInput = forced ?? input
+      const resolvedAttachments = forcedAtts ?? pendingAttachments
       const hasText = resolvedInput.trim().length > 0
-      const hasAttachments = pendingAttachments.length > 0
+      const hasAttachments = resolvedAttachments.length > 0
       if ((!hasText && !hasAttachments) || isLoading) return
 
       // Pin this send to the conversation (and branch parent) it started in.
@@ -2105,7 +2119,7 @@ export default function App() {
       setHighlightedMessageId(null)
 
       const userContent             = resolvedInput.trim()
-      const localAttachmentsSnapshot = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined
+      const localAttachmentsSnapshot = resolvedAttachments.length > 0 ? [...resolvedAttachments] : undefined
       const now                      = Date.now()
       const userMsg: ChatMessage = {
         id: now.toString(), role: 'user', content: userContent,
@@ -2137,12 +2151,12 @@ export default function App() {
         : nextMessages
 
       track('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
-        attachment_count: pendingAttachments.length,
+        has_attachment: resolvedAttachments.length > 0,
+        attachment_count: resolvedAttachments.length,
         conversation_length: messages.length,
       })
       trackEvent('message_sent', {
-        has_attachment: pendingAttachments.length > 0,
+        has_attachment: resolvedAttachments.length > 0,
         conversation_length: messages.length,
       })
       if (isBranchPointRef.current) {
@@ -2251,19 +2265,23 @@ export default function App() {
   // empty conversation gets auto-deleted by deleteIfEmpty on the next nav.
   useEffect(() => {
     const pending = pendingProjectMsgRef.current
-    if (!pending) return
+    const pendingAtts = pendingProjectAttsRef.current
+    if (!pending && !pendingAtts) return
     if (view !== 'chat' || !isCurrentLoaded || isLoading) return
     pendingProjectMsgRef.current = null
-    // Show the prompt in the composer as a fallback: if the form isn't mounted
-    // yet and the programmatic submit can't fire, the text stays put so the
-    // user can send it manually rather than losing it.
-    setInput(pending)
+    pendingProjectAttsRef.current = null
+    // Show the prompt + attachments in the composer as a fallback: if the form
+    // isn't mounted yet and the programmatic submit can't fire, they stay put so
+    // the user can send manually rather than losing them.
+    setInput(pending ?? '')
+    if (pendingAtts) setPendingAttachments(pendingAtts)
     requestAnimationFrame(() => {
       const form = chatInputRef.current?.form
       if (!form) return
-      // Set synchronously right before submit so handleSend reads it directly
-      // (see forcedSendRef) instead of the still-async `input` state.
+      // Set synchronously right before submit so handleSend reads them directly
+      // (see forcedSendRef / forcedAttachmentsRef) instead of still-async state.
       forcedSendRef.current = pending
+      forcedAttachmentsRef.current = pendingAtts
       form.requestSubmit()
     })
   }, [view, isCurrentLoaded, isLoading, activeConvId, setInput])
@@ -2708,7 +2726,7 @@ export default function App() {
             conversations={conversations}
             onBack={openProjectsLanding}
             onOpenConv={(id) => { setActiveConvId(id); setView('chat'); switchConversation(id) }}
-            onNewChat={(msg) => requestNewChatInProject(activeChatProject.id, msg)}
+            onNewChat={(msg, atts) => requestNewChatInProject(activeChatProject.id, msg, atts)}
             onConvContext={(conv, x, y) => openConvContext(conv, x, y)}
             onEdit={() => setProjectModalState({ mode: 'edit', project: activeChatProject })}
             onDelete={() => setDeleteProjectState(activeChatProject)}
