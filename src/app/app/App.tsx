@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { track } from '@vercel/analytics'
 import { createClient } from '@/lib/supabase'
 import { trackEvent } from '@/lib/track-event'
+import { PENDING_JOIN_KEY } from '@/lib/collab-client'
+import type { DecisionStatus, NodeDecision } from '@/lib/decisions'
+import ShareModal from './ShareModal'
 import Sidebar from './Sidebar'
 import ChatPanel from './ChatPanel'
 import TreePanel from './TreePanel'
@@ -95,6 +98,21 @@ export interface ChatMessage {
    *  source_message_id) rather than being generated natively in Nodea. Drives
    *  whether the reply wears the source's icon or its native Claude model logo. */
   imported?: boolean
+  /** Author of the node (nodes.created_by). In shared spaces, messages from
+   *  other members wear their author's avatar chip. */
+  createdBy?: string | null
+}
+
+/** A collaborator profile, resolved via /api/collab/members. */
+export interface CollabProfile {
+  name: string
+  email: string | null
+}
+
+/** Who else is live in the active conversation right now (presence). */
+export interface PresencePeer {
+  userId: string
+  name: string
 }
 
 export interface NodeAttachment {
@@ -176,6 +194,7 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
       attachments: attachments.length > 0
         ? attachments.map((a) => ({ name: a.name, type: a.type, dataUrl: a.url ?? '' }))
         : undefined,
+      createdBy: n.created_by ?? null,
     }
   }
   return {
@@ -183,6 +202,7 @@ function dbNodeToMessage(n: DbNode): ChatMessage {
     timestamp: new Date(n.created_at).getTime(),
     modelId: n.model_id ?? undefined,
     imported: !!n.source_message_id,
+    createdBy: n.created_by ?? null,
   }
 }
 
@@ -377,6 +397,17 @@ export interface DbNode {
   // branches here. See the merge_sources migration. Lives on the user node of
   // a pair (the node that owns the next prompt's generation context).
   merge_sources?: string[] | null
+  // Author (auth.users id). Stamped on insert so shared trees attribute every
+  // message; backfilled to the conversation owner for pre-collab rows.
+  created_by?: string | null
+  // ── Decision tag (decision layer, Tier A) ──
+  // Where this node sits in a decision: a kept path ('decided'), a ruled-out
+  // option ('rejected'), an open question ('undecided'), etc. Lives on the user
+  // node of a pair (the branch the user took). Null/absent = untagged.
+  decision_status?: DecisionStatus | null
+  decision_note?: string | null
+  decided_by?: string | null
+  decided_at?: string | null
 }
 
 // A reversible node deletion. We snapshot the deleted rows (parent-first, so a
@@ -435,6 +466,10 @@ export interface AppContextType {
   isPro: boolean
   nodeColors: Record<string, string>
   setNodeColor: (id: string, color: string) => void
+  /** Decision tag per node id (keyed on the pair / user node). Absent = untagged. */
+  nodeDecisions: Record<string, NodeDecision>
+  /** Tag a node's decision status (+ optional note), or clear it with status=null. */
+  setNodeDecision: (id: string, status: DecisionStatus | null, note?: string | null) => void
   /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
   deleteNode: (pairId: string) => Promise<boolean>
   // ── Merge overlay ──
@@ -476,6 +511,20 @@ export interface AppContextType {
   openProjectContext: (project: ChatProject, x: number, y: number) => void
   assignConvToProject: (convId: string, projectId: string | null) => Promise<void>
   requestNewChatInProject: (projectId: string, initialMessage?: string, attachments?: AttachmentItem[]) => Promise<void>
+  // ── Collaboration ──
+  /** The signed-in user's id — lets the UI tell "mine" from "shared with me". */
+  myUserId: string | null
+  /** Author profiles for the active shared space (user id → name). */
+  collabProfiles: Record<string, CollabProfile>
+  /** Other members currently viewing the active conversation (live presence). */
+  presencePeers: PresencePeer[]
+  /** True when the active conversation is shared (someone else's, has members,
+   *  or lives in a shared project) — drives avatars + presence UI. */
+  activeConvIsShared: boolean
+  /** Open the share modal for a conversation or a chat project. */
+  openShareModal: (target: { kind: 'conversation' | 'chat_project'; id: string; name: string }) => void
+  /** Re-fetch everything shared with me (after accepting an invite, leaving, …). */
+  reloadShared: () => Promise<void>
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType)
@@ -585,12 +634,24 @@ export default function App() {
   const [settingsInitialSection, setSettingsInitialSection] = useState<string | null>(null)
   const [userEmail,     setUserEmail]       = useState('')
   const [userName,      setUserName]        = useState('')
+  // ── Collaboration state ──
+  const [myUserId,      setMyUserId]        = useState<string | null>(null)
+  const [collabProfiles, setCollabProfiles] = useState<Record<string, CollabProfile>>({})
+  const [presencePeers, setPresencePeers]   = useState<PresencePeer[]>([])
+  const [sharedChatProjects, setSharedChatProjects] = useState<ChatProject[]>([])
+  const [shareTarget, setShareTarget] = useState<
+    { kind: 'conversation' | 'chat_project'; id: string; name: string } | null
+  >(null)
+  // Mirror for async closures (saveUserNode / saveAssistantNode stamp authors).
+  const myUserIdRef = useRef<string | null>(null)
+  useEffect(() => { myUserIdRef.current = myUserId }, [myUserId])
   // Flips true once the user is confirmed signed in (and named). Gates the
   // replay of a parked extension import — see PENDING_IMPORT_KEY.
   const [authedReady,   setAuthedReady]     = useState(false)
   const [isAdmin,       setIsAdmin]         = useState(false)
   const [isPro,         setIsPro]           = useState(false)
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
+  const [nodeDecisions, setNodeDecisions]   = useState<Record<string, NodeDecision>>({})
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
@@ -736,6 +797,26 @@ export default function App() {
       .then(({ error }) => { if (error) console.error('Color save failed', error) })
   }, [supabase])
 
+  // ── Node decision tag — persist to DB (decision layer, Tier A) ─────────────
+  // status=null clears the tag. Stamps the current user + time as the decider
+  // (lightweight authorship; the Tier C events log is the full audit trail).
+  const setNodeDecision = useCallback((id: string, status: DecisionStatus | null, note?: string | null) => {
+    setNodeDecisions((prev) => {
+      const next = { ...prev }
+      if (status) next[id] = { status, note: note ?? null }
+      else delete next[id]
+      return next
+    })
+    const patch = status
+      ? { decision_status: status, decision_note: note ?? null, decided_by: myUserIdRef.current, decided_at: new Date().toISOString() }
+      : { decision_status: null, decision_note: null, decided_by: null, decided_at: null }
+    supabase
+      .from('nodes')
+      .update(patch)
+      .eq('id', id)
+      .then(({ error }) => { if (error) console.error('Decision save failed', error) })
+  }, [supabase])
+
   // ── Load conversation from DB into state ──────────────────────────────────
   const loadConversation = useCallback(
     async (convId: string, name: string) => {
@@ -746,6 +827,7 @@ export default function App() {
       setMessages([])
       setSelectedNodeId(null)
       setNodeColors({})
+      setNodeDecisions({})
       setNodeSummaries({})
       setHighlightedMessageId(null)
       setMemorySavedByMsgId({})
@@ -776,6 +858,13 @@ export default function App() {
         if (n.color) colorMap[n.id] = n.color
       }
       setNodeColors(colorMap)
+
+      // Restore persisted decision tags
+      const decisionMap: Record<string, NodeDecision> = {}
+      for (const n of enriched) {
+        if (n.decision_status) decisionMap[n.id] = { status: n.decision_status, note: n.decision_note ?? null }
+      }
+      setNodeDecisions(decisionMap)
 
       // Restore AI-generated titles/summaries from localStorage
       const metaMap: Record<string, { title: string; summary: string }> = {}
@@ -1277,6 +1366,9 @@ export default function App() {
     if (messages.length > 0) return null
     const oldId = activeConvId
     const oldConv = conversations.find((c) => c.id === oldId)
+    // Never reap a conversation that isn't mine (a shared space someone else
+    // owns) — empty or not, leaving it is their call.
+    if (oldConv && myUserIdRef.current && oldConv.user_id !== myUserIdRef.current) return null
     setConversations((prev) => prev.filter((c) => c.id !== oldId))
     // Keep the in-memory project chat_count honest. It's recomputed from real
     // rows on the next load, but if we reap a conv mid-session without
@@ -1293,6 +1385,212 @@ export default function App() {
   }, [activeConvId, isCurrentLoaded, allDbNodes, messages, conversations, supabase])
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
+  // ─── Collaboration: shared spaces, invites, live profiles ──────────────────
+
+  // Normalize a raw shared `projects` row into the client Conversation shape.
+  const normalizeSharedConv = useCallback((p: Conversation): Conversation => ({
+    ...p,
+    chat_project_id: p.chat_project_id ?? null,
+    source: p.source ?? null,
+  }), [])
+
+  // Re-fetch everything shared with me and reconcile the in-memory lists:
+  // keeps my own conversations untouched, adds newly-shared ones, and drops
+  // shared ones I've left (or was removed from).
+  const reloadShared = useCallback(async () => {
+    try {
+      const res = await fetch('/api/collab/shared')
+      if (!res.ok) return
+      const data = await res.json() as {
+        conversations: Conversation[]
+        chatProjects: ChatProject[]
+        projectConversations: Conversation[]
+      }
+      const shared = [...(data.conversations ?? []), ...(data.projectConversations ?? [])]
+      const freshIds = new Set(shared.map((c) => c.id))
+      setSharedChatProjects((data.chatProjects ?? []) as ChatProject[])
+      setConversations((prev) => {
+        const kept = prev.filter((c) => c.user_id === myUserIdRef.current || freshIds.has(c.id))
+        const keptIds = new Set(kept.map((c) => c.id))
+        const additions = shared.filter((c) => !keptIds.has(c.id)).map(normalizeSharedConv)
+        return [...kept, ...additions]
+      })
+    } catch {
+      // Endpoint not deployed / offline — shared lists just don't refresh.
+    }
+  }, [normalizeSharedConv])
+
+  // Accept a parked invite token (stashed by /join when the user was signed
+  // out). Returns the joined space so init can route straight into it.
+  const acceptPendingJoin = useCallback(async (): Promise<{ kind: string; id: string } | null> => {
+    let token: string | null = null
+    try {
+      token = localStorage.getItem(PENDING_JOIN_KEY)
+      if (token) localStorage.removeItem(PENDING_JOIN_KEY)
+    } catch {}
+    if (!token) return null
+    try {
+      const res = await fetch('/api/collab/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; kind?: string; id?: string }
+      if (res.ok && data.ok && data.kind && data.id) return { kind: data.kind, id: data.id }
+    } catch {}
+    return null
+  }, [])
+
+  const openShareModal = useCallback(
+    (target: { kind: 'conversation' | 'chat_project'; id: string; name: string }) => {
+      setShareTarget(target)
+    }, [])
+
+  // Mirror of `conversations` readable from effects without re-subscribing.
+  const conversationsRef = useRef<Conversation[]>([])
+  useEffect(() => { conversationsRef.current = conversations }, [conversations])
+
+  // Shared chat-project ids — conversations inside them are shared spaces too.
+  const sharedProjectIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    sharedProjectIdsRef.current = new Set(sharedChatProjects.map((p) => p.id))
+  }, [sharedChatProjects])
+
+  // Is the active conversation a shared space? Owner-side sharing (my conv,
+  // other people invited) needs a membership probe; member-side is knowable
+  // from ownership alone. Resolved per conversation switch; also loads the
+  // author/member profiles that drive avatars.
+  const [activeConvIsShared, setActiveConvIsShared] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    setActiveConvIsShared(false)
+    setCollabProfiles({})
+    setPresencePeers([])
+    if (!activeConvId || !myUserId) return
+
+    const conv = conversationsRef.current.find((c) => c.id === activeConvId)
+    void (async () => {
+      let shared =
+        (conv && conv.user_id !== myUserId) ||
+        (conv?.chat_project_id != null && sharedProjectIdsRef.current.has(conv.chat_project_id))
+
+      if (!shared) {
+        // My own conversation: shared iff it has direct members, or its chat
+        // project has members. Cheap indexed head-counts under RLS.
+        const probes = await Promise.all([
+          supabase.from('conversation_members')
+            .select('user_id', { count: 'exact', head: true })
+            .eq('project_id', activeConvId),
+          conv?.chat_project_id
+            ? supabase.from('chat_project_members')
+                .select('user_id', { count: 'exact', head: true })
+                .eq('chat_project_id', conv.chat_project_id)
+            : Promise.resolve({ count: 0 }),
+        ])
+        shared = probes.some((p) => (p.count ?? 0) > 0)
+      }
+      if (cancelled || !shared) return
+      setActiveConvIsShared(true)
+
+      try {
+        const res = await fetch(`/api/collab/members?conversationId=${activeConvId}`)
+        if (!res.ok || cancelled) return
+        const data = await res.json() as {
+          members: { user_id: string; display_name: string; email: string | null }[]
+          authors?: { user_id: string; display_name: string; email: string | null }[]
+        }
+        const map: Record<string, CollabProfile> = {}
+        for (const m of [...(data.members ?? []), ...(data.authors ?? [])]) {
+          map[m.user_id] = { name: m.display_name, email: m.email }
+        }
+        if (!cancelled) setCollabProfiles(map)
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [activeConvId, myUserId, supabase])
+
+  // ── Live tree sync + presence ───────────────────────────────────────────────
+  // Shared conversations subscribe to node INSERT/UPDATE for this tree (RLS
+  // scopes events to members) and join a presence channel so everyone sees
+  // who's here. Append-only trees make this conflict-free: a simultaneous
+  // edit elsewhere is just another branch arriving.
+  const handleRemoteNodeInsert = useCallback((raw: DbNode) => {
+    if (raw.project_id !== activeConvIdRef.current) return
+    const enriched = enrichDbNodes([raw])[0]
+    setAllDbNodes((prev) => prev.some((n) => n.id === raw.id) ? prev : [...prev, enriched])
+    if (raw.color) setNodeColors((prev) => ({ ...prev, [raw.id]: raw.color! }))
+    if (raw.decision_status) setNodeDecisions((prev) => ({ ...prev, [raw.id]: { status: raw.decision_status!, note: raw.decision_note ?? null } }))
+    // Extend the visible thread only when the new node continues the path on
+    // screen — anything else shows up on the tree panel without yanking focus.
+    setMessages((prev) => {
+      if (!prev.length || prev.some((m) => m.id === raw.id)) return prev
+      if (raw.parent_id !== prev[prev.length - 1].id) return prev
+      if (raw.role === 'assistant' && lastNodeIdRef.current === raw.parent_id) {
+        lastNodeIdRef.current = raw.id
+      } else if (raw.role === 'user' && lastNodeIdRef.current === raw.parent_id) {
+        lastNodeIdRef.current = raw.id
+      }
+      return [...prev, dbNodeToMessage(enriched)]
+    })
+  }, [])
+
+  const handleRemoteNodeUpdate = useCallback((raw: DbNode) => {
+    if (raw.project_id !== activeConvIdRef.current) return
+    const enriched = enrichDbNodes([raw])[0]
+    setAllDbNodes((prev) => prev.map((n) => (n.id === raw.id ? { ...n, ...enriched } : n)))
+    setNodeColors((prev) => {
+      if ((prev[raw.id] ?? null) === (raw.color ?? null)) return prev
+      const next = { ...prev }
+      if (raw.color) next[raw.id] = raw.color
+      else delete next[raw.id]
+      return next
+    })
+    setNodeDecisions((prev) => {
+      const cur = prev[raw.id] ?? null
+      const incoming = raw.decision_status ?? null
+      if ((cur?.status ?? null) === incoming && (cur?.note ?? null) === (raw.decision_note ?? null)) return prev
+      const next = { ...prev }
+      if (incoming) next[raw.id] = { status: incoming, note: raw.decision_note ?? null }
+      else delete next[raw.id]
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!activeConvId || !myUserId || !activeConvIsShared) return
+    const channel = supabase
+      .channel(`conv:${activeConvId}`, { config: { presence: { key: myUserId } } })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'nodes', filter: `project_id=eq.${activeConvId}` },
+        (payload) => handleRemoteNodeInsert(payload.new as DbNode),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'nodes', filter: `project_id=eq.${activeConvId}` },
+        (payload) => handleRemoteNodeUpdate(payload.new as DbNode),
+      )
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<{ user_id: string; name: string }>()
+        const peers: PresencePeer[] = []
+        for (const key of Object.keys(state)) {
+          if (key === myUserId) continue
+          const meta = state[key][0]
+          if (meta) peers.push({ userId: meta.user_id, name: meta.name })
+        }
+        setPresencePeers(peers)
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          void channel.track({ user_id: myUserId, name: userName || 'Someone' })
+        }
+      })
+    return () => {
+      void supabase.removeChannel(channel)
+      setPresencePeers([])
+    }
+  }, [activeConvId, myUserId, activeConvIsShared, userName, supabase, handleRemoteNodeInsert, handleRemoteNodeUpdate])
+
   useEffect(() => {
     async function init() {
       let { data: { user } } = await supabase.auth.getUser()
@@ -1313,6 +1611,8 @@ export default function App() {
       }
       setUserEmail(user.email ?? '')
       setUserName(displayName)
+      setMyUserId(user.id)
+      myUserIdRef.current = user.id
       setAuthedReady(true)
 
       const hardcodedAdmin = user.id === '64b415d7-4b59-4ff1-aa35-5f88de1599de'
@@ -1330,15 +1630,34 @@ export default function App() {
         setIsPro(dbAdmin || profile?.plan === 'pro')
       }
 
-      const res = await fetch('/api/projects')
-      if (!res.ok) { router.push('/login'); return }
-      const { projects } = await res.json()
-      if (!projects?.length) {
-        setConvName('')
-        return
+      // A parked invite (the user opened /join while signed out) is accepted
+      // BEFORE the lists load, so the joined space is already in them.
+      const joined = await acceptPendingJoin()
+
+      // Deep links from /join redirects: /app?conv=… or /app?project=…
+      const urlParams = new URLSearchParams(window.location.search)
+      const deepConvId = urlParams.get('conv') ?? (joined?.kind === 'conversation' ? joined.id : null)
+      const deepProjectId = urlParams.get('project') ?? (joined?.kind === 'chat_project' ? joined.id : null)
+      if (urlParams.has('conv') || urlParams.has('project')) {
+        window.history.replaceState({}, '', '/app')
       }
 
-      const normalized: Conversation[] = (projects as Conversation[]).map((p) => ({
+      const [res, sharedRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/collab/shared').catch(() => null),
+      ])
+      if (!res.ok) { router.push('/login'); return }
+      const { projects } = await res.json()
+
+      const sharedData = sharedRes?.ok
+        ? await sharedRes.json() as {
+            conversations: Conversation[]
+            chatProjects: ChatProject[]
+            projectConversations: Conversation[]
+          }
+        : { conversations: [], chatProjects: [], projectConversations: [] }
+
+      const normalized: Conversation[] = ((projects ?? []) as Conversation[]).map((p) => ({
         ...p,
         chat_project_id: p.chat_project_id ?? null,
         // The DB may not have the `source` column yet; restore it from the
@@ -1346,9 +1665,24 @@ export default function App() {
         // reads activeConvSource) survives a refresh.
         source: p.source ?? readImportedSource(p.id),
       }))
-      setConversations(normalized)
-      const lastId = localStorage.getItem('lastConvId')
-      const initial = normalized.find((p) => p.id === lastId) ?? normalized[0]
+      const ownIds = new Set(normalized.map((c) => c.id))
+      const sharedConvs = [...(sharedData.conversations ?? []), ...(sharedData.projectConversations ?? [])]
+        .filter((c) => !ownIds.has(c.id))
+        .map(normalizeSharedConv)
+      const merged = [...normalized, ...sharedConvs]
+      setConversations(merged)
+      setSharedChatProjects((sharedData.chatProjects ?? []) as ChatProject[])
+
+      if (deepProjectId) {
+        setActiveChatProjectId(deepProjectId)
+        setView('project')
+      }
+      if (!merged.length) {
+        setConvName('')
+        return
+      }
+      const lastId = deepConvId ?? localStorage.getItem('lastConvId')
+      const initial = merged.find((p) => p.id === lastId) ?? merged[0]
       await loadConversation(initial.id, initial.name)
     }
     init()
@@ -1708,12 +2042,22 @@ export default function App() {
   }, [supabase])
 
   // ── Delete conversation (Task 4) ──────────────────────────────────────────
+  // For a conversation someone else owns, "delete" means LEAVE: drop my
+  // membership row instead of destroying their tree (RLS would let a member
+  // empty the nodes, so this guard runs before any destructive call).
   const deleteConversation = useCallback(async (id: string) => {
-    await supabase.from('nodes').delete().eq('project_id', id)
-    const { error } = await supabase.from('projects').delete().eq('id', id)
-    if (error) { console.error('Delete failed', error); return }
-
-    track('conversation_deleted')
+    const conv = conversations.find((c) => c.id === id)
+    const mine = !conv || !myUserIdRef.current || conv.user_id === myUserIdRef.current
+    if (!mine) {
+      await fetch(`/api/collab/members?conversationId=${id}&userId=${myUserIdRef.current}`, { method: 'DELETE' })
+        .catch(() => {})
+      track('conversation_left')
+    } else {
+      await supabase.from('nodes').delete().eq('project_id', id)
+      const { error } = await supabase.from('projects').delete().eq('id', id)
+      if (error) { console.error('Delete failed', error); return }
+      track('conversation_deleted')
+    }
     // Drop any pending node-undo entries for this conversation — its rows are
     // gone for good, so Ctrl+Z must not try to restore them into a dead project.
     undoStackRef.current = undoStackRef.current.filter((e) => e.convId !== id)
@@ -1731,6 +2075,7 @@ export default function App() {
         setAllDbNodes([])
         setSelectedNodeId(null)
         setNodeColors({})
+        setNodeDecisions({})
         lastNodeIdRef.current = null
       }
     }
@@ -1761,7 +2106,14 @@ export default function App() {
       const persistedContent = serializeUserContent(userContent, attachmentMeta)
 
       const hasMerges = !!(mergeSources && mergeSources.length > 0)
-      const baseRow = { project_id: pid, parent_id: parentId, role: 'user' as const, content: persistedContent, position_x: 0, position_y: 0 }
+      // Author stamp — drives avatars in shared spaces. Falls away gracefully
+      // below if the column hasn't been migrated.
+      const author = myUserIdRef.current
+      const baseRow = {
+        project_id: pid, parent_id: parentId, role: 'user' as const, content: persistedContent,
+        position_x: 0, position_y: 0,
+        ...(author ? { created_by: author } : {}),
+      }
       const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
       let mergeDropped = false
 
@@ -1792,6 +2144,16 @@ export default function App() {
           .select()
           .single())
       }
+      if (isColumnError(ue) && author) {
+        // Last resort: pre-collab schema without created_by.
+        const { created_by: _cb, ...legacyRow } = baseRow as typeof baseRow & { created_by?: string }
+        void _cb
+        ;({ data: userNode, error: ue } = await supabase
+          .from('nodes')
+          .insert(legacyRow)
+          .select()
+          .single())
+      }
       if (!ue && mergeDropped) notifyMergeUnavailable()
       if (ue || !userNode) {
         console.error('user node save failed', ue)
@@ -1819,7 +2181,10 @@ export default function App() {
       if (activeConvIdRef.current === pid) {
         lastNodeIdRef.current = userNode.id
         const userNodeWithAtt: DbNode = { ...(userNode as DbNode), attachments: attachmentMeta }
-        setAllDbNodes((prev) => [...prev, userNodeWithAtt])
+        // Dedupe: the live-sync channel may have delivered this insert already.
+        setAllDbNodes((prev) => prev.some((n) => n.id === userNodeWithAtt.id)
+          ? prev.map((n) => (n.id === userNodeWithAtt.id ? userNodeWithAtt : n))
+          : [...prev, userNodeWithAtt])
       }
       return userNode as DbNode
     },
@@ -1840,10 +2205,18 @@ export default function App() {
     ): Promise<string | null> => {
       if (!pid || !userNodeId) return null
 
-      const baseRow = { project_id: pid, parent_id: userNodeId, role: 'assistant', content: assistantContent, position_x: 0, position_y: 0 }
+      // The assistant node is authored by whoever sent the prompt — that's the
+      // account whose tokens were billed, and whose avatar the reply wears in
+      // a shared space.
+      const author = myUserIdRef.current
+      const baseRow = {
+        project_id: pid, parent_id: userNodeId, role: 'assistant', content: assistantContent,
+        position_x: 0, position_y: 0,
+        ...(author ? { created_by: author } : {}),
+      }
       // Stamp the model so the "Claude · {model}" label + logo survive a refresh.
       // Graceful-degrade exactly like attachments / merge_sources / provenance:
-      // if the model_id column isn't migrated yet, retry the insert without it.
+      // if the model_id / created_by columns aren't migrated yet, retry without.
       const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
       let { data: asst, error: ae } = await supabase
         .from('nodes')
@@ -1854,6 +2227,15 @@ export default function App() {
         ;({ data: asst, error: ae } = await supabase
           .from('nodes')
           .insert(baseRow)
+          .select()
+          .single())
+      }
+      if (ae && author && isColumnError(ae)) {
+        const { created_by: _cb, ...legacyRow } = baseRow as typeof baseRow & { created_by?: string }
+        void _cb
+        ;({ data: asst, error: ae } = await supabase
+          .from('nodes')
+          .insert(legacyRow)
           .select()
           .single())
       }
@@ -1868,7 +2250,10 @@ export default function App() {
         lastNodeIdRef.current = asst.id
         setSelectedNodeId(asst.id)
         setLastSavedPairId(asst.id)
-        setAllDbNodes((prev) => [...prev, asst as DbNode])
+        // Dedupe: the live-sync channel may have delivered this insert already.
+        setAllDbNodes((prev) => prev.some((n) => n.id === (asst as DbNode).id)
+          ? prev
+          : [...prev, asst as DbNode])
       }
       return asst.id
     },
@@ -2537,6 +2922,9 @@ export default function App() {
       setNodeColors((prev) => {
         const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
       })
+      setNodeDecisions((prev) => {
+        const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
+      })
       setNodeSummaries((prev) => {
         const next = { ...prev }; idList.forEach((id) => delete next[id]); return next
       })
@@ -2589,7 +2977,17 @@ export default function App() {
           position_x: n.position_x, position_y: n.position_y, created_at: n.created_at,
         }
         if (n.color) row.color = n.color
+        if (n.decision_status) {
+          row.decision_status = n.decision_status
+          row.decision_note   = n.decision_note ?? null
+          row.decided_by      = n.decided_by ?? null
+          row.decided_at      = n.decided_at ?? null
+        }
         if (n.attachments && n.attachments.length) row.attachments = n.attachments
+        // Restoring someone else's node: the insert policy only accepts rows
+        // authored as myself (or unattributed), so a foreign author is dropped
+        // rather than failing the whole undo.
+        if (n.created_by && n.created_by === myUserIdRef.current) row.created_by = n.created_by
         let { error } = await supabase.from('nodes').insert(row)
         // Older schemas may lack the attachments column — retry without it (the
         // content still carries the inline attachment marker, so nothing is lost).
@@ -2604,6 +3002,12 @@ export default function App() {
       setNodeColors((prev) => {
         const next = { ...prev }
         for (const n of entry.nodes) { if (n.color) next[n.id] = n.color }
+        return next
+      })
+      // ...and any decision tags.
+      setNodeDecisions((prev) => {
+        const next = { ...prev }
+        for (const n of entry.nodes) { if (n.decision_status) next[n.id] = { status: n.decision_status, note: n.decision_note ?? null } }
         return next
       })
 
@@ -2654,6 +3058,13 @@ export default function App() {
   // with the source's own icon instead of the native model logo.
   const activeConvSource = conversations.find((c) => c.id === activeConvId)?.source ?? null
 
+  // Own projects + projects shared with me, deduped (own wins). Everything
+  // downstream (sidebar, landing, project page) renders this combined view.
+  const allChatProjects = useMemo(() => {
+    const ownIds = new Set(chatProjects.map((p) => p.id))
+    return [...chatProjects, ...sharedChatProjects.filter((p) => !ownIds.has(p.id))]
+  }, [chatProjects, sharedChatProjects])
+
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
@@ -2665,7 +3076,7 @@ export default function App() {
     renameConversation, deleteConversation,
     activeConvIsImported, activeConvSource, updateFromSource, isUpdatingSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
-    nodeColors, setNodeColor, deleteNode,
+    nodeColors, setNodeColor, nodeDecisions, setNodeDecision, deleteNode,
     canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,
     nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment, clearAttachments,
@@ -2675,15 +3086,18 @@ export default function App() {
     settingsInitialSection, setSettingsInitialSection,
     memorySavedByMsgId,
     // ── Chat Projects ──
-    chatProjects, activeChatProjectId, view,
+    chatProjects: allChatProjects, activeChatProjectId, view,
     openProjectsLanding, openProject, openChatView,
     openNewProjectModal,
     openConvContext, openProjectContext,
     assignConvToProject, requestNewChatInProject,
+    // ── Collaboration ──
+    myUserId, collabProfiles, presencePeers, activeConvIsShared,
+    openShareModal, reloadShared,
   }
 
   const activeChatProject = activeChatProjectId
-    ? chatProjects.find((p) => p.id === activeChatProjectId) ?? null
+    ? allChatProjects.find((p) => p.id === activeChatProjectId) ?? null
     : null
 
   // Drag-target id for ProjectsLanding cards. Kept local; the Sidebar manages
@@ -2738,6 +3152,7 @@ export default function App() {
             onEdit={() => setProjectModalState({ mode: 'edit', project: activeChatProject })}
             onDelete={() => setDeleteProjectState(activeChatProject)}
             onSaveMemory={(memory) => saveProjectMemory(activeChatProject.id, memory)}
+            onShare={() => openShareModal({ kind: 'chat_project', id: activeChatProject.id, name: activeChatProject.name })}
           />
         )}
       </div>
@@ -2747,6 +3162,15 @@ export default function App() {
       {isSearchOpen  && <SearchModal />}
       {isSettingsOpen && <SettingsModal />}
       {isUpgradeOpen && <UpgradeModal />}
+
+      {/* Share modal (collaboration) */}
+      {shareTarget && (
+        <ShareModal
+          target={shareTarget}
+          onClose={() => setShareTarget(null)}
+          onMembershipChanged={() => void reloadShared()}
+        />
+      )}
 
       {/* Projects modals */}
       {projectModalState && (
@@ -2782,11 +3206,13 @@ export default function App() {
           conv={convMenu.conv}
           projects={chatProjects}
           isPro={isPro}
+          shared={!!myUserId && convMenu.conv.user_id !== myUserId}
           onMove={(pid) => assignConvToProject(convMenu.conv.id, pid)}
           onRemove={() => assignConvToProject(convMenu.conv.id, null)}
           onColor={(color) => setConvColor(convMenu.conv.id, color)}
           onEdit={() => setEditConvState(convMenu.conv)}
           onDelete={() => deleteConversation(convMenu.conv.id)}
+          onShare={() => openShareModal({ kind: 'conversation', id: convMenu.conv.id, name: convMenu.conv.name })}
           onUpgradeRequired={() => { setConvMenu(null); setIsUpgradeOpen(true) }}
           onClose={() => setConvMenu(null)}
         />

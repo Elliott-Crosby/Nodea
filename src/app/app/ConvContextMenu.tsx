@@ -15,11 +15,15 @@ interface Props {
   conv: Conversation
   projects: ChatProject[]
   isPro: boolean
+  /** Conversation owned by someone else (shared with me): no re-filing, and
+   *  "Delete" reads as "Leave" (the App-level delete already only leaves). */
+  shared?: boolean
   onMove: (projectId: string) => void
   onRemove: () => void
   onColor: (color: string | null) => void
   onEdit: () => void
   onDelete: () => void
+  onShare: () => void
   onUpgradeRequired: () => void
   onClose: () => void
 }
@@ -28,8 +32,8 @@ const MENU_WIDTH = 210
 const SUBMENU_WIDTH = 210
 
 export default function ConvContextMenu({
-  x, y, conv, projects, isPro,
-  onMove, onRemove, onColor, onEdit, onDelete, onUpgradeRequired, onClose,
+  x, y, conv, projects, isPro, shared,
+  onMove, onRemove, onColor, onEdit, onDelete, onShare, onUpgradeRequired, onClose,
 }: Props) {
   const elRef = useRef<HTMLDivElement | null>(null)
   const [submenu, setSubmenu] = useState<'project' | 'color' | null>(null)
@@ -84,8 +88,9 @@ export default function ConvContextMenu({
         padding: 5,
       }}
     >
-      {/* Move to project (submenu) */}
-      <div
+      {/* Move to project (submenu) — own conversations only; re-filing a
+          shared conversation would reorganize the owner's workspace. */}
+      {!shared && <div
         style={{ position: 'relative' }}
         onMouseEnter={() => setSubmenu('project')}
         onMouseLeave={() => setSubmenu(null)}
@@ -167,7 +172,7 @@ export default function ConvContextMenu({
             })}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Color (submenu) */}
       <div
@@ -255,7 +260,7 @@ export default function ConvContextMenu({
         )}
       </div>
 
-      {inProject && (
+      {inProject && !shared && (
         <button
           type="button"
           style={itemStyle}
@@ -270,6 +275,22 @@ export default function ConvContextMenu({
           Remove from project
         </button>
       )}
+
+      <button
+        type="button"
+        style={itemStyle}
+        onMouseEnter={(e) => hov(e, true)}
+        onMouseLeave={(e) => hov(e, false)}
+        onClick={() => { onShare(); onClose() }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <path d="M8.6 10.7l6.8-3.9M8.6 13.3l6.8 3.9" />
+        </svg>
+        Share
+      </button>
 
       <div style={{ height: 1, background: 'var(--border)', margin: '5px 8px' }} />
 
@@ -293,10 +314,17 @@ export default function ConvContextMenu({
         onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
         onClick={() => { onDelete(); onClose() }}
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
-        </svg>
-        Delete
+        {shared ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5M21 12H9" />
+          </svg>
+        ) : (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+          </svg>
+        )}
+        {shared ? 'Leave shared chat' : 'Delete'}
       </button>
     </div>
   )

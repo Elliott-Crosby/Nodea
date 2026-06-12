@@ -22,6 +22,8 @@ export default function Sidebar() {
     openProjectsLanding, openProject, openNewProjectModal,
     openConvContext, openProjectContext, openChatView,
     assignConvToProject, requestNewChatInProject,
+    // ── Collaboration ──
+    myUserId,
   } = useApp()
 
   const [collapsed, setCollapsed] = useState(false)
@@ -123,8 +125,12 @@ export default function Sidebar() {
     ? conversations.filter((c) => c.chat_project_id !== activeChatProjectId)
     : conversations
 
-  // ── Pinned projects (cap at 3) ────────────────────────────────────────────
-  const pinned = chatProjects.filter((p) => p.pinned).slice(0, MAX_PINNED_PROJECTS)
+  // ── Pinned projects (cap at 3) — own projects only ────────────────────────
+  const pinned = chatProjects.filter((p) => p.pinned && !p.shared).slice(0, MAX_PINNED_PROJECTS)
+
+  // ── Projects shared with me (always visible, Pro or not) ──────────────────
+  const sharedProjects = chatProjects.filter((p) => p.shared)
+  const isSharedConv = (conv: Conversation) => !!myUserId && conv.user_id !== myUserId
 
   return (
     <div
@@ -377,6 +383,24 @@ export default function Sidebar() {
           )
         )}
 
+        {/* ── SHARED PROJECTS (team spaces I'm a member of) ── */}
+        {!collapsed && sharedProjects.length > 0 && (
+          <>
+            <SectionLabel>Shared with me</SectionLabel>
+            {sharedProjects.map((p) => (
+              <PinnedProject
+                key={p.id}
+                project={p}
+                active={p.id === activeChatProjectId && view === 'project'}
+                dropActive={dropTargetProject === p.id}
+                onClick={() => openProject(p.id)}
+                onContext={(x, y) => openProjectContext(p, x, y)}
+                {...dropHandlers(p.id)}
+              />
+            ))}
+          </>
+        )}
+
         {/* ── CONVERSATIONS ── */}
         {insideProject && activeProj && !collapsed && (
           <>
@@ -401,6 +425,7 @@ export default function Sidebar() {
               <ConvRow
                 key={conv.id}
                 conv={conv}
+                shared={isSharedConv(conv)}
                 isActive={conv.id === activeConvId}
                 isGenerating={inFlightConvIds.has(conv.id)}
                 isHovered={hoveredId === conv.id}
@@ -440,6 +465,7 @@ export default function Sidebar() {
           <ConvRow
             key={conv.id}
             conv={conv}
+            shared={isSharedConv(conv)}
             isActive={conv.id === activeConvId}
             isGenerating={inFlightConvIds.has(conv.id)}
             isHovered={hoveredId === conv.id}
@@ -668,6 +694,8 @@ function SourceBadge({ source }: { source?: string | null }) {
 
 interface ConvRowProps {
   conv: Conversation
+  /** Conversation owned by someone else, shared with me. */
+  shared?: boolean
   isActive: boolean
   isGenerating: boolean
   isHovered: boolean
@@ -687,7 +715,7 @@ interface ConvRowProps {
 
 function ConvRow(props: ConvRowProps) {
   const {
-    conv, isActive, isGenerating, isHovered, isEditing,
+    conv, shared, isActive, isGenerating, isHovered, isEditing,
     editingName, editInputRef, setHovered, setEditingName,
     onClick, onDoubleClick, onCommitEdit, onCancelEdit,
     onContext, projects, collapsed,
@@ -787,6 +815,15 @@ function ConvRow(props: ConvRowProps) {
           {!collapsed && (
             <>
               <SourceBadge source={conv.source} />
+              {shared && (
+                <span title="Shared with you" style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--text-muted)', lineHeight: 0 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </span>
+              )}
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                 {conv.name}
               </span>
