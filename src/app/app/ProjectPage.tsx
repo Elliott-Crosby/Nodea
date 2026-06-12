@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { formatSiteDate } from '@/lib/site-time'
 import { ProjectIcon, colorById, MAX_PROJECT_MEMORY_LENGTH } from './projectConstants'
 import TreeThumb, { TreeStat, type MiniTree } from './TreeThumb'
 import { ACCEPT_STRING, MAX_FOLDER_FILES, MAX_ADMIN_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip, ClearAttachmentsButton } from './ChatPanel'
@@ -57,7 +58,7 @@ function formatTime(iso: string): string {
   if (min < 60) return `${min}m ago`
   if (hr  < 24) return `${hr}h ago`
   if (day < 7)  return `${day}d ago`
-  return new Date(iso).toLocaleDateString()
+  return formatSiteDate(iso)
 }
 
 export default function ProjectPage({

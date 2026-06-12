@@ -3,6 +3,8 @@
 // MNode shape so the mobile tree, pair-cards, and thumbnails work the same way.
 // Ported from the design bundle's data.jsx (the heuristics mirror the product).
 
+import { formatSiteDate, formatSiteTime } from '@/lib/site-time'
+
 export interface MNode {
   id: string
   parent: string | null
@@ -183,9 +185,9 @@ export function fmtRelative(ts: number | null): string {
   if (h < 24) return h + 'h ago'
   if (d < 7) return d + 'd ago'
   if (d < 30) return Math.floor(d / 7) + 'w ago'
-  return new Date(ts).toLocaleDateString()
+  return formatSiteDate(ts)
 }
 
 export function fmtTime(ts: number | null | undefined): string {
-  return ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+  return ts ? formatSiteTime(ts) : ''
 }

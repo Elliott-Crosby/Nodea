@@ -6,6 +6,7 @@
 // user to create their first project.
 
 import { useState } from 'react'
+import { formatSiteDate } from '@/lib/site-time'
 import { ProjectIcon, colorById } from './projectConstants'
 import type { ChatProject } from './chatProjectTypes'
 import type { Conversation } from './App'
@@ -35,7 +36,7 @@ function formatRelative(iso: string | null): string {
   if (hr  < 24) return `${hr}h ago`
   if (day < 7)  return `${day}d ago`
   if (day < 30) return `${Math.floor(day / 7)}w ago`
-  return new Date(iso).toLocaleDateString()
+  return formatSiteDate(iso)
 }
 
 function previewFor(project: ChatProject, conversations: Conversation[]): string {

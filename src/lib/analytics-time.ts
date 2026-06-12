@@ -2,14 +2,16 @@
 // Buckets are calendar days in the viewer's timezone, not UTC, so an evening
 // pageview doesn't roll into the next UTC day and shift every block.
 
+import { SITE_TZ } from './site-time'
+
 const DEFAULT_TZ = 'UTC'
 
-// Canonical timezone for the admin analytics dashboard. The whole dashboard
+// Canonical timezone for the admin analytics dashboard — the same US Eastern zone
+// the rest of the site renders in (see SITE_TZ). The whole dashboard
 // (signup/conversation/project buckets, "today"/"this week" boundaries, event
-// timestamps) is reported in US Eastern time so the numbers match the operator's
-// wall clock rather than UTC. America/New_York is DST-aware (EST in winter, EDT
-// in summer) — the correct IANA zone for "EST".
-export const ADMIN_TZ = 'America/New_York'
+// timestamps) is reported here so the numbers match the operator's wall clock
+// rather than UTC.
+export const ADMIN_TZ = SITE_TZ
 
 // Validate an IANA timezone string; fall back to UTC if unusable.
 export function resolveTz(tz: string | null | undefined): string {
