@@ -639,6 +639,91 @@ export function AttachmentChip({ attachment, onRemove }: { attachment: Attachmen
   )
 }
 
+// Clears every staged attachment, behind an "are you sure?" popover so a full
+// row of files can't be wiped by a stray click. Shared by the chat composer and
+// the project "start a new chat" box.
+export function ClearAttachmentsButton({ count, onClear }: { count: number; onClear: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    if (!confirming) return
+    function onDoc(e: MouseEvent) {
+      if (!(e.target as HTMLElement | null)?.closest('[data-clear-atts]')) setConfirming(false)
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setConfirming(false) }
+    window.addEventListener('mousedown', onDoc)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [confirming])
+
+  return (
+    <div data-clear-atts style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setConfirming((v) => !v)}
+        title="Remove all attachments"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '3px 8px', height: 28,
+          background: 'transparent', border: '1px solid var(--border)',
+          borderRadius: 8, fontSize: 11, color: 'var(--text-muted)',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = 'var(--color-error)'; b.style.borderColor = 'var(--color-error)' }}
+        onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = 'var(--text-muted)'; b.style.borderColor = 'var(--border)' }}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 6h16M9 6V4h6v2M6 6l1 14h10l1-14" />
+        </svg>
+        Clear all
+      </button>
+
+      {confirming && (
+        <div
+          role="dialog"
+          aria-label="Confirm clear attachments"
+          style={{
+            position: 'absolute', bottom: 'calc(100% + 6px)', right: 0, zIndex: 70,
+            width: 210, padding: 12,
+            background: 'var(--modal-bg)', border: '1px solid var(--border)',
+            borderRadius: 11, boxShadow: 'var(--shadow-lg)',
+          }}
+        >
+          <div style={{ fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.45, marginBottom: 10 }}>
+            Remove {count === 1 ? 'this attachment' : `all ${count} attachments`}?
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                border: '1px solid var(--border)', background: 'transparent',
+                color: 'var(--text-secondary)', cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { onClear(); setConfirming(false) }}
+              style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                border: 'none', background: 'var(--color-error)', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              Clear all
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Prompt-version arrow (‹ / ›) ───────────────────────────────────────────────
 function VersionArrow({ dir, disabled, onClick }: { dir: 'prev' | 'next'; disabled: boolean; onClick: () => void }) {
   return (
@@ -990,7 +1075,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: string) => void; variant?: 'docked' | 'centered' }) {
-  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, activeConvId } = useApp()
+  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, clearAttachments, activeConvId } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
 
@@ -1050,10 +1135,13 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
       }
     >
       {pendingAttachments.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           {pendingAttachments.map((a) => (
             <AttachmentChip key={a.name} attachment={a} onRemove={() => removeAttachment(a.name)} />
           ))}
+          {pendingAttachments.length > 1 && (
+            <ClearAttachmentsButton count={pendingAttachments.length} onClear={clearAttachments} />
+          )}
         </div>
       )}
 

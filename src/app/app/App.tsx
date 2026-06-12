@@ -454,6 +454,7 @@ export interface AppContextType {
   pendingAttachments: AttachmentItem[]
   addAttachment: (a: AttachmentItem) => void
   removeAttachment: (name: string) => void
+  clearAttachments: () => void
   lastSavedPairId: string | null
   chatError: string | null
   clearChatError: () => void
@@ -719,6 +720,10 @@ export default function App() {
 
   const removeAttachment = useCallback((name: string) => {
     setPendingAttachments((prev) => prev.filter((a) => a.name !== name))
+  }, [])
+
+  const clearAttachments = useCallback(() => {
+    setPendingAttachments([])
   }, [])
 
   // ── Node color — persist to DB (Task 1) ───────────────────────────────────
@@ -2663,7 +2668,7 @@ export default function App() {
     nodeColors, setNodeColor, deleteNode,
     canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,
     nodeSummaries, chatInputRef,
-    pendingAttachments, addAttachment, removeAttachment,
+    pendingAttachments, addAttachment, removeAttachment, clearAttachments,
     lastSavedPairId,
     chatError, clearChatError, saveError, clearSaveError,
     highlightedMessageId,

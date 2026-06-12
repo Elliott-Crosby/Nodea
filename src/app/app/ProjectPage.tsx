@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { ProjectIcon, colorById, MAX_PROJECT_MEMORY_LENGTH } from './projectConstants'
 import TreeThumb, { TreeStat, type MiniTree } from './TreeThumb'
-import { ACCEPT_STRING, MAX_FOLDER_FILES, MAX_ADMIN_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip } from './ChatPanel'
+import { ACCEPT_STRING, MAX_FOLDER_FILES, MAX_ADMIN_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip, ClearAttachmentsButton } from './ChatPanel'
 import type { AttachmentItem, Conversation } from './App'
 import type { ChatProject } from './chatProjectTypes'
 
@@ -335,10 +335,13 @@ export default function ProjectPage({
             />
 
             {atts.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 4px 0' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, padding: '2px 4px 0' }}>
                 {atts.map((a) => (
                   <AttachmentChip key={a.name} attachment={a} onRemove={() => removeAttachment(a.name)} />
                 ))}
+                {atts.length > 1 && (
+                  <ClearAttachmentsButton count={atts.length} onClear={() => setAtts([])} />
+                )}
               </div>
             )}
 
