@@ -201,7 +201,38 @@ export default function ProjectPage({
   }
 
   return (
-    <div ref={screenRef} data-screen="project-page" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+    <div
+      ref={screenRef}
+      data-screen="project-page"
+      style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      onDragEnter={(e) => { e.preventDefault(); dragDepth.current++; setDragging(true) }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={(e) => { e.preventDefault(); dragDepth.current--; if (dragDepth.current === 0) setDragging(false) }}
+      onDrop={onDrop}
+    >
+      {/* Whole-screen drop overlay — drop a file or folder anywhere on the page,
+          not just into the prompt box. */}
+      {dragging && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 50,
+            background: 'var(--accent-bg)',
+            border: `2px dashed ${c.hex}`,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 10, pointerEvents: 'none',
+          }}
+        >
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.75 }}>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83L15 6" stroke={c.hex} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Drop to attach</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Images, PDF, text, CSV, JSON{isPro ? ' — or a whole folder' : ''}
+          </span>
+        </div>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
       {/* Colored top strip echoing the project color */}
       <div style={{ height: 3, background: c.hex }} />
 
@@ -309,21 +340,17 @@ export default function ProjectPage({
         <div style={{ marginBottom: 28 }}>
           <form
             onSubmit={submit}
-            onDragEnter={(e) => { e.preventDefault(); dragDepth.current++; setDragging(true) }}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={(e) => { e.preventDefault(); dragDepth.current--; if (dragDepth.current === 0) setDragging(false) }}
-            onDrop={onDrop}
             style={{
               display: 'flex', flexDirection: 'column', gap: 8,
               padding: '8px 8px 8px 8px',
               background: 'var(--input-bg)',
-              border: `1.5px solid ${dragging ? c.hex : 'var(--border)'}`,
+              border: '1.5px solid var(--border)',
               borderRadius: 13,
               boxShadow: 'var(--shadow-sm)',
               transition: 'border-color 0.15s',
             }}
             onFocusCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = c.hex }}
-            onBlurCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = dragging ? c.hex : 'var(--border)' }}
+            onBlurCapture={(e) => { (e.currentTarget as HTMLFormElement).style.borderColor = 'var(--border)' }}
           >
             <input
               ref={fileInputRef}
@@ -505,6 +532,8 @@ export default function ProjectPage({
         )}
         {/* end two-column body */}
         </div>
+      </div>
+      {/* end inner scroll container */}
       </div>
     </div>
   )
