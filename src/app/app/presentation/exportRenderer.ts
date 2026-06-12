@@ -34,6 +34,11 @@ export interface ExportScene {
   callouts: ExportCallout[]
   bg:       BgId
   title:    string   // '' = no title block
+  // Bottom-left "Nodea" watermark (app icon + wordmark). wordmarkFont is the
+  // resolved Bricolage Grotesque family (next/font internal name) so the
+  // canvas matches the site wordmark; falls back to the public name.
+  watermark:     boolean
+  wordmarkFont?: string
 }
 
 const MARGIN      = 72
@@ -253,7 +258,60 @@ function drawCallout(ctx: CanvasRenderingContext2D, c: ExportCallout, pal: PresP
   for (const line of lines) { ctx.fillText(line, c.x + 16, y); y += 18 }
 }
 
-export function renderSceneToCanvas(scene: ExportScene, pixelScale = 2): HTMLCanvasElement {
+// ── Watermark ─────────────────────────────────────────────────────────────────
+// Loads the shipped app icon (public /icon.svg) for the export watermark.
+// Returns null on any failure — the watermark then renders as wordmark-only.
+export async function loadWatermarkIcon(): Promise<HTMLImageElement | null> {
+  try {
+    const res = await fetch('/icon.svg')
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const img  = new Image()
+    img.src = url
+    await img.decode()
+    URL.revokeObjectURL(url)
+    return img
+  } catch { return null }
+}
+
+const WM_ICON  = 40   // icon edge, logical px
+const WM_TEXT  = 34   // wordmark font size
+const WM_INSET = { x: 26, y: 18 }
+
+function drawWatermark(
+  ctx: CanvasRenderingContext2D,
+  logicalW: number,
+  logicalH: number,
+  pal: PresPalette,
+  icon: HTMLImageElement | null,
+  fontFamily?: string,
+) {
+  const x = WM_INSET.x
+  const y = logicalH - WM_INSET.y - WM_ICON
+  let textX = x
+  if (icon) {
+    ctx.drawImage(icon, x, y, WM_ICON, WM_ICON)
+    textX = x + WM_ICON + 12
+  }
+  // Wordmark standard: Bricolage Grotesque 500, -0.025em, accent violet.
+  const family = fontFamily && fontFamily.trim()
+    ? fontFamily
+    : `'Bricolage Grotesque', ${FONT_STACK}`
+  ctx.save()
+  ctx.font         = `500 ${WM_TEXT}px ${family}`
+  try { ctx.letterSpacing = '-0.025em' } catch {}
+  ctx.fillStyle    = pal.dark ? '#8b5cf6' : '#7c3aed'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('Nodea', textX, y + WM_ICON / 2 + 1)
+  ctx.restore()
+}
+
+export function renderSceneToCanvas(
+  scene: ExportScene,
+  pixelScale = 2,
+  assets?: { icon?: HTMLImageElement | null },
+): HTMLCanvasElement {
   const bg  = bgOption(scene.bg)
   const pal = bg.palette
   const { x0, y0, x1, y1 } = sceneBounds(scene)
@@ -299,7 +357,9 @@ export function renderSceneToCanvas(scene: ExportScene, pixelScale = 2): HTMLCan
     ctx.fillText(scene.title, MARGIN, MARGIN - 24)
   }
 
-  // shift scene coordinates into the page
+  // shift scene coordinates into the page (restored before the watermark,
+  // which draws in page coordinates)
+  ctx.save()
   ctx.translate(MARGIN - x0, MARGIN + titleH - y0)
 
   ctx.strokeStyle = pal.edge
@@ -320,13 +380,17 @@ export function renderSceneToCanvas(scene: ExportScene, pixelScale = 2): HTMLCan
 
   for (const n of scene.nodes)    drawNode(ctx, n, pal)
   for (const c of scene.callouts) drawCallout(ctx, c, pal)
+  ctx.restore()
+
+  if (scene.watermark) drawWatermark(ctx, logicalW, logicalH, pal, assets?.icon ?? null, scene.wordmarkFont)
 
   return canvas
 }
 
 // ── PNG ───────────────────────────────────────────────────────────────────────
 export async function exportPng(scene: ExportScene): Promise<Blob> {
-  const canvas = renderSceneToCanvas(scene, 2)
+  const icon   = scene.watermark ? await loadWatermarkIcon() : null
+  const canvas = renderSceneToCanvas(scene, 2, { icon })
   return new Promise((resolve, reject) => {
     canvas.toBlob(b => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png')
   })
@@ -346,7 +410,8 @@ function pdfEscapeBytes(parts: (string | Uint8Array)[]): Uint8Array {
 export async function exportPdf(scene: ExportScene): Promise<Blob> {
   // Transparent has no meaning in a flattened PDF — render on white instead.
   const pdfScene = scene.bg === 'transparent' ? { ...scene, bg: 'white' as BgId } : scene
-  const canvas = renderSceneToCanvas(pdfScene, 2)
+  const icon   = scene.watermark ? await loadWatermarkIcon() : null
+  const canvas = renderSceneToCanvas(pdfScene, 2, { icon })
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
   const jpegBytes = Uint8Array.from(atob(dataUrl.split(',')[1]), ch => ch.charCodeAt(0))
 

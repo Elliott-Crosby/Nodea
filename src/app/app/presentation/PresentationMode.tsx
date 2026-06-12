@@ -593,7 +593,15 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
         .filter((b): b is NonNullable<ReturnType<typeof boxFor>> => !!b)
         .map(b => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 })),
     }))
-    return { nodes, edges, callouts, bg: d.background, title: d.showTitle ? convName : '' }
+    // Resolve the wordmark font: next/font registers Bricolage under an
+    // internal family name exposed via the --font-bricolage CSS variable.
+    const wordmarkFont = getComputedStyle(document.body).getPropertyValue('--font-bricolage').trim() || undefined
+    return {
+      nodes, edges, callouts, bg: d.background,
+      title: d.showTitle ? convName : '',
+      watermark: d.showWatermark,
+      wordmarkFont,
+    }
   }, [pairs, boxFor, content, convName])
 
   const doExport = useCallback(async (kind: 'png' | 'pdf') => {
@@ -602,6 +610,11 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
     setExportMenuOpen(false)
     try {
       const scene = buildScene()
+      // Make sure the wordmark font is actually loaded before the canvas draws
+      // it (otherwise the first export falls back to the system font).
+      if (scene.watermark && scene.wordmarkFont) {
+        try { await document.fonts.load(`500 34px ${scene.wordmarkFont}`, 'Nodea') } catch {}
+      }
       const blob  = kind === 'png' ? await exportPng(scene) : await exportPdf(scene)
       downloadBlob(blob, `${safeFilename(convName)}.${kind}`)
       track('present_export', { kind })
@@ -891,6 +904,15 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
                   style={{ accentColor: 'var(--accent)' }}
                 />
                 Show title on export
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={doc.showWatermark}
+                  onChange={e => commit(d => ({ ...d, showWatermark: e.target.checked }))}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                Nodea watermark on export
               </label>
             </div>
           )}

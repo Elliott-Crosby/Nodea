@@ -293,6 +293,8 @@ export interface PresDoc {
   callouts:   PresCallout[]
   background: BgId
   showTitle:  boolean
+  /** Nodea icon + wordmark, bottom-left of exports. */
+  showWatermark: boolean
 }
 
 export const CALLOUT_MAX = 200
@@ -309,7 +311,7 @@ export function makeDefaultDoc(
     const c = appNodeColors[p.id] || appNodeColors[p.userNode.id] || (p.aiNode ? appNodeColors[p.aiNode.id] : '') || ''
     if (c) colors[p.id] = c
   }
-  return { offsets: {}, colors, expanded: {}, hidden: {}, callouts: [], background: 'white', showTitle: true }
+  return { offsets: {}, colors, expanded: {}, hidden: {}, callouts: [], background: 'white', showTitle: true, showWatermark: true }
 }
 
 const STORAGE_PREFIX = 'nodea_present_'
@@ -365,5 +367,6 @@ export function hydrateDoc(stored: Partial<PresDoc>, fallback: PresDoc, pairs: P
     callouts,
     background: validBg ? (stored.background as BgId) : fallback.background,
     showTitle:  typeof stored.showTitle === 'boolean' ? stored.showTitle : fallback.showTitle,
+    showWatermark: typeof stored.showWatermark === 'boolean' ? stored.showWatermark : fallback.showWatermark,
   }
 }
