@@ -627,6 +627,12 @@ export default function TreePanel() {
 
   const displayPairs  = useMemo(() => {
     if (!showGhost || !ghostAnchorPair) return pairs
+    // Once the in-flight prompt's user node is persisted it shows up as an
+    // unpaired child of the anchor (its reply node hasn't landed yet). The ghost
+    // exists to stand in for exactly that node, so showing both makes the branch
+    // appear to fork twice — suppress the ghost as soon as the real one arrives.
+    const realInFlightChild = pairs.some(p => p.aiNode === null && p.parentPairId === ghostAnchorPair.id)
+    if (realInFlightChild) return pairs
     const ghost: Pair = {
       id:           '__ghost__',
       userNode:     { id: '__ghost_user__', project_id: '', parent_id: ghostAnchorPair.id, role: 'user', content: '', position_x: 0, position_y: 0, created_at: new Date().toISOString() },
