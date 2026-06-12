@@ -6,7 +6,6 @@ import { useApp, type AttachmentItem, type ChatMessage } from './App'
 import { avatarColor } from './ShareModal'
 import { modelDisplayName } from '@/lib/models'
 import { providerForModel, getAISource } from '@/lib/ai-sources'
-import { formatSiteTime } from '@/lib/site-time'
 
 // ── Accepted file types (Claude API limits) ───────────────────────────────────
 const ACCEPTED_MIME_TYPES: Record<string, string> = {
@@ -244,7 +243,7 @@ export async function extractDroppedFiles(
 }
 
 function formatTime(ts: number) {
-  return formatSiteTime(ts)
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 // ── Inline markdown renderer ──────────────────────────────────────────────────
