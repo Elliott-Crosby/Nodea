@@ -11,7 +11,6 @@ import ShareModal from './ShareModal'
 import Sidebar from './Sidebar'
 import ChatPanel from './ChatPanel'
 import TreePanel from './TreePanel'
-import TreeSummaryCard from './TreeSummaryCard'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
 import UpgradeModal from './UpgradeModal'
@@ -658,13 +657,27 @@ export default function App() {
   // Master switch for the decision-tracking features. localStorage-backed and
   // off by default, so the feature ships dark until a user opts in (no writes
   // to the decision columns happen while it's off).
+  // Prod schema: migration 20260613000000_decision_tags IS applied to the hosted
+  // DB (verified 2026-06-12 — nodes.decision_status/note/decided_by/decided_at
+  // exist), so flipping this flag on works. Reads still use select('*') so the
+  // app degrades gracefully on any environment that lacks the columns.
   const [decisionTrackingEnabled, setDecisionTrackingEnabledState] = useState(false)
+  // Single source of truth for the gate, readable from stable callbacks (sync
+  // handlers, undo) without stale closures. EVERY decision side-effect — writes,
+  // loads, real-time sync, undo restore — checks this ref, so flipping the
+  // toggle off truly stops the feature, not just hides its UI.
+  const decisionTrackingEnabledRef = useRef(false)
+  useEffect(() => { decisionTrackingEnabledRef.current = decisionTrackingEnabled }, [decisionTrackingEnabled])
   useEffect(() => {
     try { setDecisionTrackingEnabledState(localStorage.getItem('nodea_decision_tracking_v1') === '1') } catch {}
   }, [])
   const setDecisionTrackingEnabled = useCallback((on: boolean) => {
+    decisionTrackingEnabledRef.current = on
     setDecisionTrackingEnabledState(on)
     try { localStorage.setItem('nodea_decision_tracking_v1', on ? '1' : '0') } catch {}
+    // Turning off drops any decision tags held in memory so nothing lingers in
+    // state (the DB columns are untouched — re-enabling reloads them).
+    if (!on) setNodeDecisions({})
   }, [])
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
@@ -815,6 +828,7 @@ export default function App() {
   // status=null clears the tag. Stamps the current user + time as the decider
   // (lightweight authorship; the Tier C events log is the full audit trail).
   const setNodeDecision = useCallback((id: string, status: DecisionStatus | null, note?: string | null) => {
+    if (!decisionTrackingEnabledRef.current) return  // feature off → no writes
     setNodeDecisions((prev) => {
       const next = { ...prev }
       if (status) next[id] = { status, note: note ?? null }
@@ -873,10 +887,12 @@ export default function App() {
       }
       setNodeColors(colorMap)
 
-      // Restore persisted decision tags
+      // Restore persisted decision tags (only while the feature is on)
       const decisionMap: Record<string, NodeDecision> = {}
-      for (const n of enriched) {
-        if (n.decision_status) decisionMap[n.id] = { status: n.decision_status, note: n.decision_note ?? null }
+      if (decisionTrackingEnabledRef.current) {
+        for (const n of enriched) {
+          if (n.decision_status) decisionMap[n.id] = { status: n.decision_status, note: n.decision_note ?? null }
+        }
       }
       setNodeDecisions(decisionMap)
 
@@ -1533,7 +1549,7 @@ export default function App() {
     const enriched = enrichDbNodes([raw])[0]
     setAllDbNodes((prev) => prev.some((n) => n.id === raw.id) ? prev : [...prev, enriched])
     if (raw.color) setNodeColors((prev) => ({ ...prev, [raw.id]: raw.color! }))
-    if (raw.decision_status) setNodeDecisions((prev) => ({ ...prev, [raw.id]: { status: raw.decision_status!, note: raw.decision_note ?? null } }))
+    if (decisionTrackingEnabledRef.current && raw.decision_status) setNodeDecisions((prev) => ({ ...prev, [raw.id]: { status: raw.decision_status!, note: raw.decision_note ?? null } }))
     // Extend the visible thread only when the new node continues the path on
     // screen — anything else shows up on the tree panel without yanking focus.
     setMessages((prev) => {
@@ -1559,7 +1575,7 @@ export default function App() {
       else delete next[raw.id]
       return next
     })
-    setNodeDecisions((prev) => {
+    if (decisionTrackingEnabledRef.current) setNodeDecisions((prev) => {
       const cur = prev[raw.id] ?? null
       const incoming = raw.decision_status ?? null
       if ((cur?.status ?? null) === incoming && (cur?.note ?? null) === (raw.decision_note ?? null)) return prev
@@ -2991,7 +3007,7 @@ export default function App() {
           position_x: n.position_x, position_y: n.position_y, created_at: n.created_at,
         }
         if (n.color) row.color = n.color
-        if (n.decision_status) {
+        if (decisionTrackingEnabledRef.current && n.decision_status) {
           row.decision_status = n.decision_status
           row.decision_note   = n.decision_note ?? null
           row.decided_by      = n.decided_by ?? null
@@ -3018,8 +3034,8 @@ export default function App() {
         for (const n of entry.nodes) { if (n.color) next[n.id] = n.color }
         return next
       })
-      // ...and any decision tags.
-      setNodeDecisions((prev) => {
+      // ...and any decision tags (only while the feature is on).
+      if (decisionTrackingEnabledRef.current) setNodeDecisions((prev) => {
         const next = { ...prev }
         for (const n of entry.nodes) { if (n.decision_status) next[n.id] = { status: n.decision_status, note: n.decision_note ?? null } }
         return next
@@ -3135,7 +3151,6 @@ export default function App() {
               <ChatPanel />
             </div>
             <TreePanel />
-            <TreeSummaryCard key={activeConvId ?? 'none'} />
           </>
         )}
         {view === 'projects' && (
