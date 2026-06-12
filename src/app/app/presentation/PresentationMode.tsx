@@ -20,11 +20,12 @@ import { useApp } from '../App'
 import {
   BACKGROUNDS, bgOption, buildPresPairs, CALLOUT_MAX, CALLOUT_W, clearDoc,
   computePresLayout, HISTORY_CAP, hydrateDoc, loadDoc, makeDefaultDoc,
-  PRES_COLORS, presSummary, presTitle, saveDoc, stripAttachmentMarker,
+  pathBetween, PRES_COLORS, presSummary, presTitle, saveDoc, stripAttachmentMarker,
   stripMarkdownPlain, type PresCallout, type PresDoc,
 } from './presentationModel'
 import {
-  calloutHeight, downloadBlob, exportPdf, exportPng, type ExportScene,
+  calloutHeight, downloadBlob, exportPdf, exportPng, HIDDEN_ALPHA,
+  HIDDEN_EDGE_ALPHA, type ExportScene,
 } from './exportRenderer'
 
 const MIN_SCALE = 0.15
@@ -336,7 +337,8 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
     e.stopPropagation()
     closeMenus()
 
-    const additive = e.shiftKey || e.metaKey || e.ctrlKey
+    const shift    = e.shiftKey
+    const additive = shift || e.metaKey || e.ctrlKey
     const sx = e.clientX, sy = e.clientY
     // Which nodes a drag would move: the selection if this node is in it,
     // otherwise just this node.
@@ -370,6 +372,13 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
       if (!dragging) {
         setSelection(prev => {
           if (additive) {
+            // Shift+clicking a second node selects the whole path directly
+            // connecting the two (through their common ancestor). Ctrl+click
+            // stays a plain one-node toggle for cherry-picking.
+            if (shift && prev.size === 1 && !prev.has(pairId)) {
+              const [anchor] = prev
+              return new Set(pathBetween(pairs, anchor, pairId))
+            }
             const next = new Set(prev)
             if (next.has(pairId)) next.delete(pairId)
             else next.add(pairId)
@@ -412,6 +421,23 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
       return { ...d, expanded }
     })
   }, [selection, pairs, commit])
+
+  // Hide = grey out (de-emphasize), not remove. If everything selected is
+  // already hidden the same button unhides.
+  const selectionAllHidden = selection.size > 0 && [...selection].every(id => doc.hidden[id])
+  const toggleHidden = useCallback(() => {
+    if (selection.size === 0) return
+    const unhide = [...selection].every(id => docRef.current.hidden[id])
+    commit(d => {
+      const hidden = { ...d.hidden }
+      for (const id of selection) {
+        if (unhide) delete hidden[id]
+        else hidden[id] = true
+      }
+      return { ...d, hidden }
+    })
+    track('present_hide_toggled', { unhide })
+  }, [selection, commit])
 
   const doReset = useCallback(() => {
     if (activeConvId) clearDoc(activeConvId)
@@ -547,6 +573,7 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
         prompt:   c.prompt,
         answer:   c.answer,
         expanded: !!d.expanded[p.id],
+        hidden:   !!d.hidden[p.id],
       }
     })
     const edges = pairs.flatMap(p => {
@@ -554,7 +581,10 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
       const b0 = boxFor(p.parentPairId)
       const b1 = boxFor(p.id)
       if (!b0 || !b1) return []
-      return [{ x1: b0.x + b0.w / 2, y1: b0.y + b0.h, x2: b1.x + b1.w / 2, y2: b1.y }]
+      return [{
+        x1: b0.x + b0.w / 2, y1: b0.y + b0.h, x2: b1.x + b1.w / 2, y2: b1.y,
+        faded: !!(d.hidden[p.id] || d.hidden[p.parentPairId]),
+      }]
     })
     const callouts = d.callouts.filter(c => !c.pending).map(c => ({
       x: c.x, y: c.y, text: c.text,
@@ -768,6 +798,28 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
             <path d="M11 5H7V1M7 5l4-4M1 7h4v4M5 7l-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </TbButton>
+        <TbButton
+          title={selection.size === 0
+            ? 'Select nodes to hide them (greyed out, still visible)'
+            : selectionAllHidden ? 'Unhide selected nodes' : 'Hide selected nodes (greyed out, still visible)'}
+          onClick={toggleHidden}
+          disabled={selection.size === 0}
+        >
+          {selectionAllHidden ? (
+            /* eye — unhide */
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M1.5 7s2-3.5 5.5-3.5S12.5 7 12.5 7s-2 3.5-5.5 3.5S1.5 7 1.5 7z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              <circle cx="7" cy="7" r="1.7" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+          ) : (
+            /* eye with slash — hide */
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M1.5 7s2-3.5 5.5-3.5S12.5 7 12.5 7s-2 3.5-5.5 3.5S1.5 7 1.5 7z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              <circle cx="7" cy="7" r="1.7" stroke="currentColor" strokeWidth="1.2" />
+              <line x1="2.5" y1="12" x2="11.5" y2="2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          )}
+        </TbButton>
 
         <Divider />
 
@@ -923,12 +975,14 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
               const b0 = boxFor(p.parentPairId)
               const b1 = boxFor(p.id)
               if (!b0 || !b1) return null
+              const faded = !!(doc.hidden[p.id] || doc.hidden[p.parentPairId])
+              const op = faded ? HIDDEN_EDGE_ALPHA : 1
               const x1 = b0.x + b0.w / 2, y1 = b0.y + b0.h
               const x2 = b1.x + b1.w / 2, y2 = b1.y
               const my = (y1 + y2) / 2
               return Math.abs(x1 - x2) < 2
-                ? <line key={`e-${p.id}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke={pal.edge} strokeWidth={1.5} strokeLinecap="round" />
-                : <path key={`e-${p.id}`} d={`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`} stroke={pal.edge} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+                ? <line key={`e-${p.id}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke={pal.edge} strokeWidth={1.5} strokeLinecap="round" opacity={op} />
+                : <path key={`e-${p.id}`} d={`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`} stroke={pal.edge} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={op} />
             })}
             {doc.callouts.map(c => {
               const h  = calloutHeight(c.text)
@@ -937,12 +991,13 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
               return c.nodeIds.map(nid => {
                 const b = boxFor(nid)
                 if (!b) return null
+                const op = doc.hidden[nid] ? HIDDEN_EDGE_ALPHA : 0.65
                 const ax = b.x + b.w / 2, ay = b.y + b.h / 2
                 const mx = (cx + ax) / 2
                 return (
                   <g key={`cl-${c.id}-${nid}`}>
-                    <path d={`M${cx},${cy} C${mx},${cy} ${mx},${ay} ${ax},${ay}`} stroke={pal.accent} strokeWidth={1.5} strokeDasharray="5 4" fill="none" opacity={0.65} />
-                    <circle cx={ax} cy={ay} r={3.2} fill={pal.accent} opacity={0.65} />
+                    <path d={`M${cx},${cy} C${mx},${cy} ${mx},${ay} ${ax},${ay}`} stroke={pal.accent} strokeWidth={1.5} strokeDasharray="5 4" fill="none" opacity={op} />
+                    <circle cx={ax} cy={ay} r={3.2} fill={pal.accent} opacity={op} />
                   </g>
                 )
               })
@@ -957,6 +1012,7 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
             const color    = doc.colors[p.id] ?? ''
             const expanded = !!doc.expanded[p.id]
             const selected = selection.has(p.id)
+            const hidden   = !!doc.hidden[p.id]
             return (
               <div
                 key={p.id}
@@ -965,6 +1021,8 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
                 onDoubleClick={e => { e.stopPropagation(); toggleExpand(p.id) }}
                 style={{
                   position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h,
+                  opacity: hidden ? HIDDEN_ALPHA : 1,
+                  transition: 'opacity 0.15s',
                   background: pal.nodeBg,
                   borderRadius: 10,
                   border: `1.5px solid ${color || pal.nodeBorder}`,
@@ -1080,7 +1138,7 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
         }}>
           {selection.size > 0
             ? `${selection.size} node${selection.size > 1 ? 's' : ''} selected — drag to move · double-click to expand · Summarize makes a callout`
-            : 'Click to select · Shift+drag to multi-select · double-click to expand · drag background to pan'}
+            : 'Click to select · Shift+click a 2nd node to select the path between · Shift+drag to box-select · double-click to expand'}
         </div>
 
         {/* Toast */}

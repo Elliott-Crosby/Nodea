@@ -169,6 +169,36 @@ export function computePresLayout(
   return out
 }
 
+// The tree path directly connecting two pairs: walks both up to their lowest
+// common ancestor and returns a → … → LCA → … → b (inclusive). If the two live
+// under different roots there is no connecting path — just the endpoints.
+export function pathBetween(pairs: PresPair[], aId: string, bId: string): string[] {
+  if (aId === bId) return [aId]
+  const parent = new Map(pairs.map(p => [p.id, p.parentPairId]))
+  const ancestors = (id: string): string[] => {
+    const out: string[] = []
+    let cur: string | null | undefined = id
+    const guard = new Set<string>()           // cycle guard, just in case
+    while (cur != null && !guard.has(cur)) {
+      guard.add(cur)
+      out.push(cur)
+      cur = parent.get(cur) ?? null
+    }
+    return out
+  }
+  const aAnc = ancestors(aId)
+  const bAnc = ancestors(bId)
+  const bIdx = new Map(bAnc.map((id, i) => [id, i]))
+  for (let i = 0; i < aAnc.length; i++) {
+    const j = bIdx.get(aAnc[i])
+    if (j !== undefined) {
+      // a → … → LCA, then back down LCA → … → b (LCA included once).
+      return [...aAnc.slice(0, i + 1), ...bAnc.slice(0, j).reverse()]
+    }
+  }
+  return [aId, bId]
+}
+
 // ── Backgrounds & palettes ────────────────────────────────────────────────────
 export type BgId = 'white' | 'dots' | 'gradient' | 'slate' | 'transparent'
 
@@ -259,6 +289,7 @@ export interface PresDoc {
   offsets:    Record<string, { dx: number; dy: number }>
   colors:     Record<string, string>     // pair id → hex ('' / absent = default)
   expanded:   Record<string, boolean>
+  hidden:     Record<string, boolean>    // greyed out (de-emphasized, still visible)
   callouts:   PresCallout[]
   background: BgId
   showTitle:  boolean
@@ -278,7 +309,7 @@ export function makeDefaultDoc(
     const c = appNodeColors[p.id] || appNodeColors[p.userNode.id] || (p.aiNode ? appNodeColors[p.aiNode.id] : '') || ''
     if (c) colors[p.id] = c
   }
-  return { offsets: {}, colors, expanded: {}, callouts: [], background: 'dots', showTitle: true }
+  return { offsets: {}, colors, expanded: {}, hidden: {}, callouts: [], background: 'white', showTitle: true }
 }
 
 const STORAGE_PREFIX = 'nodea_present_'
@@ -330,6 +361,7 @@ export function hydrateDoc(stored: Partial<PresDoc>, fallback: PresDoc, pairs: P
     offsets:    pick(stored.offsets),
     colors:     { ...fallback.colors, ...pick(stored.colors) },
     expanded:   pick(stored.expanded),
+    hidden:     pick(stored.hidden),
     callouts,
     background: validBg ? (stored.background as BgId) : fallback.background,
     showTitle:  typeof stored.showTitle === 'boolean' ? stored.showTitle : fallback.showTitle,

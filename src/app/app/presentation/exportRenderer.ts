@@ -16,9 +16,10 @@ export interface ExportNode {
   prompt:   string
   answer:   string
   expanded: boolean
+  hidden:   boolean  // greyed out (drawn at reduced alpha)
 }
 
-export interface ExportEdge { x1: number; y1: number; x2: number; y2: number }
+export interface ExportEdge { x1: number; y1: number; x2: number; y2: number; faded: boolean }
 
 export interface ExportCallout {
   x: number; y: number
@@ -113,7 +114,21 @@ function sceneBounds(scene: ExportScene) {
 }
 
 // ── Drawing ───────────────────────────────────────────────────────────────────
+// Matches the on-screen `opacity` for hidden nodes / their edges.
+export const HIDDEN_ALPHA      = 0.35
+export const HIDDEN_EDGE_ALPHA = 0.25
+
 function drawNode(ctx: CanvasRenderingContext2D, n: ExportNode, pal: PresPalette) {
+  if (n.hidden) {
+    ctx.save()
+    ctx.globalAlpha = HIDDEN_ALPHA
+    try { drawNodeInner(ctx, n, pal) } finally { ctx.restore() }
+    return
+  }
+  drawNodeInner(ctx, n, pal)
+}
+
+function drawNodeInner(ctx: CanvasRenderingContext2D, n: ExportNode, pal: PresPalette) {
   const r = 10
   // tinted fill when coloured, like the in-app tree
   ctx.save()
@@ -290,6 +305,7 @@ export function renderSceneToCanvas(scene: ExportScene, pixelScale = 2): HTMLCan
   ctx.strokeStyle = pal.edge
   ctx.lineWidth   = 1.5
   for (const e of scene.edges) {
+    ctx.globalAlpha = e.faded ? HIDDEN_EDGE_ALPHA : 1
     ctx.beginPath()
     ctx.moveTo(e.x1, e.y1)
     if (Math.abs(e.x1 - e.x2) < 2) {
@@ -300,6 +316,7 @@ export function renderSceneToCanvas(scene: ExportScene, pixelScale = 2): HTMLCan
     }
     ctx.stroke()
   }
+  ctx.globalAlpha = 1
 
   for (const n of scene.nodes)    drawNode(ctx, n, pal)
   for (const c of scene.callouts) drawCallout(ctx, c, pal)
