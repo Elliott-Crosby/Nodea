@@ -6,6 +6,7 @@ import { useApp, type AttachmentItem, type ChatMessage } from './App'
 import { avatarColor } from './ShareModal'
 import { modelDisplayName } from '@/lib/models'
 import { providerForModel, getAISource } from '@/lib/ai-sources'
+import { formatSiteTime } from '@/lib/site-time'
 
 // ── Accepted file types (Claude API limits) ───────────────────────────────────
 const ACCEPTED_MIME_TYPES: Record<string, string> = {
@@ -243,7 +244,7 @@ export async function extractDroppedFiles(
 }
 
 function formatTime(ts: number) {
-  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return formatSiteTime(ts)
 }
 
 // ── Inline markdown renderer ──────────────────────────────────────────────────
@@ -501,14 +502,10 @@ function TopBar() {
         background: 'var(--topbar-bg)', gap: 8,
       }}
     >
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Conversations</span>
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M2 1.5l3 2.5-3 2.5" stroke="var(--text-muted)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
+        <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
           {convName}
-        </span>
+        </h1>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         {/* Who else is here right now (live presence in shared spaces). */}
@@ -619,23 +616,6 @@ function IconBtn({ children, title, onClick }: { children: React.ReactNode; titl
   )
 }
 
-// ── Sub-header ────────────────────────────────────────────────────────────────
-function SubHeader() {
-  const { convName } = useApp()
-
-  return (
-    <div
-      style={{
-        padding: '14px 20px 13px', borderBottom: '1px solid var(--border)',
-        flexShrink: 0, background: 'var(--bg-base)',
-      }}
-    >
-      <h1 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {convName}
-      </h1>
-    </div>
-  )
-}
 
 // ── Attachment thumbnail chip ─────────────────────────────────────────────────
 function fileTypeBadge(mimeType: string): { label: string; bg: string } {
@@ -1476,7 +1456,6 @@ export default function ChatPanel() {
       )}
 
       <TopBar />
-      <SubHeader />
       <ImportedUpsellBanner />
 
       {/* Save error banner */}
