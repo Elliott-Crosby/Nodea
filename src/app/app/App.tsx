@@ -658,6 +658,10 @@ export default function App() {
   // Master switch for the decision-tracking features. localStorage-backed and
   // off by default, so the feature ships dark until a user opts in (no writes
   // to the decision columns happen while it's off).
+  // Prod schema: migration 20260613000000_decision_tags IS applied to the hosted
+  // DB (verified 2026-06-12 — nodes.decision_status/note/decided_by/decided_at
+  // exist), so flipping this flag on works. Reads still use select('*') so the
+  // app degrades gracefully on any environment that lacks the columns.
   const [decisionTrackingEnabled, setDecisionTrackingEnabledState] = useState(false)
   useEffect(() => {
     try { setDecisionTrackingEnabledState(localStorage.getItem('nodea_decision_tracking_v1') === '1') } catch {}
