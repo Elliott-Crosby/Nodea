@@ -470,6 +470,9 @@ export interface AppContextType {
   nodeDecisions: Record<string, NodeDecision>
   /** Tag a node's decision status (+ optional note), or clear it with status=null. */
   setNodeDecision: (id: string, status: DecisionStatus | null, note?: string | null) => void
+  /** Master switch for the decision-tracking features (tags, badges, menu). Off by default. */
+  decisionTrackingEnabled: boolean
+  setDecisionTrackingEnabled: (on: boolean) => void
   /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
   deleteNode: (pairId: string) => Promise<boolean>
   // ── Merge overlay ──
@@ -652,6 +655,17 @@ export default function App() {
   const [isPro,         setIsPro]           = useState(false)
   const [nodeColors,    setNodeColors]      = useState<Record<string, string>>({})
   const [nodeDecisions, setNodeDecisions]   = useState<Record<string, NodeDecision>>({})
+  // Master switch for the decision-tracking features. localStorage-backed and
+  // off by default, so the feature ships dark until a user opts in (no writes
+  // to the decision columns happen while it's off).
+  const [decisionTrackingEnabled, setDecisionTrackingEnabledState] = useState(false)
+  useEffect(() => {
+    try { setDecisionTrackingEnabledState(localStorage.getItem('nodea_decision_tracking_v1') === '1') } catch {}
+  }, [])
+  const setDecisionTrackingEnabled = useCallback((on: boolean) => {
+    setDecisionTrackingEnabledState(on)
+    try { localStorage.setItem('nodea_decision_tracking_v1', on ? '1' : '0') } catch {}
+  }, [])
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
   const [lastSavedPairId, setLastSavedPairId] = useState<string | null>(null)
@@ -3076,7 +3090,8 @@ export default function App() {
     renameConversation, deleteConversation,
     activeConvIsImported, activeConvSource, updateFromSource, isUpdatingSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
-    nodeColors, setNodeColor, nodeDecisions, setNodeDecision, deleteNode,
+    nodeColors, setNodeColor, nodeDecisions, setNodeDecision,
+    decisionTrackingEnabled, setDecisionTrackingEnabled, deleteNode,
     canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,
     nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment, clearAttachments,

@@ -483,7 +483,7 @@ function StickyNoteCard({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
@@ -1332,7 +1332,7 @@ export default function TreePanel() {
                 const isHovered  = pair.id === hoveredId
                 const isInactive = activePairIds.size > 0 && !isOnPath
                 const color      = nodeColors[pair.id] || nodeColors[pair.userNode.id] || (pair.aiNode ? nodeColors[pair.aiNode.id] : '') || ''
-                const decision   = nodeDecisions[pair.id] || nodeDecisions[pair.userNode.id] || (pair.aiNode ? nodeDecisions[pair.aiNode.id] : undefined)
+                const decision   = decisionTrackingEnabled ? (nodeDecisions[pair.id] || nodeDecisions[pair.userNode.id] || (pair.aiNode ? nodeDecisions[pair.aiNode.id] : undefined)) : undefined
 
                 const aiMeta  = nodeSummaries[pair.id]
                 const title   = aiMeta?.title   || generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
@@ -2133,6 +2133,7 @@ export default function TreePanel() {
           </div>
 
           {/* Decision tag — mark where this branch sits in a decision. */}
+          {decisionTrackingEnabled && (<>
           <div style={{ height: 1, background: 'var(--border)', margin: '11px 0 8px' }} />
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Decision
@@ -2177,6 +2178,7 @@ export default function TreePanel() {
               style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', padding: '6px 8px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', outline: 'none' }}
             />
           )}
+          </>)}
 
           {/* Delete node — only for leaf pairs; blocked when branches fork below */}
           <div style={{ height: 1, background: 'var(--border)', margin: '11px 0 8px' }} />
