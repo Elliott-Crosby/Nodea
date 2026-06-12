@@ -242,9 +242,8 @@ export default function AiChatCanvas() {
               Supabase row, isolated by row-level security. Anonymous sign-in lets
               you start without an email, and the &ldquo;Nodea Tree for Claude&rdquo;
               Chrome extension can import your existing Claude.ai chats onto the
-              canvas as a branching tree. Bring-your-own-API-keys, plugins, and
-              full export tooling are on the roadmap, not shipped yet, but where
-              the canvas is headed.
+              canvas as a branching tree. Plugins and full export tooling are on
+              the roadmap, not shipped yet, but where the canvas is headed.
             </p>
           </div>
         </section>

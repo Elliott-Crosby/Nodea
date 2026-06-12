@@ -33,7 +33,7 @@ export default function NodeaVsLibreChat() {
         { feature: 'Hosting',               competitor: 'Self-host (Docker / your infra)', nodea: 'Hosted, nothing to run',   nodeaWins: true },
         { feature: 'Setup',                 competitor: 'Configure keys, server, DB',    nodea: 'Open an account, open canvas', nodeaWins: true },
         { feature: 'Model providers',       competitor: 'OpenAI, Anthropic, Gemini, local', nodea: 'Anthropic Claude' },
-        { feature: 'Bring-your-own keys',   competitor: 'Yes, required',                 nodea: 'Roadmap; today managed' },
+        { feature: 'Bring-your-own keys',   competitor: 'Yes, required',                 nodea: 'No, managed keys only' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',              nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Cost model',            competitor: 'Free app + your infra & API',   nodea: 'Free 25k/day · 450k/mo; Pro $8/mo' },
         { feature: 'Open source',           competitor: 'Yes (MIT)',                     nodea: 'Yes (MIT), hosted for you' },

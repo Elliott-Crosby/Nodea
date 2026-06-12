@@ -376,8 +376,8 @@ export default function ChatGPTAlternative() {
                   otherwise.
                 </p>
                 <p className="ln-bluf-sub">
-                  Bring-your-own-API-keys, plugins, full export tooling, and a
-                  project-wide connected canvas are planned but not available yet.
+                  Plugins, full export tooling, and a project-wide connected
+                  canvas are planned but not available yet.
                   If you need OpenAI-specific features today, keep ChatGPT for
                   those and use Nodea for branching.
                 </p>
@@ -387,10 +387,6 @@ export default function ChatGPTAlternative() {
                 <li>
                   <span className="ln-bluf-k">Models</span>
                   <span className="ln-bluf-v">Claude only, no GPT, image, or voice</span>
-                </li>
-                <li>
-                  <span className="ln-bluf-k">BYOK</span>
-                  <span className="ln-bluf-v">Roadmap, not yet shipped</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Plugins</span>

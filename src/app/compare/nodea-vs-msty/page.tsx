@@ -34,7 +34,7 @@ export default function NodeaVsMsty() {
         { feature: 'Model providers',       competitor: 'Local (Ollama) + OpenAI, Claude, more', nodea: 'Anthropic Claude' },
         { feature: 'Offline / local models', competitor: 'Yes',                            nodea: 'No (cloud Claude)' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',                 nodea: 'Auto by complexity',          nodeaWins: true },
-        { feature: 'Bring-your-own keys',   competitor: 'Yes (for cloud models)',           nodea: 'Roadmap; today managed' },
+        { feature: 'Bring-your-own keys',   competitor: 'Yes (for cloud models)',           nodea: 'No, managed keys only' },
         { feature: 'Free tier',             competitor: 'Free desktop app',                 nodea: 'Free 25k/day · 450k/mo, ours' },
         { feature: 'Price',                 competitor: 'Free; paid plans from ~$149/yr',   nodea: '$8/mo subscription' },
       ]}

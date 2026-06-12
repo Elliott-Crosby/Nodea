@@ -49,10 +49,6 @@ const FAQ = [
     a: 'Yes. The Nodea source is MIT-licensed and available on GitHub. The hosted product runs at nodea.ai; you can self-host the same codebase against your own Supabase project and Anthropic API key.',
   },
   {
-    q: 'Can I bring my own Anthropic API key?',
-    a: 'Bring-your-own-key support is on the roadmap. Today, the hosted version uses Nodea-managed keys with per-plan token budgets.',
-  },
-  {
     q: 'What tech is Nodea built on?',
     a: 'Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS v4, Supabase for auth and Postgres, the Vercel AI SDK v6 for streaming, and the Anthropic SDK for Claude.',
   },

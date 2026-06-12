@@ -30,7 +30,7 @@ export default function NodeaVsTypingMind() {
         { feature: 'Fork any reply',        competitor: 'Limited (regenerate)',        nodea: 'Click any node, branch',     nodeaWins: true },
         { feature: 'Visual canvas',         competitor: 'No',                          nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Model providers',       competitor: 'OpenAI, Anthropic, Gemini, local', nodea: 'Anthropic Claude' },
-        { feature: 'Bring-your-own keys',   competitor: 'Yes, required',               nodea: 'Roadmap; today managed' },
+        { feature: 'Bring-your-own keys',   competitor: 'Yes, required',               nodea: 'No, managed keys only' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',            nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'No (local storage)',          nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
         { feature: 'Free tier',             competitor: 'Free app, pay your own API',  nodea: 'Free 25k/day · 450k/mo, ours' },
@@ -53,13 +53,13 @@ export default function NodeaVsTypingMind() {
           "You want zero setup: open an account, get free tokens, start chatting.",
           "You want automatic model routing so you’re not constantly thinking about which model to use.",
           "You prefer Claude specifically and don’t need GPT or other providers in the same tool.",
-          "You don’t want to manage and rotate your own API keys yet.",
+          "You don’t want to manage and rotate your own API keys.",
         ],
       }}
       faq={[
         {
           q: "Does Nodea support bring-your-own-key like TypingMind?",
-          a: "Not yet. It’s on the roadmap. Today, Nodea uses managed Anthropic keys and gives you a per-plan daily token budget. TypingMind is BYOK from the start.",
+          a: "No. Nodea uses managed Anthropic keys and gives you a per-plan daily token budget. TypingMind is BYOK from the start.",
         },
         {
           q: "Can I use models other than Claude in Nodea?",
