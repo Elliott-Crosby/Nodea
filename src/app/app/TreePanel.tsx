@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp, type DbNode } from './App'
+import { DECISION_STATUSES, decisionMeta } from '@/lib/decisions'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const LAYOUT_W           = 240
@@ -11,11 +12,12 @@ const V_SPACING          = 180
 const GRID_PX            = 24
 const MIN_WIDTH          = 200
 const MAX_WIDTH          = 700
-const DEFAULT_WIDTH      = 320
+const DEFAULT_WIDTH      = 420
+const PANEL_WIDTH_KEY    = 'nodea_tree_panel_w'
 const MIN_READABLE_SCALE = 0.65
 
 const NODE_W      = { detailed: 240, compact: 190, mini: 150 } as const
-const NODE_H      = { detailed: 86,  compact: 52,  mini:  40  } as const
+const NODE_H      = { detailed: 104, compact: 52,  mini:  40  } as const
 const NODE_H_FULL = { detailed: 220, compact: 140, mini:  90  } as const
 const V_SPACING_FULL = 320
 
@@ -481,12 +483,18 @@ function StickyNoteCard({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
   const [autoZoom,        setAutoZoom]        = useState(true)
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
+
+  // Restore the user's last panel width (after mount, to avoid hydration mismatch).
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(PANEL_WIDTH_KEY))
+    if (saved >= MIN_WIDTH && saved <= MAX_WIDTH) setPanelWidth(saved)
+  }, [])
   const [hoveredId,       setHoveredId]       = useState<string | null>(null)
   const [hoverPos,        setHoverPos]        = useState<{ x: number; y: number } | null>(null)
   const [colorMenu,       setColorMenu]       = useState<{ nodeId: string; x: number; y: number; confirmDelete?: boolean } | null>(null)
@@ -889,13 +897,16 @@ export default function TreePanel() {
     isResizing.current   = true
     resizeOrigin.current = { x: e.clientX, w: panelWidth }
 
+    let lastW = panelWidth
     function onMove(ev: MouseEvent) {
       if (!isResizing.current) return
       const delta = resizeOrigin.current.x - ev.clientX
-      setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeOrigin.current.w + delta)))
+      lastW = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeOrigin.current.w + delta))
+      setPanelWidth(lastW)
     }
     function onUp() {
       isResizing.current = false
+      localStorage.setItem(PANEL_WIDTH_KEY, String(lastW))
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -1321,6 +1332,7 @@ export default function TreePanel() {
                 const isHovered  = pair.id === hoveredId
                 const isInactive = activePairIds.size > 0 && !isOnPath
                 const color      = nodeColors[pair.id] || nodeColors[pair.userNode.id] || (pair.aiNode ? nodeColors[pair.aiNode.id] : '') || ''
+                const decision   = decisionTrackingEnabled ? (nodeDecisions[pair.id] || nodeDecisions[pair.userNode.id] || (pair.aiNode ? nodeDecisions[pair.aiNode.id] : undefined)) : undefined
 
                 const aiMeta  = nodeSummaries[pair.id]
                 const title   = aiMeta?.title   || generateTitle(pair.userNode.content, pair.aiNode?.content ?? '')
@@ -1464,6 +1476,28 @@ export default function TreePanel() {
                         </span>
                       </div>
                     )}
+
+                    {/* Decision tag badge (top-right). */}
+                    {decision && (() => {
+                      const m = decisionMeta(decision.status)
+                      return (
+                        <div
+                          title={`${m.label}${decision.note ? ' — ' + decision.note : ''}`}
+                          style={{
+                            position: 'absolute', right: -6, top: -8, zIndex: 6,
+                            height: 18, padding: '0 7px', borderRadius: 9,
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap',
+                            background: 'var(--modal-bg)', color: m.color,
+                            border: `1.5px solid ${m.color}`, boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                          {m.label}
+                        </div>
+                      )
+                    })()}
                     <div
                       data-node="true"
                       onClick={(e) => onNodeActivate(pair, e)}
@@ -1484,12 +1518,26 @@ export default function TreePanel() {
                       {zoomMode === 'detailed' && viewMode === 'tree' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span
+                              style={{
+                                fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1,
+                                overflow: 'hidden',
+                                display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
+                                wordBreak: 'break-word',
+                              }}
+                            >
                               {title}
                             </span>
                           </div>
                           {summary && (
-                            <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.4, overflow: 'hidden', maxHeight: hasAttachments ? 16 : 32 }}>
+                            <div
+                              style={{
+                                fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45,
+                                overflow: 'hidden',
+                                display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: hasAttachments ? 2 : 3,
+                                wordBreak: 'break-word',
+                              }}
+                            >
                               {summary}
                             </div>
                           )}
@@ -2061,7 +2109,7 @@ export default function TreePanel() {
       {colorMenu && (
         <div
           onClick={e => e.stopPropagation()}
-          style={{ position: 'fixed', left: colorMenu.x, top: colorMenu.y, background: 'var(--modal-bg)', border: '1px solid var(--border-strong)', borderRadius: 12, padding: '10px 12px', boxShadow: 'var(--shadow-lg)', zIndex: 9999, minWidth: 144 }}
+          style={{ position: 'fixed', left: colorMenu.x, top: colorMenu.y, background: 'var(--modal-bg)', border: '1px solid var(--border-strong)', borderRadius: 12, padding: '10px 12px', boxShadow: 'var(--shadow-lg)', zIndex: 9999, minWidth: 210 }}
         >
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Node colour
@@ -2083,6 +2131,54 @@ export default function TreePanel() {
               )
             })}
           </div>
+
+          {/* Decision tag — mark where this branch sits in a decision. */}
+          {decisionTrackingEnabled && (<>
+          <div style={{ height: 1, background: 'var(--border)', margin: '11px 0 8px' }} />
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Decision
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {DECISION_STATUSES.map(s => {
+              const cur    = nodeDecisions[colorMenu.nodeId]
+              const active = (cur?.status ?? null) === s.id
+              return (
+                <button key={s.id} type="button" title={s.description}
+                  onClick={() => {
+                    setNodeDecision(colorMenu.nodeId, active ? null : s.id, cur?.note ?? null)
+                    track('node_decision_tagged', { status: active ? 'cleared' : s.id })
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '4px 8px', borderRadius: 7, fontSize: 11.5, fontWeight: 500,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                    border: active ? `1.5px solid ${s.color}` : '1px solid var(--border)',
+                    background: active ? `${s.color}1a` : 'transparent',
+                    color: active ? s.color : 'var(--text-secondary)',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                  {s.label}
+                </button>
+              )
+            })}
+          </div>
+          {nodeDecisions[colorMenu.nodeId] && (
+            <input
+              key={`note-${colorMenu.nodeId}`}
+              defaultValue={nodeDecisions[colorMenu.nodeId]?.note ?? ''}
+              placeholder="Why? (optional)"
+              onClick={e => e.stopPropagation()}
+              onBlur={e => {
+                const note = e.target.value.trim() || null
+                const status = nodeDecisions[colorMenu.nodeId]?.status
+                if (status && note !== (nodeDecisions[colorMenu.nodeId]?.note ?? null)) setNodeDecision(colorMenu.nodeId, status, note)
+              }}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', padding: '6px 8px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', outline: 'none' }}
+            />
+          )}
+          </>)}
 
           {/* Delete node — only for leaf pairs; blocked when branches fork below */}
           <div style={{ height: 1, background: 'var(--border)', margin: '11px 0 8px' }} />

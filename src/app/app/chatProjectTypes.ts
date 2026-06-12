@@ -19,6 +19,13 @@ export interface ChatProject {
   chat_count: number
   /** ISO timestamp of the most recently created conversation in this project, or null if empty. */
   last_activity: string | null
+  /** Present on rows from /api/collab/shared: this project belongs to someone
+   *  else and was shared with me. */
+  shared?: boolean
+  /** Owner id (present on shared rows). */
+  user_id?: string
+  /** Owner display name for "Shared by …" (shared rows only). */
+  owner_name?: string | null
 }
 
 export type ProjectView = 'chat' | 'projects' | 'project'

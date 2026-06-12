@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp, type AttachmentItem, type ChatMessage } from './App'
+import { avatarColor } from './ShareModal'
 import { modelDisplayName } from '@/lib/models'
 import { providerForModel, getAISource } from '@/lib/ai-sources'
 
@@ -487,7 +488,10 @@ function ImportedUpsellBanner() {
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
-  const { convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource } = useApp()
+  const {
+    convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource,
+    activeConvId, openShareModal, presencePeers, activeConvIsShared,
+  } = useApp()
 
   return (
     <div
@@ -507,6 +511,57 @@ function TopBar() {
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        {/* Who else is here right now (live presence in shared spaces). */}
+        {presencePeers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
+            {presencePeers.slice(0, 4).map((p, i) => (
+              <span
+                key={p.userId}
+                title={`${p.name} is viewing`}
+                style={{
+                  width: 24, height: 24, borderRadius: '50%',
+                  background: avatarColor(p.userId), color: '#fff',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10.5, fontWeight: 700,
+                  border: '2px solid var(--topbar-bg)',
+                  marginLeft: i === 0 ? 0 : -7,
+                }}
+              >
+                {p.name.charAt(0).toUpperCase()}
+              </span>
+            ))}
+            {presencePeers.length > 4 && (
+              <span style={{ fontSize: 10.5, color: 'var(--text-muted)', marginLeft: 3 }}>
+                +{presencePeers.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+        {activeConvId && (
+          <button
+            title="Share this chat"
+            onClick={() => openShareModal({ kind: 'conversation', id: activeConvId, name: convName })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
+              background: activeConvIsShared ? 'var(--accent-bg)' : 'transparent',
+              border: `1px solid ${activeConvIsShared ? 'var(--user-bubble-border)' : 'var(--border)'}`,
+              borderRadius: 8,
+              cursor: 'pointer', color: activeConvIsShared ? 'var(--accent-text)' : 'var(--text-secondary)',
+              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+              transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={(e) => { if (!activeConvIsShared) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
+            onMouseLeave={(e) => { if (!activeConvIsShared) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' } }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.6 10.7l6.8-3.9M8.6 13.3l6.8 3.9" />
+            </svg>
+            {activeConvIsShared ? 'Shared' : 'Share'}
+          </button>
+        )}
         {activeConvIsImported && (
           <button
             title={isUpdatingSource ? 'Checking Claude for new branches…' : 'Pull any new branches in from Claude'}
@@ -752,7 +807,10 @@ function VersionArrow({ dir, disabled, onClick }: { dir: 'prev' | 'next'; disabl
 
 // ── Message ───────────────────────────────────────────────────────────────────
 function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
-  const { isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick, activeConvSource } = useApp()
+  const {
+    isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick, activeConvSource,
+    activeConvIsShared, collabProfiles, myUserId,
+  } = useApp()
   const savedMemories = !msg.role || msg.role === 'assistant' ? memorySavedByMsgId[msg.id] : undefined
   const isUser = msg.role === 'user'
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
@@ -872,6 +930,26 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s
               </span>
             )}
+          </div>
+        )}
+
+        {/* Author chip — only in shared spaces, only on other people's prompts. */}
+        {isUser && activeConvIsShared && msg.createdBy && msg.createdBy !== myUserId && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+              {collabProfiles[msg.createdBy]?.name ?? 'Teammate'}
+            </span>
+            <span
+              aria-hidden
+              style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: avatarColor(msg.createdBy), color: '#fff',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9.5, fontWeight: 700, flexShrink: 0,
+              }}
+            >
+              {(collabProfiles[msg.createdBy]?.name ?? 'T').charAt(0).toUpperCase()}
+            </span>
           </div>
         )}
 

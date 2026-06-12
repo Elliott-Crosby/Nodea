@@ -19,7 +19,7 @@ const MEMORY_MAX_LENGTH  = 300
 const MEMORY_MAX_ENTRIES = 30
 
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection, decisionTrackingEnabled, setDecisionTrackingEnabled } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>((settingsInitialSection as Section) ?? 'appearance')
 
@@ -247,6 +247,12 @@ export default function SettingsModal() {
                     </button>
                   ))}
                 </div>
+              </SettingRow>
+
+              <Divider />
+
+              <SettingRow label="Decision tracking" description="Tag nodes as decided, rejected, considering and more — and see decisions across the tree. Experimental.">
+                <Toggle on={decisionTrackingEnabled} onChange={(v) => { setDecisionTrackingEnabled(v); track('decision_tracking_toggled', { on: v }) }} />
               </SettingRow>
 
               <Divider />
@@ -1014,6 +1020,40 @@ function SettingRow({
 
 function Divider() {
   return <div style={{ height: 1, background: 'var(--border)', margin: '0 0 20px' }} />
+}
+
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      style={{
+        width: 40,
+        height: 22,
+        borderRadius: 999,
+        border: 'none',
+        cursor: 'pointer',
+        padding: 2,
+        background: on ? 'var(--accent)' : 'var(--border-strong)',
+        transition: 'background 0.15s',
+        display: 'flex',
+        justifyContent: on ? 'flex-end' : 'flex-start',
+        alignItems: 'center',
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: '#fff',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+        }}
+      />
+    </button>
+  )
 }
 
 const inputStyle: React.CSSProperties = {

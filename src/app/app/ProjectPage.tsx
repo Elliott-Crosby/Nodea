@@ -32,6 +32,8 @@ interface Props {
   /** Persist the project's memory box. Rejects on failure so the editor can
    *  keep its draft and surface the error. */
   onSaveMemory: (memory: string) => Promise<void>
+  /** Open the share modal for this project. */
+  onShare: () => void
 }
 
 interface NodeRow {
@@ -61,9 +63,13 @@ function formatTime(iso: string): string {
 export default function ProjectPage({
   project, conversations, isPro, isAdmin,
   onBack, onOpenConv, onNewChat, onConvContext, onEdit, onDelete, onSaveMemory,
+  onShare,
 }: Props) {
   const supabase = useMemo(() => createClient(), [])
   const c = colorById(project.color)
+  // Shared-with-me projects belong to someone else: settings, deletion and the
+  // memory box stay the owner's (the API enforces this server-side too).
+  const isOwner = !project.shared
   const convs = useMemo(
     () => conversations
       .filter((cv) => cv.chat_project_id === project.id)
@@ -292,6 +298,9 @@ export default function ProjectPage({
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
               {convs.length} conversation{convs.length === 1 ? '' : 's'}
               {project.last_activity && <> · last active {formatTime(project.last_activity)}</>}
+              {project.shared && (
+                <> · shared by <strong style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{project.owner_name ?? 'a teammate'}</strong></>
+              )}
             </div>
             {project.description && (
               <p style={{
@@ -304,29 +313,53 @@ export default function ProjectPage({
           </div>
 
           <button
-            ref={menuBtnRef}
             type="button"
-            onClick={() => setMenuOpen((m) => !m)}
-            title="Project settings"
-            aria-label="Project settings"
+            onClick={onShare}
+            title="Share this project"
             style={{
-              width: 34, height: 34, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: menuOpen ? 'var(--bg-muted)' : 'transparent',
+              display: 'flex', alignItems: 'center', gap: 7, height: 34, padding: '0 13px', flexShrink: 0,
+              background: project.shared ? 'var(--accent-bg)' : 'transparent',
               border: '1px solid var(--border)',
-              borderRadius: 9,
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
+              borderRadius: 9, cursor: 'pointer',
+              color: project.shared ? 'var(--accent-text)' : 'var(--text-secondary)',
+              fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="8" cy="3" r="1.4" />
-              <circle cx="8" cy="8" r="1.4" />
-              <circle cx="8" cy="13" r="1.4" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.6 10.7l6.8-3.9M8.6 13.3l6.8 3.9" />
             </svg>
+            {project.shared ? 'Shared' : 'Share'}
           </button>
 
-          {menuOpen && (
+          {isOwner && (
+            <button
+              ref={menuBtnRef}
+              type="button"
+              onClick={() => setMenuOpen((m) => !m)}
+              title="Project settings"
+              aria-label="Project settings"
+              style={{
+                width: 34, height: 34, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: menuOpen ? 'var(--bg-muted)' : 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 9,
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="8" cy="3" r="1.4" />
+                <circle cx="8" cy="8" r="1.4" />
+                <circle cx="8" cy="13" r="1.4" />
+              </svg>
+            </button>
+          )}
+
+          {menuOpen && isOwner && (
             <SettingsMenu
               onEdit={() => { setMenuOpen(false); onEdit() }}
               onDelete={() => { setMenuOpen(false); onDelete() }}
@@ -444,7 +477,7 @@ export default function ProjectPage({
         {/* Memory — stacked inline on narrow widths so it never gets buried */}
         {narrow && (
           <div style={{ marginBottom: 22 }}>
-            <MemoryBox project={project} color={c} onSave={onSaveMemory} />
+            <MemoryBox project={project} color={c} onSave={onSaveMemory} readOnly={!isOwner} />
           </div>
         )}
 
@@ -527,7 +560,7 @@ export default function ProjectPage({
             flex: '0 0 320px',
             position: 'sticky', top: 24,
           }}>
-            <MemoryBox project={project} color={c} onSave={onSaveMemory} />
+            <MemoryBox project={project} color={c} onSave={onSaveMemory} readOnly={!isOwner} />
           </aside>
         )}
         {/* end two-column body */}
@@ -698,11 +731,13 @@ function SettingsMenu({
 // project (Pro-gated, server-side). Edited inline here: view → Edit → Save.
 
 function MemoryBox({
-  project, color, onSave,
+  project, color, onSave, readOnly,
 }: {
   project: ChatProject
   color: ReturnType<typeof colorById>
   onSave: (memory: string) => Promise<void>
+  /** Shared-with-me project: the memory belongs to the owner; no edit pencil. */
+  readOnly?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft]     = useState(project.memory ?? '')
@@ -782,9 +817,9 @@ function MemoryBox({
                 <rect x="5" y="11" width="14" height="10" rx="2" />
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
-              Only you
+              {readOnly ? 'Owner only' : 'Only you'}
             </span>
-            <button
+            {!readOnly && <button
               type="button"
               onClick={startEdit}
               title={memory ? 'Edit memory' : 'Add memory'}
@@ -802,7 +837,7 @@ function MemoryBox({
                 <path d="M4 20h4l10-10-4-4L4 16z" />
                 <path d="M13.5 6.5l4 4" />
               </svg>
-            </button>
+            </button>}
           </>
         )}
       </div>
