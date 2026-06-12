@@ -13,13 +13,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { ProjectIcon, colorById, MAX_PROJECT_MEMORY_LENGTH } from './projectConstants'
 import TreeThumb, { TreeStat, type MiniTree } from './TreeThumb'
-import { ACCEPT_STRING, MAX_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip } from './ChatPanel'
+import { ACCEPT_STRING, MAX_FOLDER_FILES, MAX_ADMIN_FOLDER_FILES, processFiles, extractDroppedFiles, AttachmentChip } from './ChatPanel'
 import type { AttachmentItem, Conversation } from './App'
 import type { ChatProject } from './chatProjectTypes'
 
 interface Props {
   project: ChatProject
   conversations: Conversation[]
+  /** Folder drops are Pro-gated; admins get a larger file cap. */
+  isPro: boolean
+  isAdmin: boolean
   onBack: () => void
   onOpenConv: (id: string) => void
   onNewChat: (initialMessage?: string, attachments?: AttachmentItem[]) => void
@@ -56,7 +59,7 @@ function formatTime(iso: string): string {
 }
 
 export default function ProjectPage({
-  project, conversations,
+  project, conversations, isPro, isAdmin,
   onBack, onOpenConv, onNewChat, onConvContext, onEdit, onDelete, onSaveMemory,
 }: Props) {
   const supabase = useMemo(() => createClient(), [])
@@ -177,16 +180,23 @@ export default function ProjectPage({
     e.preventDefault()
     dragDepth.current = 0
     setDragging(false)
-    const { files, hadUriOnly, truncated } = await extractDroppedFiles(e)
+    const cap = isAdmin ? MAX_ADMIN_FOLDER_FILES : MAX_FOLDER_FILES
+    const { files, hadUriOnly, truncated, blockedFolder } = await extractDroppedFiles(e, {
+      maxFiles: cap,
+      allowFolders: isPro,
+    })
     if (files.length === 0) {
-      if (hadUriOnly) {
+      if (blockedFolder) {
+        setFileError('Dropping a whole folder is a Pro feature. Upgrade to attach folders, or drop individual files.')
+      } else if (hadUriOnly) {
         setFileError('That file could not be read. If it’s a cloud-only OneDrive file, open it once so Windows downloads a local copy, then drop it again.')
       }
       return
     }
     const err = await processFiles(files, addAttachment)
     if (err) setFileError(err)
-    else if (truncated) setFileError(`Only the first ${MAX_FOLDER_FILES} files from that folder were added.`)
+    else if (blockedFolder) setFileError('Folders are a Pro feature — attached the loose files only. Upgrade to include whole folders.')
+    else if (truncated) setFileError(`Only the first ${cap} files from that folder were added.`)
     else setFileError(null)
   }
 

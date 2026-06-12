@@ -27,8 +27,10 @@ const MAX_TEXT_SIZE  = 2 * 1024 * 1024
 
 // Folder drops: cap how many files we pull in (and how deep we recurse) so a
 // stray large directory can't flood the composer. Files past the cap are
-// ignored and the user is told.
-export const MAX_FOLDER_FILES = 25
+// ignored and the user is told. Admins get a higher ceiling for internal use;
+// raising these limits for regular users is tracked as future work.
+export const MAX_FOLDER_FILES = 25        // Pro users
+export const MAX_ADMIN_FOLDER_FILES = 100 // admins
 const MAX_FOLDER_DEPTH = 6
 
 // Extension → MIME fallback (for OneDrive and other sources that drop MIME type)
@@ -169,17 +171,17 @@ function readAllDirEntries(reader: FileSystemDirectoryReader): Promise<FileSyste
 }
 
 // Walk a dropped entry (file or folder), collecting real Files. Recurses into
-// subfolders up to MAX_FOLDER_DEPTH and stops once we hit MAX_FOLDER_FILES.
-async function collectFromEntry(entry: FileSystemEntry, files: File[], depth: number): Promise<void> {
-  if (files.length >= MAX_FOLDER_FILES) return
+// subfolders up to MAX_FOLDER_DEPTH and stops once we hit `maxFiles`.
+async function collectFromEntry(entry: FileSystemEntry, files: File[], depth: number, maxFiles: number): Promise<void> {
+  if (files.length >= maxFiles) return
   if (entry.isFile) {
     const f = await entryToFile(entry as FileSystemFileEntry)
     if (f && f.size > 0) files.push(f)
   } else if (entry.isDirectory && depth < MAX_FOLDER_DEPTH) {
     const children = await readAllDirEntries((entry as FileSystemDirectoryEntry).createReader())
     for (const child of children) {
-      if (files.length >= MAX_FOLDER_FILES) break
-      await collectFromEntry(child, files, depth + 1)
+      if (files.length >= maxFiles) break
+      await collectFromEntry(child, files, depth + 1, maxFiles)
     }
   }
 }
@@ -187,9 +189,17 @@ async function collectFromEntry(entry: FileSystemEntry, files: File[], depth: nu
 // Collect real File objects from a drop event. Walks dropped folders and reads
 // files through the entry API, which hydrates OneDrive/cloud-only files on
 // demand (getAsFile() would return an empty placeholder for those).
+//
+// `maxFiles` caps how many files a folder can contribute. `allowFolders` gates
+// directory drops (a Pro feature): when false, dropped folders are ignored and
+// `blockedFolder` is set so the caller can prompt an upgrade.
 export async function extractDroppedFiles(
   e: React.DragEvent,
-): Promise<{ files: File[]; hadUriOnly: boolean; truncated: boolean }> {
+  opts: { maxFiles?: number; allowFolders?: boolean } = {},
+): Promise<{ files: File[]; hadUriOnly: boolean; truncated: boolean; blockedFolder: boolean }> {
+  const maxFiles = opts.maxFiles ?? MAX_FOLDER_FILES
+  const allowFolders = opts.allowFolders ?? true
+
   // DataTransfer is only valid synchronously inside the handler, so snapshot
   // entries (and any fallbacks) before the first await.
   const entries: FileSystemEntry[] = []
@@ -208,12 +218,14 @@ export async function extractDroppedFiles(
   const plainFiles = Array.from(e.dataTransfer.files)
   const types = Array.from(e.dataTransfer.types)
 
+  let blockedFolder = false
   const files: File[] = []
   for (const entry of entries) {
-    if (files.length >= MAX_FOLDER_FILES) break
-    await collectFromEntry(entry, files, 0)
+    if (entry.isDirectory && !allowFolders) { blockedFolder = true; continue }
+    if (files.length >= maxFiles) break
+    await collectFromEntry(entry, files, 0, maxFiles)
   }
-  const truncated = files.length >= MAX_FOLDER_FILES
+  const truncated = files.length >= maxFiles
 
   // Entry API yielded nothing (older browsers, or non-entry drops): fall back.
   if (files.length === 0) {
@@ -223,10 +235,10 @@ export async function extractDroppedFiles(
     for (const f of plainFiles) if (f.size > 0) files.push(f)
   }
 
-  const hadUriOnly = files.length === 0 &&
+  const hadUriOnly = files.length === 0 && !blockedFolder &&
     (types.includes('text/uri-list') || types.includes('Files'))
 
-  return { files, hadUriOnly, truncated }
+  return { files, hadUriOnly, truncated, blockedFolder }
 }
 
 function formatTime(ts: number) {
@@ -1136,7 +1148,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed, isPro, isAdmin, setIsUpgradeOpen } = useApp()
   const bottomRef    = useRef<HTMLDivElement>(null)
   const scrollRef    = useRef<HTMLDivElement>(null)
   // Whether to keep pinning the view to the latest output. Set false the moment
@@ -1193,10 +1205,17 @@ export default function ChatPanel() {
     dragCounter.current = 0
     setIsDragging(false)
 
-    const { files, hadUriOnly, truncated } = await extractDroppedFiles(e)
+    const cap = isAdmin ? MAX_ADMIN_FOLDER_FILES : MAX_FOLDER_FILES
+    const { files, hadUriOnly, truncated, blockedFolder } = await extractDroppedFiles(e, {
+      maxFiles: cap,
+      allowFolders: isPro,
+    })
 
     if (files.length === 0) {
-      if (hadUriOnly) {
+      if (blockedFolder) {
+        setFileError('Dropping a whole folder is a Pro feature. Upgrade to attach folders, or drop individual files.')
+        setIsUpgradeOpen(true)
+      } else if (hadUriOnly) {
         setFileError(
           'That file could not be read. If it’s a cloud-only OneDrive file, open it once (or right-click → "Always keep on this device") so Windows downloads a local copy, then drop it again.'
         )
@@ -1206,10 +1225,12 @@ export default function ChatPanel() {
 
     const err = await processFiles(files, addAttachment)
     if (err) setFileError(err)
-    else if (truncated) {
-      setFileError(`Only the first ${MAX_FOLDER_FILES} files from that folder were added.`)
+    else if (blockedFolder) {
+      setFileError('Folders are a Pro feature — attached the loose files only. Upgrade to include whole folders.')
+    } else if (truncated) {
+      setFileError(`Only the first ${cap} files from that folder were added.`)
     }
-  }, [addAttachment])
+  }, [addAttachment, isPro, isAdmin, setIsUpgradeOpen])
 
   const showThinkingBubble = isLoading && messages[messages.length - 1]?.role !== 'assistant'
 

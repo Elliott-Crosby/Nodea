@@ -2724,6 +2724,8 @@ export default function App() {
           <ProjectPage
             project={activeChatProject}
             conversations={conversations}
+            isPro={isPro}
+            isAdmin={isAdmin}
             onBack={openProjectsLanding}
             onOpenConv={(id) => { setActiveConvId(id); setView('chat'); switchConversation(id) }}
             onNewChat={(msg, atts) => requestNewChatInProject(activeChatProject.id, msg, atts)}
