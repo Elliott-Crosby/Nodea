@@ -932,7 +932,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
           <div
             style={{
               maxWidth: '100%',
-              padding: '2px 18px',
+              padding: '2px 20px',
               background: 'transparent',
               border: 'none',
               fontSize: 15, lineHeight: 1.65,
