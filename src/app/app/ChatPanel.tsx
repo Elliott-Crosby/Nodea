@@ -370,20 +370,12 @@ function ThinkingBubble() {
   const status = elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : elapsed < 25 ? 'Analyzing' : 'Working on it'
 
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      <div style={{ width: 40, flexShrink: 0 }} />
-      <div
-        style={{
-          width: 28, height: 28, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-          flexShrink: 0, marginTop: 5, opacity: 0.85,
-        }}
-      />
+    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5 }}>
           Claude
           {elapsed > 0 && (
-            <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
+            <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>
               {status} · {elapsed}s
             </span>
           )}
@@ -408,7 +400,7 @@ function ThinkingBubble() {
               />
             ))}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{status}…</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{status}…</span>
         </div>
       </div>
     </div>
@@ -838,58 +830,24 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
       onMouseLeave={() => setHovered(false)}
       style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}
     >
-      {!isUser && (
-        <div style={{ width: 40, flexShrink: 0, textAlign: 'right', paddingTop: 9, fontSize: 10, color: 'var(--text-muted)' }}>
-          {msg.timestamp ? formatTime(msg.timestamp) : ''}
-        </div>
-      )}
-
-      {!isUser && (() => {
-        // The AI agent's icon. A reply imported from a third-party source (e.g.
-        // claude.ai) wears that source's own brand logo on a neutral chip; a
-        // reply generated natively in Nodea keeps the normal gradient mark.
-        const importedSrc = msg.imported ? getAISource(activeConvSource) : null
-        if (importedSrc?.logo) {
-          return (
-            <div
-              title={`From ${importedSrc.name}`}
-              style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: '#fff', border: '1px solid var(--border)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, marginTop: 5,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={importedSrc.logo} width={16} height={16} alt="" aria-hidden style={{ display: 'block' }} />
-            </div>
-          )
-        }
-        return (
-          <div
-            style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, marginTop: 5,
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="2.8" stroke="white" strokeWidth="1.4" />
-              <path d="M7 1v1.8M7 11.2V13M1 7h1.8M11.2 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </div>
-        )
-      })()}
-
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 7 }}>
             {(() => {
-              // Imported from a third party (e.g. claude.ai)? The avatar already
-              // wears that source's brand logo, so the header just names it.
+              // Imported from a third party (e.g. claude.ai)? Name it, with its
+              // brand logo inline (the standalone avatar chip has been removed).
               const importedSrc = msg.imported ? getAISource(activeConvSource) : null
-              if (importedSrc) return <span>{importedSrc.name}</span>
+              if (importedSrc) {
+                return (
+                  <>
+                    {importedSrc.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={importedSrc.logo} width={15} height={15} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+                    ) : null}
+                    <span>{importedSrc.name}</span>
+                  </>
+                )
+              }
               // Native Nodea reply: its model logo + name. Driven by the node's
               // persisted model_id so it survives a refresh; falls back to Claude
               // (every model Nodea generates is a Claude model).
@@ -898,15 +856,21 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 <>
                   {logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={logo} width={13} height={13} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+                    <img src={logo} width={15} height={15} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
                   ) : null}
                   <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
                 </>
               )
             })()}
             {isEmptyStreaming && elapsed > 0 && (
-              <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>
                 {elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'} · {elapsed}s
+              </span>
+            )}
+            {/* Timestamp now sits above the response (the left gutter is gone). */}
+            {msg.timestamp && (
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>
+                {formatTime(msg.timestamp)}
               </span>
             )}
           </div>
@@ -963,7 +927,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
               borderRadius: '4px 14px 14px 14px',
               background: 'var(--ai-card-bg)',
               border: '1px solid var(--ai-card-border)',
-              fontSize: 13, lineHeight: 1.65,
+              fontSize: 16, lineHeight: 1.65,
               color: 'var(--text-primary)', wordBreak: 'break-word',
               boxShadow: 'var(--shadow-sm)',
             }}
@@ -998,7 +962,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--input-bg)', border: '1px solid var(--accent)',
                 borderRadius: 12, padding: '10px 13px',
-                fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)',
+                fontSize: 16, lineHeight: 1.6, color: 'var(--text-primary)',
                 resize: 'none', outline: 'none', fontFamily: 'inherit',
                 maxHeight: 240, overflowY: 'auto',
               }}
@@ -1068,7 +1032,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 borderRadius: '14px 14px 4px 14px',
                 background: 'var(--user-bubble-bg)',
                 border: isHighlighted ? '1px solid var(--accent)' : '1px solid var(--user-bubble-border)',
-                fontSize: 13, lineHeight: 1.65,
+                fontSize: 16, lineHeight: 1.65,
                 color: 'var(--text-primary)', wordBreak: 'break-word',
                 boxShadow: isHighlighted ? '0 0 0 3px var(--accent-bg)' : 'none',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -1265,7 +1229,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
           disabled={isLoading}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            fontSize: 13, color: 'var(--text-primary)', resize: 'none',
+            fontSize: 16, color: 'var(--text-primary)', resize: 'none',
             lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
             fontFamily: 'inherit',
           }}

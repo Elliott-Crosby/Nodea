@@ -245,7 +245,7 @@ export default function Sidebar() {
             background: 'var(--accent-bg)',
             border: '1px solid var(--user-bubble-border)',
             borderRadius: 8,
-            fontSize: 12, fontWeight: 500, color: 'var(--accent-text)',
+            fontSize: 16, fontWeight: 500, color: 'var(--accent-text)',
             cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap',
           }}
         >
@@ -312,7 +312,7 @@ export default function Sidebar() {
                   border: 'none',
                   borderLeft: view === 'projects' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
                   cursor: 'pointer',
-                  fontSize: 12.5,
+                  fontSize: 16,
                   color: view === 'projects' ? 'var(--accent-text)' : 'var(--text-muted)',
                   textAlign: 'left',
                 }}
@@ -364,7 +364,7 @@ export default function Sidebar() {
                     <rect x="13" y="13" width="8" height="7" rx="1.5" />
                   </svg>
                 </span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Projects</span>
+                <span style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Projects</span>
                 <span style={{
                   marginLeft: 'auto',
                   display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -496,7 +496,7 @@ export default function Sidebar() {
               gap: 9, width: '100%',
               padding: collapsed ? '10px 0' : '10px 14px',
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--text-secondary)', fontSize: 13,
+              color: 'var(--text-secondary)', fontSize: 16,
               overflow: 'hidden', whiteSpace: 'nowrap',
               textDecoration: 'none',
               transition: 'background 0.1s',
@@ -521,7 +521,7 @@ export default function Sidebar() {
             gap: 9, width: '100%',
             padding: collapsed ? '10px 0' : '10px 14px',
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--text-secondary)', fontSize: 13,
+            color: 'var(--text-secondary)', fontSize: 16,
             overflow: 'hidden', whiteSpace: 'nowrap',
             transition: 'background 0.1s',
           }}
@@ -555,7 +555,7 @@ export default function Sidebar() {
 
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {userName || 'User'}
               </div>
             </div>
@@ -652,7 +652,7 @@ function PinnedProject({
       <span style={{
         flex: 1, minWidth: 0,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        fontSize: 13, fontWeight: active ? 600 : 500,
+        fontSize: 16, fontWeight: active ? 600 : 500,
         color: active ? 'var(--accent-text)' : 'var(--text-primary)',
       }}>
         {project.name}
@@ -755,7 +755,7 @@ function ConvRow(props: ConvRowProps) {
               border: '1.5px solid var(--accent)',
               background: 'var(--input-bg)',
               color: 'var(--text-primary)',
-              fontSize: 13,
+              fontSize: 16,
               outline: 'none',
             }}
           />
@@ -787,7 +787,7 @@ function ConvRow(props: ConvRowProps) {
             borderLeft: !collapsed ? (isActive ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
             cursor: 'pointer', textAlign: 'left',
             color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
-            fontSize: 13, fontWeight: isActive ? 500 : 400,
+            fontSize: 16, fontWeight: isActive ? 500 : 400,
             overflow: 'hidden',
             transition: 'background 0.1s, color 0.1s',
             paddingRight: (!collapsed && isHovered) ? '6px' : (!collapsed ? '14px' : '0'),
