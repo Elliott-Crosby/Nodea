@@ -4,6 +4,7 @@ import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { track } from '@vercel/analytics'
 import { useApp, type DbNode } from './App'
 import { DECISION_STATUSES, decisionMeta } from '@/lib/decisions'
+import PresentationMode from './presentation/PresentationMode'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const LAYOUT_W           = 240
@@ -486,6 +487,7 @@ export default function TreePanel() {
   const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
 
   const [collapsed,       setCollapsed]       = useState(false)
+  const [presentOpen,     setPresentOpen]     = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
   const [autoZoom,        setAutoZoom]        = useState(true)
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
@@ -1262,10 +1264,36 @@ export default function TreePanel() {
           ))}
         </div>
 
+        {/* Present & export */}
+        {pairs.length > 0 && (
+          <button
+            onClick={() => setPresentOpen(true)}
+            title="Present & export this tree"
+            style={{
+              height: 26, padding: '0 9px', display: 'flex', alignItems: 'center', gap: 5,
+              background: 'transparent', border: '1px solid var(--border)', borderRadius: 7,
+              cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
+              flexShrink: 0, transition: 'background 0.1s, color 0.1s, border-color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <rect x="1" y="1.5" width="10" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M6 8.5v2M4 10.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M4.8 3.8 7.4 5 4.8 6.2z" fill="currentColor" />
+            </svg>
+            Present
+          </button>
+        )}
+
         <span style={{ fontSize: 11, background: 'var(--bg-muted)', color: 'var(--text-muted)', borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>
           {pairs.length}
         </span>
       </div>
+
+      {/* Presentation mode overlay (portals to <body>) */}
+      {presentOpen && <PresentationMode onClose={() => setPresentOpen(false)} />}
 
       {/* Outline view */}
       {viewMode === 'outline' ? (

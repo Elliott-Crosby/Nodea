@@ -5,7 +5,6 @@ import { track } from '@vercel/analytics'
 import { useTheme } from '@/lib/theme'
 import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
-import { formatSiteTime, formatSiteDate } from '@/lib/site-time'
 
 type Section = 'appearance' | 'account' | 'usage' | 'memory'
 
@@ -463,11 +462,11 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
   }
 
   function fmtTime(d: Date) {
-    return formatSiteTime(d, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
   }
 
   function fmtDate(d: Date) {
-    return formatSiteDate(d, { month: 'short', day: 'numeric' })
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
 
   return (

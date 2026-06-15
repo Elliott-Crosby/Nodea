@@ -23,7 +23,6 @@ import ConvContextMenu from './ConvContextMenu'
 import { MAX_PINNED_PROJECTS } from './projectConstants'
 import type { ChatProject, ChatProjectInput, ProjectView } from './chatProjectTypes'
 import { useIsMobile } from '@/lib/useIsMobile'
-import { formatSiteTime, formatSiteDate } from '@/lib/site-time'
 import MobileApp from './mobile/MobileApp'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -548,7 +547,7 @@ function formatRateLimitMessage(
 ): string {
   if (data.limit_type === 'daily') {
     const t = data.resets_at
-      ? formatSiteTime(data.resets_at)
+      ? new Date(data.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'midnight'
     return isPro
       ? `You've reached your daily usage limit. Your limit resets at ${t}.`
@@ -556,7 +555,7 @@ function formatRateLimitMessage(
   }
   if (data.limit_type === 'monthly') {
     const d = data.resets_at
-      ? formatSiteDate(data.resets_at, { month: 'short', day: 'numeric' })
+      ? new Date(data.resets_at).toLocaleDateString([], { month: 'short', day: 'numeric' })
       : 'the 1st'
     return isPro
       ? `You've reached your monthly usage limit. Your limit resets on ${d}.`
