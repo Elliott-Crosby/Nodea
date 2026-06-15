@@ -17,10 +17,18 @@ const DEFAULT_WIDTH      = 420
 const PANEL_WIDTH_KEY    = 'nodea_tree_panel_w'
 const MIN_READABLE_SCALE = 0.65
 
-const NODE_W      = { detailed: 240, compact: 190, mini: 150 } as const
-const NODE_H      = { detailed: 104, compact: 52,  mini:  40  } as const
-const NODE_H_FULL = { detailed: 220, compact: 140, mini:  90  } as const
+// Cards are fixed-size objects in canvas space and zoom uniformly with
+// everything else — so their size and spacing *relative to each other* never
+// change. Only their content adapts: full card (title + summary) when close,
+// title-only once you're far enough out.
+const NODE_W      = 240
+const NODE_H      = 104
+const NODE_H_FULL = 220
 const V_SPACING_FULL = 320
+
+// At or below this zoom the cards are "far away": drop the body, show only the
+// (wrapping) title. Same box, just less inside it.
+const TITLE_ONLY_SCALE = 0.55
 
 // ── Colour palette ─────────────────────────────────────────────────────────────
 const PALETTE = [
@@ -67,8 +75,6 @@ interface StickyNote {
   text:      string
   collapsed: boolean
 }
-
-type ZoomMode = 'detailed' | 'compact' | 'mini'
 
 // ── Utility functions ──────────────────────────────────────────────────────────
 const STOP_WORDS = new Set([
@@ -152,12 +158,6 @@ function shortFilename(name: string, max = 16): string {
     return base + '…' + ext
   }
   return name.slice(0, max - 1) + '…'
-}
-
-function getZoomMode(scale: number): ZoomMode {
-  if (scale >= 0.85) return 'detailed'
-  if (scale >= 0.55) return 'compact'
-  return 'mini'
 }
 
 function getActivePairIds(pairs: Pair[], selectedNodeId: string | null): Set<string> {
@@ -763,16 +763,16 @@ export default function TreePanel() {
 
   const vSpacing      = viewMode === 'full' ? V_SPACING_FULL : V_SPACING
   const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing), [displayPairs, vSpacing])
-  const zoomMode      = getZoomMode(scale)
-  const nodeW         = NODE_W[zoomMode]
-  const nodeH         = (viewMode === 'full' ? NODE_H_FULL : NODE_H)[zoomMode]
-  const nodeHMax      = (viewMode === 'full' ? NODE_H_FULL : NODE_H).detailed
+  // Cards are one fixed size at every zoom; only their content changes. Far
+  // enough out (titleOnly) they show just the title, but the box never shrinks.
+  const titleOnly     = scale < TITLE_ONLY_SCALE
+  const nodeW         = NODE_W
+  const nodeH         = viewMode === 'full' ? NODE_H_FULL : NODE_H
+  const nodeHMax      = nodeH
 
-  // Counter-zoom: below 100% the canvas keeps shrinking (spacing and edges)
-  // but each node card is counter-scaled back to its natural on-screen size,
-  // so cards never shrink into unreadability when zooming out.
-  const nodeScale = Math.max(1, 1 / scale)
-  const nodeHVis  = nodeH * nodeScale   // node height in canvas units as rendered
+  // No counter-scaling: cards zoom uniformly with the canvas, keeping their
+  // size and spacing relative to each other constant at every zoom level.
+  const nodeHVis  = nodeH
 
   const { canvasW, canvasH } = useMemo(() => {
     if (pairPositions.size === 0) return { canvasW: 400, canvasH: 400 }
@@ -799,11 +799,10 @@ export default function TreePanel() {
     const by0  = Math.min(...ps.map(p => p.y))
     const by1  = Math.max(...ps.map(p => p.y))
 
-    // Node cards hold their on-screen size below 100% zoom, so only the
-    // position spans scale — fit those to the space left after one fixed
-    // node footprint (LAYOUT_W × nodeHMax).
-    const sByW = (cw - hPad * 2 - LAYOUT_W) / Math.max(1, bx1 - bx0)
-    const sByH = (ch - 28 - 32 - nodeHMax) / Math.max(1, by1 - by0)
+    // Cards zoom with the canvas, so the content spans the position range plus
+    // one node footprint (LAYOUT_W × nodeHMax) — all of which scales by s.
+    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + LAYOUT_W)
+    const sByH = (ch - 28 - 32) / Math.max(1, (by1 - by0) + nodeHMax)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
@@ -828,14 +827,14 @@ export default function TreePanel() {
     const by0  = Math.min(...poses.map(p => p.y))
     const by1  = Math.max(...poses.map(p => p.y))
 
-    const sByW = (cw - hPad * 2 - LAYOUT_W) / Math.max(1, bx1 - bx0)
-    const sByH = (ch - 28 - 48 - nodeHMax) / Math.max(1, by1 - by0)
+    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + LAYOUT_W)
+    const sByH = (ch - 28 - 48) / Math.max(1, (by1 - by0) + nodeHMax)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
     setPan({
       x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s,
-      y: ch / 2 - ((by0 + by1) / 2) * s - (nodeHMax * Math.max(s, 1)) / 2,
+      y: ch / 2 - ((by0 + by1) / 2) * s - (nodeHMax * s) / 2,
     })
   }, [activePairIds, pairPositions, fitView, nodeHMax])
 
@@ -859,7 +858,7 @@ export default function TreePanel() {
     setScale(s)
     setPan({
       x: cw / 2 - (pos.x + LAYOUT_W / 2) * s,
-      y: ch / 2 - pos.y * s - (nodeHMax * Math.max(s, 1)) / 2,
+      y: ch / 2 - pos.y * s - (nodeHMax * s) / 2,
     })
   }, [pairPositions, nodeHMax])
 
@@ -1416,7 +1415,7 @@ export default function TreePanel() {
                   const rawText = input.trim() || lastInputRef.current
                   const ghostText = rawText.length > 35 ? rawText.slice(0, 34) + '…' : rawText
                   return (
-                    <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, transform: `scale(${nodeScale})`, transformOrigin: '50% 0', opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
+                    <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
                       <div style={{ width: nodeW, height: nodeH, background: 'var(--node-bg)', border: '1.5px dashed var(--accent)', borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 10px', boxSizing: 'border-box' }}>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic' }}>
                           {ghostText || 'Thinking…'}
@@ -1485,8 +1484,6 @@ export default function TreePanel() {
                       position:   'absolute',
                       left:       offsetX,
                       top:        pos.y,
-                      transform:  `scale(${nodeScale})`,
-                      transformOrigin: '50% 0',
                       zIndex:     isHovered ? 10 : 1,
                       opacity:    (isInactive && !isMergeSourceHL) ? 0.72 : 1,
                       transition: 'opacity 0.2s',
@@ -1615,8 +1612,8 @@ export default function TreePanel() {
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
-                      {/* Detailed — summary mode: generated title + summary + attachment row */}
-                      {zoomMode === 'detailed' && viewMode === 'tree' && (
+                      {/* Full card — summary mode: generated title + summary + attachment row */}
+                      {!titleOnly && viewMode === 'tree' && (
                         <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span
@@ -1677,8 +1674,8 @@ export default function TreePanel() {
                         </div>
                       )}
 
-                      {/* Detailed — full mode: raw user prompt (bold, top) + raw AI reply (regular, bottom) */}
-                      {zoomMode === 'detailed' && viewMode === 'full' && (
+                      {/* Full card — full mode: raw user prompt (bold, top) + raw AI reply (regular, bottom) */}
+                      {!titleOnly && viewMode === 'full' && (
                         <div style={{ padding: '10px 11px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <div
                             style={{
@@ -1744,109 +1741,25 @@ export default function TreePanel() {
                         </div>
                       )}
 
-                      {/* Compact — summary mode: title + one-line summary, paperclip+count if attached */}
-                      {zoomMode === 'compact' && viewMode === 'tree' && (
-                        <div style={{ padding: '7px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                            <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                              {title}
-                            </div>
-                            {hasAttachments && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>
-                                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-                                  <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
-                                    stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                                </svg>
-                                {attachments.length > 1 && attachments.length}
-                              </span>
-                            )}
-                          </div>
-                          {summary && (
-                            <div style={{ fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {summary}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Compact — full mode: clamped user text on top, clamped AI text on bottom */}
-                      {zoomMode === 'compact' && viewMode === 'full' && (
-                        <div style={{ padding: '8px 9px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, minWidth: 0, flex: '1 1 0' }}>
-                            <div
-                              style={{
-                                flex: 1, minWidth: 0,
-                                fontSize: 10.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.35,
-                                overflow: 'hidden',
-                                display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
-                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                              }}
-                            >
-                              {userTextFull || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>(empty)</span>}
-                            </div>
-                            {hasAttachments && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 9, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}>
-                                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-                                  <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
-                                    stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                                </svg>
-                                {attachments.length > 1 && attachments.length}
-                              </span>
-                            )}
-                          </div>
-                          {aiTextFull && (
-                            <>
-                              <div style={{ borderTop: '1px dashed var(--border)', flexShrink: 0 }} />
-                              <div
-                                style={{
-                                  flex: '1 1 0',
-                                  minHeight: 0,
-                                  fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.4,
-                                  overflow: 'hidden',
-                                  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
-                                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                                }}
-                              >
-                                {aiTextFull}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Mini — summary mode: title only, paperclip dot if attached */}
-                      {zoomMode === 'mini' && viewMode === 'tree' && (
-                        <div style={{ padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                            {title}
+                      {/* Title-only — far enough out that the body is dropped. Same box
+                          size as the full card; just the title, vertically centred. */}
+                      {titleOnly && (
+                        <div style={{ padding: '0 14px', height: '100%', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div
+                            style={{
+                              flex: 1, minWidth: 0,
+                              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3,
+                              overflow: 'hidden',
+                              whiteSpace: 'normal', wordBreak: 'break-word',
+                            }}
+                          >
+                            {viewMode === 'full' ? (userTextFull || title) : title}
                           </div>
                           {hasAttachments && (
-                            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
                               <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
                                 stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                             </svg>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Mini — full mode: one line of user, one line of AI */}
-                      {zoomMode === 'mini' && viewMode === 'full' && (
-                        <div style={{ padding: '6px 8px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ flex: 1, fontSize: 9.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {userTextFull || '(empty)'}
-                            </div>
-                            {hasAttachments && (
-                              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                                <path d="M8.5 3.5l-4 4a1.5 1.5 0 1 0 2.12 2.12l4-4a3 3 0 0 0-4.24-4.24l-4.5 4.5a4.5 4.5 0 0 0 6.36 6.36l3.5-3.5"
-                                  stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                              </svg>
-                            )}
-                          </div>
-                          {aiTextFull && (
-                            <div style={{ fontSize: 9, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {aiTextFull}
-                            </div>
                           )}
                         </div>
                       )}
