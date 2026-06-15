@@ -292,7 +292,7 @@ function OutlineView({ pairs, selectedNodeId, handleNodeClick }: {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div style={{ flex: 1, overflowY: 'auto', paddingTop: 54 }}>
       {pairs.length === 0 ? (
         <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 12, textAlign: 'center' }}>
           Nodes will appear<br />as you chat
@@ -482,6 +482,50 @@ function StickyNoteCard({
   )
 }
 
+// ── View mode dropdown ──────────────────────────────────────────────────────────
+const VIEW_MODES = [
+  { id: 'tree',    label: 'Tree' },
+  { id: 'outline', label: 'Outline' },
+  { id: 'full',    label: 'Full' },
+] as const
+
+function ViewModeIcon({ mode, size = 11 }: { mode: 'tree' | 'outline' | 'full'; size?: number }) {
+  if (mode === 'tree') return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none">
+      <rect x="4" y="0.5" width="4" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <rect x="0.5" y="8.5" width="3.5" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <rect x="8" y="8.5" width="3.5" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="6" y1="3.5" x2="6" y2="6.5" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="6" y1="6.5" x2="2.25" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="6" y1="6.5" x2="9.75" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+  if (mode === 'outline') return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none">
+      <line x1="1" y1="3" x2="11" y2="3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="3" y1="6.5" x2="11" y2="6.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  )
+  /* Full view: tree shape with taller / fuller nodes */
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none">
+      <rect x="4" y="0.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="4.8" y1="2"   x2="7.2" y2="2"   stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <line x1="4.8" y1="3.2" x2="6.5" y2="3.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <rect x="0.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="1.3" y1="9"    x2="3.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <line x1="1.3" y1="10.2" x2="3"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <rect x="7.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="8.3" y1="9"    x2="10.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <line x1="8.3" y1="10.2" x2="10"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
+      <line x1="6" y1="4.5" x2="6" y2="6" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="6" y1="6" x2="2.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
+      <line x1="6" y1="6" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
   const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
@@ -489,6 +533,18 @@ export default function TreePanel() {
   const [collapsed,       setCollapsed]       = useState(false)
   const [presentOpen,     setPresentOpen]     = useState(false)
   const [viewMode,        setViewMode]        = useState<'tree' | 'outline' | 'full'>('tree')
+  const [viewMenuOpen,    setViewMenuOpen]    = useState(false)
+  const viewMenuRef = useRef<HTMLDivElement | null>(null)
+
+  // Close the view-mode dropdown on any outside click.
+  useEffect(() => {
+    if (!viewMenuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!viewMenuRef.current?.contains(e.target as Node)) setViewMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [viewMenuOpen])
   const [autoZoom,        setAutoZoom]        = useState(true)
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
 
@@ -712,6 +768,12 @@ export default function TreePanel() {
   const nodeH         = (viewMode === 'full' ? NODE_H_FULL : NODE_H)[zoomMode]
   const nodeHMax      = (viewMode === 'full' ? NODE_H_FULL : NODE_H).detailed
 
+  // Counter-zoom: below 100% the canvas keeps shrinking (spacing and edges)
+  // but each node card is counter-scaled back to its natural on-screen size,
+  // so cards never shrink into unreadability when zooming out.
+  const nodeScale = Math.max(1, 1 / scale)
+  const nodeHVis  = nodeH * nodeScale   // node height in canvas units as rendered
+
   const { canvasW, canvasH } = useMemo(() => {
     if (pairPositions.size === 0) return { canvasW: 400, canvasH: 400 }
     const xs = Array.from(pairPositions.values()).map(p => p.x)
@@ -733,18 +795,19 @@ export default function TreePanel() {
     const ps   = Array.from(pairPositions.values())
     const hPad = 40
     const bx0  = Math.min(...ps.map(p => p.x))
-    const bx1  = Math.max(...ps.map(p => p.x)) + LAYOUT_W
+    const bx1  = Math.max(...ps.map(p => p.x))
     const by0  = Math.min(...ps.map(p => p.y))
-    const by1  = Math.max(...ps.map(p => p.y)) + nodeHMax
-    const bw   = bx1 - bx0 + hPad * 2
-    const bh   = by1 - by0
+    const by1  = Math.max(...ps.map(p => p.y))
 
-    const sByW = cw / bw
-    const sByH = (ch - 28) / (bh + 32)
+    // Node cards hold their on-screen size below 100% zoom, so only the
+    // position spans scale — fit those to the space left after one fixed
+    // node footprint (LAYOUT_W × nodeHMax).
+    const sByW = (cw - hPad * 2 - LAYOUT_W) / Math.max(1, bx1 - bx0)
+    const sByH = (ch - 28 - 32 - nodeHMax) / Math.max(1, by1 - by0)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
-    setPan({ x: (cw - (bx1 - bx0) * s) / 2 - bx0 * s, y: 24 - by0 * s })
+    setPan({ x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s, y: 24 - by0 * s })
   }, [pairPositions, nodeHMax])
 
   // ── Fit active branch ─────────────────────────────────────────────────────────
@@ -761,20 +824,18 @@ export default function TreePanel() {
 
     const hPad = 60
     const bx0  = Math.min(...poses.map(p => p.x))
-    const bx1  = Math.max(...poses.map(p => p.x)) + LAYOUT_W
+    const bx1  = Math.max(...poses.map(p => p.x))
     const by0  = Math.min(...poses.map(p => p.y))
-    const by1  = Math.max(...poses.map(p => p.y)) + nodeHMax
-    const bw   = bx1 - bx0 + hPad * 2
-    const bh   = by1 - by0
+    const by1  = Math.max(...poses.map(p => p.y))
 
-    const sByW = cw / bw
-    const sByH = (ch - 28) / (bh + 48)
+    const sByW = (cw - hPad * 2 - LAYOUT_W) / Math.max(1, bx1 - bx0)
+    const sByH = (ch - 28 - 48 - nodeHMax) / Math.max(1, by1 - by0)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
     setPan({
-      x: (cw - (bx1 - bx0) * s) / 2 - bx0 * s,
-      y: (ch - (by1 - by0) * s) / 2 - by0 * s,
+      x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s,
+      y: ch / 2 - ((by0 + by1) / 2) * s - (nodeHMax * Math.max(s, 1)) / 2,
     })
   }, [activePairIds, pairPositions, fitView, nodeHMax])
 
@@ -798,7 +859,7 @@ export default function TreePanel() {
     setScale(s)
     setPan({
       x: cw / 2 - (pos.x + LAYOUT_W / 2) * s,
-      y: ch / 2 - (pos.y + nodeHMax / 2) * s,
+      y: ch / 2 - pos.y * s - (nodeHMax * Math.max(s, 1)) / 2,
     })
   }, [pairPositions, nodeHMax])
 
@@ -949,7 +1010,7 @@ export default function TreePanel() {
       const isActivePath = !isGhost && activePairIds.has(pair.id) && activePairIds.has(pair.parentPairId)
       const cx           = LAYOUT_W / 2
       const x1           = p0.x + cx
-      const y1           = p0.y + nodeH
+      const y1           = p0.y + nodeHVis
       const x2           = p1.x + cx
       const y2           = p1.y
       const stroke       = isGhost ? 'var(--text-muted)' : isActivePath ? 'var(--accent)' : 'var(--edge-color)'
@@ -977,8 +1038,8 @@ export default function TreePanel() {
     const cx  = LAYOUT_W / 2
     const x1  = s.x + cx
     const x2  = t.x + cx
-    const y1  = s.y <= t.y ? s.y + nodeH : s.y
-    const y2  = s.y <= t.y ? t.y : t.y + nodeH
+    const y1  = s.y <= t.y ? s.y + nodeHVis : s.y
+    const y2  = s.y <= t.y ? t.y : t.y + nodeHVis
     const dx  = x2 - x1
     const dy  = y2 - y1
     const bow = Math.max(36, Math.abs(dx) * 0.4)
@@ -1072,7 +1133,7 @@ export default function TreePanel() {
     const sourceNodeId = pair.aiNode?.id ?? pair.userNode.id
     const sourcePairId = pair.id
     const sx = srcPos.x + LAYOUT_W / 2
-    const sy = srcPos.y + nodeH
+    const sy = srcPos.y + nodeHVis
     setDragMerge({ sourceNodeId, sourcePairId, sx, sy, cx: sx, cy: sy, validTarget: false })
 
     const toTarget = (ev: PointerEvent) => {
@@ -1195,8 +1256,9 @@ export default function TreePanel() {
         title="Drag to resize"
       />
 
-      {/* Header */}
-      <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px 0 14px', borderBottom: '1px solid var(--border)', background: 'var(--topbar-bg)', gap: 6 }}>
+      {/* Floating header controls */}
+      <div style={{ position: 'absolute', top: 0, left: 5, right: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 10px 0', gap: 8, pointerEvents: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, height: 36, padding: '0 10px 0 4px', pointerEvents: 'auto', background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 11, boxShadow: 'var(--shadow-sm)' }}>
         <button onClick={() => setCollapsed(true)} title="Collapse tree"
           style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0, transition: 'background 0.1s, color 0.1s' }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
@@ -1208,60 +1270,62 @@ export default function TreePanel() {
           </svg>
         </button>
 
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Conversation Tree</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Conversation Tree</span>
+        </div>
 
-        {/* Tree / Outline / Full toggle */}
-        <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: 8, padding: 2, gap: 2, flexShrink: 0 }}>
-          {(['tree', 'outline', 'full'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              title={mode === 'tree' ? 'Tree view (summaries)' : mode === 'outline' ? 'Outline view' : 'Full view (raw user + AI text)'}
-              style={{
-                width: 26, height: 22,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background:   viewMode === mode ? 'var(--modal-bg)' : 'transparent',
-                border:       viewMode === mode ? '1px solid var(--border)' : '1px solid transparent',
-                borderRadius: 6,
-                cursor:       'pointer',
-                color:        viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
-                transition:   'all 0.1s',
-              }}
-            >
-              {mode === 'tree' ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="4" y="0.5" width="4" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <rect x="0.5" y="8.5" width="3.5" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <rect x="8" y="8.5" width="3.5" height="3" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="6" y1="3.5" x2="6" y2="6.5" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="6" y1="6.5" x2="2.25" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="6" y1="6.5" x2="9.75" y2="8.5" stroke="currentColor" strokeWidth="1.1" />
-                </svg>
-              ) : mode === 'outline' ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <line x1="1" y1="3" x2="11" y2="3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                  <line x1="3" y1="6.5" x2="11" y2="6.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                  <line x1="5" y1="10" x2="11" y2="10" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-                </svg>
-              ) : (
-                /* Full view: tree shape with taller / fuller nodes */
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="4" y="0.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="4.8" y1="2"   x2="7.2" y2="2"   stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <line x1="4.8" y1="3.2" x2="6.5" y2="3.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <rect x="0.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="1.3" y1="9"    x2="3.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <line x1="1.3" y1="10.2" x2="3"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <rect x="7.5" y="7.5" width="4" height="4" rx="0.8" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="8.3" y1="9"    x2="10.7" y2="9"    stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <line x1="8.3" y1="10.2" x2="10"   y2="10.2" stroke="currentColor" strokeWidth="0.7" opacity="0.7" />
-                  <line x1="6" y1="4.5" x2="6" y2="6" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="6" y1="6" x2="2.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
-                  <line x1="6" y1="6" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.1" />
-                </svg>
-              )}
-            </button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, height: 36, padding: '0 5px', pointerEvents: 'auto', background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 11, boxShadow: 'var(--shadow-sm)' }}>
+        {/* Tree / Outline / Full dropdown */}
+        <div ref={viewMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setViewMenuOpen(o => !o)}
+            title="View mode"
+            style={{
+              height: 22, padding: '0 5px', display: 'flex', alignItems: 'center', gap: 4,
+              background: viewMenuOpen ? 'var(--bg-muted)' : 'transparent',
+              border: '1px solid transparent', borderRadius: 6,
+              cursor: 'pointer', color: 'var(--text-muted)', transition: 'background 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+          >
+            <ViewModeIcon mode={viewMode} />
+            <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
+              <path d="M1.5 3 4 5.5 6.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          {viewMenuOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
+              minWidth: 110, padding: 3,
+              background: 'var(--modal-bg)', border: '1px solid var(--border)',
+              borderRadius: 9, boxShadow: 'var(--shadow-sm)',
+            }}>
+              {VIEW_MODES.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setViewMode(m.id); setViewMenuOpen(false) }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '5px 8px', background: 'transparent', border: 'none',
+                    borderRadius: 6, cursor: 'pointer', fontSize: 11.5, fontWeight: viewMode === m.id ? 600 : 400,
+                    color: viewMode === m.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-muted)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                >
+                  <ViewModeIcon mode={m.id} />
+                  {m.label}
+                  {viewMode === m.id && (
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 'auto' }}>
+                      <path d="M1.5 5.5 4 8l4.5-6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Present & export */}
@@ -1290,6 +1354,7 @@ export default function TreePanel() {
         <span style={{ fontSize: 11, background: 'var(--bg-muted)', color: 'var(--text-muted)', borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>
           {pairs.length}
         </span>
+        </div>
       </div>
 
       {/* Presentation mode overlay (portals to <body>) */}
@@ -1310,8 +1375,8 @@ export default function TreePanel() {
             flex: 1, overflow: 'hidden', position: 'relative',
             cursor: dragging ? 'grabbing' : 'grab',
             backgroundImage: 'radial-gradient(circle, var(--grid-dot) 1.3px, transparent 1.3px)',
-            backgroundSize: `${GRID_PX * scale}px ${GRID_PX * scale}px`,
-            backgroundPosition: `${((pan.x % (GRID_PX * scale)) + GRID_PX * scale) % (GRID_PX * scale)}px ${((pan.y % (GRID_PX * scale)) + GRID_PX * scale) % (GRID_PX * scale)}px`,
+            backgroundSize: `${GRID_PX}px ${GRID_PX}px`,
+            backgroundPosition: `${((pan.x % GRID_PX) + GRID_PX) % GRID_PX}px ${((pan.y % GRID_PX) + GRID_PX) % GRID_PX}px`,
           }}
         >
           {pairs.length === 0 ? (
@@ -1351,7 +1416,7 @@ export default function TreePanel() {
                   const rawText = input.trim() || lastInputRef.current
                   const ghostText = rawText.length > 35 ? rawText.slice(0, 34) + '…' : rawText
                   return (
-                    <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
+                    <div key="__ghost__" data-node="true" style={{ position: 'absolute', left: offsetX, top: pos.y, transform: `scale(${nodeScale})`, transformOrigin: '50% 0', opacity: 0.5, pointerEvents: 'none', transition: 'opacity 0.2s' }}>
                       <div style={{ width: nodeW, height: nodeH, background: 'var(--node-bg)', border: '1.5px dashed var(--accent)', borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '0 10px', boxSizing: 'border-box' }}>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: 'italic' }}>
                           {ghostText || 'Thinking…'}
@@ -1420,6 +1485,8 @@ export default function TreePanel() {
                       position:   'absolute',
                       left:       offsetX,
                       top:        pos.y,
+                      transform:  `scale(${nodeScale})`,
+                      transformOrigin: '50% 0',
                       zIndex:     isHovered ? 10 : 1,
                       opacity:    (isInactive && !isMergeSourceHL) ? 0.72 : 1,
                       transition: 'opacity 0.2s',

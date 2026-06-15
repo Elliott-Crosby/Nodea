@@ -437,9 +437,10 @@ function ImportedUpsellBanner() {
     <div
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 20px', flexShrink: 0,
-        borderBottom: '1px solid var(--border)',
+        padding: '10px 14px',
+        border: '1px solid var(--border)', borderRadius: 12,
         background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-base))',
+        boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto',
         fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.45,
       }}
     >
@@ -485,20 +486,28 @@ function TopBar() {
     activeConvId, openShareModal, presencePeers, activeConvIsShared,
   } = useApp()
 
+  const pill: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', pointerEvents: 'auto',
+    background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)',
+    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+    border: '1px solid var(--border)', borderRadius: 11,
+    boxShadow: 'var(--shadow-sm)',
+  }
+
   return (
     <div
       style={{
-        height: 52, flexShrink: 0, display: 'flex', alignItems: 'center',
-        padding: '0 20px', borderBottom: '1px solid var(--border)',
-        background: 'var(--topbar-bg)', gap: 8,
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 16px', gap: 8, pointerEvents: 'none',
       }}
     >
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
-        <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+      <div style={{ ...pill, minWidth: 0, height: 36, padding: '0 14px' }}>
+        <h1 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
           {convName}
         </h1>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+      <div style={{ ...pill, gap: 2, flexShrink: 0, height: 38, padding: '0 4px' }}>
         {/* Who else is here right now (live presence in shared spaces). */}
         {presencePeers.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
@@ -1152,11 +1161,14 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
       style={
         isCentered
           ? { padding: 0, background: 'transparent' }
-          : { padding: '12px 20px 18px', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', flexShrink: 0 }
+          : {
+              position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30,
+              padding: '12px 20px 16px', background: 'transparent', pointerEvents: 'none',
+            }
       }
     >
       {pendingAttachments.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 8, pointerEvents: 'auto' }}>
           {pendingAttachments.map((a) => (
             <AttachmentChip key={a.name} attachment={a} onRemove={() => removeAttachment(a.name)} />
           ))}
@@ -1170,10 +1182,11 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
         onSubmit={handleSend}
         onClick={(e) => { if (e.target === e.currentTarget) focusAtEnd() }}
         style={{
-          display: 'flex', alignItems: 'center', gap: 10,
+          display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto',
           background: 'var(--input-bg)', border: '1px solid var(--border)',
           borderRadius: 13, padding: '8px 8px 8px 14px',
-          boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.15s',
+          boxShadow: isCentered ? 'var(--shadow-sm)' : '0 6px 24px rgba(0,0,0,0.10), var(--shadow-sm)',
+          transition: 'border-color 0.15s',
           cursor: 'text',
         }}
         onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
@@ -1398,56 +1411,59 @@ export default function ChatPanel() {
         </div>
       )}
 
-      {/* File error banner */}
-      {fileError && (
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 20px', background: 'var(--color-error-bg)',
-            borderBottom: '1px solid var(--color-error-border)',
-            fontSize: 12, color: 'var(--color-error)', flexShrink: 0,
-          }}
-        >
-          <span>{fileError}</span>
-          <button
-            onClick={() => setFileError(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <TopBar />
-      <ImportedUpsellBanner />
 
-      {/* Save error banner */}
-      {saveError && (
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 20px',
-            background: 'var(--color-error-bg)',
-            borderBottom: '1px solid var(--color-error-border)',
-            fontSize: 12, color: 'var(--color-error)',
-            flexShrink: 0,
-          }}
-        >
-          <span>Message sent but could not be saved to history.</span>
-          <button
-            onClick={clearSaveError}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
+      {/* Floating notice stack (errors, upsell) below the floating header */}
+      <div style={{ position: 'absolute', top: 58, left: 16, right: 16, zIndex: 25, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+        {fileError && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 14px', background: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error-border)', borderRadius: 10,
+              boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto',
+              fontSize: 12, color: 'var(--color-error)',
+            }}
           >
-            Dismiss
-          </button>
-        </div>
-      )}
+            <span>{fileError}</span>
+            <button
+              onClick={() => setFileError(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        <ImportedUpsellBanner />
+
+        {saveError && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 14px',
+              background: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error-border)', borderRadius: 10,
+              boxShadow: 'var(--shadow-sm)', pointerEvents: 'auto',
+              fontSize: 12, color: 'var(--color-error)',
+            }}
+          >
+            <span>Message sent but could not be saved to history.</span>
+            <button
+              onClick={clearSaveError}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)', padding: '0 0 0 12px', fontSize: 12 }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </div>
 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         style={{
-          flex: 1, overflowY: 'auto', padding: '24px 24px',
+          flex: 1, overflowY: 'auto', padding: '68px 24px 98px',
           display: 'flex', flexDirection: 'column', gap: 20,
         }}
       >
