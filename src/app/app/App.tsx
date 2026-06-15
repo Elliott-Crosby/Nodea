@@ -70,15 +70,17 @@ export interface ExtImportPayload {
   nodes: ExtImportNode[]
 }
 
-// A source conversation's current tree, re-fetched by the extension when the
-// user clicks "Update Conversation". Same node shape as an import.
-export interface SourceTree {
-  id?: string | null
-  name?: string
-  nodes: ExtImportNode[]
-  currentLeaf?: string | null
+// Imports always create a fresh, independent copy — they're never synced or
+// merged in place — so re-exporting the same Claude chat would collide on name.
+// Append " (2)", " (3)", … so each copy is distinguishable, matching the
+// familiar "make a copy" file idiom.
+export function uniqueConversationName(base: string, existing: { name?: string | null }[]): string {
+  const taken = new Set(existing.map((c) => (c.name ?? '').trim()))
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base} (${n})`)) n++
+  return `${base} (${n})`
 }
-export type UpdateResult = { ok: true; tree: SourceTree } | { ok: false; error: string }
 
 export interface AttachmentItem {
   name: string
@@ -449,14 +451,10 @@ export interface AppContextType {
   createConversation: () => Promise<void>
   renameConversation: (id: string, name: string) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
-  /** True when the active conversation was imported from an outside source — gates the Update button. */
+  /** True when the active conversation was imported from an outside source — gates the imported-chat upsell banner. */
   activeConvIsImported: boolean
   /** The active conversation's source key (e.g. 'claude') when imported, else null — picks the per-message source icon. */
   activeConvSource: string | null
-  /** Pull any new branches from the active conversation's source (Claude), via the extension. */
-  updateFromSource: () => Promise<void>
-  /** True while an Update round-trip is in flight (drives the button's spinner). */
-  isUpdatingSource: boolean
   signOut: () => void
   userEmail: string
   userName: string
@@ -1059,12 +1057,11 @@ export default function App() {
 
       const source = typeof p.source === 'string' ? p.source : 'claude'
       const sourceConvId = p.sourceConversationId ?? null
-      const name = (typeof p.name === 'string' && p.name.trim()) || 'Imported conversation'
-
-      // Carrying the same Claude conversation over again makes a fresh copy —
-      // imports aren't synced in place. (Each copy stays independently linked to
-      // its source, so the in-app "Update" button can still pull new branches
-      // into it; a re-import is always a new copy, never a merge.)
+      const baseName = (typeof p.name === 'string' && p.name.trim()) || 'Imported conversation'
+      // Every export from Claude is a fresh, independent copy — imports are never
+      // synced or merged in place. When a conversation with this name already
+      // exists, append a " (n)" suffix so each copy is distinguishable.
+      const name = uniqueConversationName(baseName, conversationsRef.current)
 
       // 1) Create the conversation via the API route. Conversations are created
       //    server-side (a client-side INSERT into projects is blocked by RLS —
@@ -1217,169 +1214,6 @@ export default function App() {
       // Corrupt payload — nothing to replay.
     }
   }, [authedReady, importConversation])
-
-  // ─── "Update Conversation": pull new branches from the source (Stage 2) ────
-  // Only the extension can reach Claude, so we ask it (via the bridge) to
-  // re-fetch the original tree, then diff by source_message_id and append
-  // what's new. Append-only and non-destructive: branches deleted in Claude
-  // stay in Nodea, and in-place text edits aren't patched (Claude forks edits
-  // into new messages, so those arrive as new nodes anyway).
-  const [isUpdatingSource, setIsUpdatingSource] = useState(false)
-
-  // Ask the extension bridge for a source conversation's current tree. Resolves
-  // with the tree or an error; times out if no extension answers.
-  const requestSourceTree = useCallback(
-    (sourceConversationId: string, sourceOrgId: string | null, source: string, timeoutMs = 15000): Promise<UpdateResult> =>
-      new Promise<UpdateResult>((resolve) => {
-        const requestId = crypto.randomUUID()
-        let settled = false
-        const finish = (r: UpdateResult) => {
-          if (settled) return
-          settled = true
-          window.removeEventListener('message', onMsg)
-          resolve(r)
-        }
-        function onMsg(e: MessageEvent) {
-          if (e.source !== window || e.origin !== window.location.origin) return
-          const d = e.data as { __nodea?: string; requestId?: string; ok?: boolean; tree?: SourceTree; error?: string } | null
-          if (!d || d.__nodea !== 'update-result' || d.requestId !== requestId) return
-          finish(d.ok && d.tree ? { ok: true, tree: d.tree } : { ok: false, error: d.error || 'fetch failed' })
-        }
-        window.addEventListener('message', onMsg)
-        window.postMessage({ __nodea: 'update-request', requestId, sourceConversationId, sourceOrgId, source }, window.location.origin)
-        setTimeout(() => finish({ ok: false, error: 'timeout' }), timeoutMs)
-      }),
-    [],
-  )
-
-  // Diff a freshly-fetched source tree against what's already in the Nodea
-  // conversation and insert only the new nodes, preserving parent links.
-  const applySourceTree = useCallback(
-    async (convId: string, tree: SourceTree): Promise<{ status: 'ok' | 'unlinked'; added: number }> => {
-      const isColumnError = (e: { code?: string } | null) => e?.code === '42703' || e?.code === 'PGRST204'
-      const { data: existingRows, error: exErr } = await supabase
-        .from('nodes').select('id, source_message_id').eq('project_id', convId)
-      // Pre-migration DB has no source_message_id column, so there's no reliable
-      // key to diff the source tree against — degrade to "unlinked" instead of
-      // throwing (the imported logo still persists via the localStorage fallback).
-      if (exErr && isColumnError(exErr)) return { status: 'unlinked', added: 0 }
-      if (exErr) { console.error('update: load existing failed', exErr); throw new Error('db') }
-
-      // source message id → existing Nodea node id.
-      const sourceToNodea = new Map<string, string>()
-      for (const r of (existingRows || []) as { id: string; source_message_id: string | null }[]) {
-        if (r.source_message_id) sourceToNodea.set(r.source_message_id, r.id)
-      }
-      // Imported before provenance existed → no ids to diff against safely.
-      if ((existingRows?.length ?? 0) > 0 && sourceToNodea.size === 0) return { status: 'unlinked', added: 0 }
-
-      const incoming = (tree.nodes || []).filter((n) => n && typeof n.id === 'string')
-      const newOnes = incoming.filter((n) => !sourceToNodea.has(n.id))
-      if (newOnes.length === 0) return { status: 'ok', added: 0 }
-      for (const n of newOnes) sourceToNodea.set(n.id, crypto.randomUUID())
-
-      type Row = Record<string, unknown> & { id: string; parent_id: string | null }
-      const rows: Row[] = newOnes.map((n) => {
-        const row: Row = {
-          id: sourceToNodea.get(n.id)!,
-          project_id: convId,
-          parent_id: (n.parent_id && sourceToNodea.get(n.parent_id)) || null,
-          role: n.role === 'assistant' ? 'assistant' : 'user',
-          content: typeof n.content === 'string' ? n.content : '',
-          position_x: 0,
-          position_y: 0,
-          source_message_id: n.id,
-        }
-        if (typeof n.created_at === 'string' && n.created_at) row.created_at = n.created_at
-        return row
-      })
-      // Parent-first (a new node's parent may be another new node in this batch).
-      const byId = new Map(rows.map((r) => [r.id, r]))
-      const ordered: Row[] = []; const done = new Set<string>(); const busy = new Set<string>()
-      const visit = (r: Row) => {
-        if (done.has(r.id) || busy.has(r.id)) return
-        busy.add(r.id)
-        const par = r.parent_id ? byId.get(r.parent_id) : undefined
-        if (par) visit(par)
-        busy.delete(r.id); done.add(r.id); ordered.push(r)
-      }
-      for (const r of rows) visit(r)
-
-      let { error: insErr } = await supabase.from('nodes').insert(ordered)
-      if (isColumnError(insErr)) {
-        const stripped = ordered.map((r) => { const c = { ...r }; delete c.source_message_id; return c })
-        ;({ error: insErr } = await supabase.from('nodes').insert(stripped))
-      }
-      if (insErr) { console.error('update: insert failed', insErr); throw new Error('db') }
-
-      // Keep the localStorage provenance fallback in sync so these freshly
-      // pulled nodes also keep their source logo across a refresh.
-      rememberImportedProvenance(convId, readImportedSource(convId) || 'claude', ordered.map((r) => r.id))
-
-      // Best-effort sync metadata (ignored if columns absent).
-      try {
-        await supabase.from('projects')
-          .update({ source_synced_at: new Date().toISOString(), source_leaf_id: tree.currentLeaf ?? null })
-          .eq('id', convId)
-      } catch {}
-
-      // Re-render if it's the on-screen conversation, landing on the new leaf.
-      if (activeConvIdRef.current === convId) {
-        const newLeaf = tree.currentLeaf ? sourceToNodea.get(tree.currentLeaf) : null
-        if (newLeaf) { try { localStorage.setItem(`lastNodeId_${convId}`, newLeaf) } catch {} }
-        const nm = conversations.find((c) => c.id === convId)?.name || convName
-        await loadConversation(convId, nm)
-      }
-      return { status: 'ok', added: newOnes.length }
-    },
-    [supabase, loadConversation, conversations, convName],
-  )
-
-  const updateFromSource = useCallback(async () => {
-    const convId = activeConvIdRef.current
-    if (!convId || isUpdatingSource) return
-    const { data: proj, error } = await supabase
-      .from('projects').select('source, source_conversation_id, source_org_id').eq('id', convId).maybeSingle()
-    if (error || !proj?.source || !proj?.source_conversation_id) {
-      showImportNotice('This conversation isn’t linked to a source to update from.', 'error', 5000)
-      return
-    }
-    setIsUpdatingSource(true)
-    try {
-      // If the bridge never announced itself, fail fast with an install hint;
-      // if it did, give Claude the full window (SW fetch + possible tab fallback).
-      const res = await requestSourceTree(
-        proj.source_conversation_id as string, (proj.source_org_id as string) || null, proj.source as string,
-        extPresentRef.current ? 15000 : 4000,
-      )
-      if (!res.ok) {
-        const notDetected = !extPresentRef.current && res.error === 'timeout'
-        showImportNotice(
-          notDetected
-            ? 'Nodea extension not detected. Install it and reload this page, then try Update again.'
-            : res.error === 'timeout'
-              ? 'Couldn’t reach Claude. Make sure you’re signed into claude.ai, then try again.'
-              : `Update failed: ${res.error}`,
-          'error', 7000,
-        )
-        return
-      }
-      const applied = await applySourceTree(convId, res.tree)
-      if (applied.status === 'unlinked') {
-        showImportNotice('This conversation predates sync. Re-import it from the extension to enable updates.', 'error', 7000)
-      } else if (applied.added > 0) {
-        showImportNotice(`Updated from Claude: ${applied.added} new node${applied.added === 1 ? '' : 's'} added ✓`, 'info', 5000)
-        try { track('conversation_synced', { source: proj.source, added: applied.added }) } catch {}
-      } else {
-        showImportNotice('Already up to date with Claude ✓', 'info', 4000)
-      }
-    } catch (e) {
-      console.error('update failed', e)
-      showImportNotice('Update failed. See the console for details.', 'error', 6000)
-    } finally {
-      setIsUpdatingSource(false)
-    }
-  }, [supabase, isUpdatingSource, requestSourceTree, applySourceTree, showImportNotice])
 
   // Delete the active conv only if it's truly empty: no DB nodes, no in-flight
   // local messages, and no send in progress. The local-messages check matters
@@ -3076,9 +2910,9 @@ export default function App() {
     window.location.href = '/login'
   }, [supabase])
 
-  // The active conversation shows an "Update" button when it was imported from a
-  // source (carries provenance). Reads off the in-memory list, which includes
-  // the source_* columns from the projects load.
+  // The active conversation shows the imported-chat upsell banner when it was
+  // imported from a source (carries provenance). Reads off the in-memory list,
+  // which includes the source_* columns from the projects load.
   const activeConvIsImported = !!(() => {
     const c = conversations.find((c) => c.id === activeConvId)
     return c?.source && c?.source_conversation_id
@@ -3104,7 +2938,7 @@ export default function App() {
     isChatCollapsed, setIsChatCollapsed,
     handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
     renameConversation, deleteConversation,
-    activeConvIsImported, activeConvSource, updateFromSource, isUpdatingSource, signOut,
+    activeConvIsImported, activeConvSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
     nodeColors, setNodeColor, nodeDecisions, setNodeDecision,
     decisionTrackingEnabled, setDecisionTrackingEnabled, deleteNode,

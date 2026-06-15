@@ -482,7 +482,7 @@ function ImportedUpsellBanner() {
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function TopBar() {
   const {
-    convName, setIsSearchOpen, setIsChatCollapsed, activeConvIsImported, updateFromSource, isUpdatingSource,
+    convName, setIsSearchOpen, setIsChatCollapsed,
     activeConvId, openShareModal, presencePeers, activeConvIsShared,
   } = useApp()
 
@@ -557,28 +557,6 @@ function TopBar() {
               <path d="M8.6 10.7l6.8-3.9M8.6 13.3l6.8 3.9" />
             </svg>
             {activeConvIsShared ? 'Shared' : 'Share'}
-          </button>
-        )}
-        {activeConvIsImported && (
-          <button
-            title={isUpdatingSource ? 'Checking Claude for new branches…' : 'Pull any new branches in from Claude'}
-            onClick={() => { if (!isUpdatingSource) void updateFromSource() }}
-            disabled={isUpdatingSource}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
-              background: 'transparent', border: '1px solid var(--border)', borderRadius: 8,
-              cursor: isUpdatingSource ? 'default' : 'pointer', color: 'var(--text-secondary)',
-              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', opacity: isUpdatingSource ? 0.7 : 1,
-              transition: 'background 0.1s, color 0.1s',
-            }}
-            onMouseEnter={(e) => { if (!isUpdatingSource) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
-            onMouseLeave={(e) => { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' }}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" className={isUpdatingSource ? 'nx-spin' : undefined} style={{ flexShrink: 0 }}>
-              <path d="M12.5 7a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M12.6 1.5V4H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {isUpdatingSource ? 'Updating…' : 'Update'}
           </button>
         )}
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
