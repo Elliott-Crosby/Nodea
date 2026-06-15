@@ -156,10 +156,11 @@ html, body {
 .md-content h2:first-child,
 .md-content h3:first-child,
 .md-content h4:first-child { margin-top: 0; }
-.md-content p  { font-size: 16px; line-height: 1.75; margin: 5px 0; color: var(--text-primary); }
+.md-content p  { font-size: 16px; line-height: 1.7; margin: 12px 0; color: var(--text-primary); }
 .md-content p:first-child { margin-top: 0; }
-.md-content ul { padding-left: 18px; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; list-style: disc; }
-.md-content ol { padding-left: 20px; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; list-style: decimal; }
+.md-content p:last-child { margin-bottom: 0; }
+.md-content ul { padding-left: 20px; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; list-style: disc; }
+.md-content ol { padding-left: 22px; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; list-style: decimal; }
 .md-content li { font-size: 16px; line-height: 1.65; color: var(--text-primary); }
 .md-content strong { font-weight: 600; color: var(--text-primary); }
 .md-content em { font-style: italic; }

@@ -1533,36 +1533,39 @@ export default function ChatPanel() {
             </div>
           </div>
         ) : (
-          messages.map((msg, i) => (
-            <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} isHighlighted={msg.id === highlightedMessageId} />
-          ))
-        )}
+          /* Constrained reading column — keeps line length at a comfortable measure */
+          <div style={{ width: '100%', maxWidth: 780, marginInline: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {messages.map((msg, i) => (
+              <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} isHighlighted={msg.id === highlightedMessageId} />
+            ))}
 
-        {showThinkingBubble && <ThinkingBubble />}
+            {showThinkingBubble && <ThinkingBubble />}
 
-        {/* Chat error banner */}
-        {chatError && (
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px',
-              background: 'var(--color-error-bg)',
-              border: '1px solid var(--color-error-border)',
-              borderRadius: 10,
-              fontSize: 12, color: 'var(--color-error)',
-            }}
-          >
-            <span>{chatError}</span>
-            <button
-              onClick={clearChatError}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--color-error)', padding: '0 0 0 12px',
-                fontSize: 12, fontWeight: 500, flexShrink: 0,
-              }}
-            >
-              Dismiss
-            </button>
+            {/* Chat error banner */}
+            {chatError && (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--color-error-bg)',
+                  border: '1px solid var(--color-error-border)',
+                  borderRadius: 10,
+                  fontSize: 12, color: 'var(--color-error)',
+                }}
+              >
+                <span>{chatError}</span>
+                <button
+                  onClick={clearChatError}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--color-error)', padding: '0 0 0 12px',
+                    fontSize: 12, fontWeight: 500, flexShrink: 0,
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
         )}
 
