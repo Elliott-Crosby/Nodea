@@ -1,7 +1,7 @@
 # Product Hunt Launch Kit — Nodea AI
 
-> Relaunch pack for **Nodea** ([nodea.ai](https://nodea.ai)) — a branching AI chat canvas.
-> First PH launch underperformed (2 upvotes). This is the stronger second push: tighter copy, a sharper gallery, and a real first-two-hours plan.
+> Launch pack for **Nodea** ([nodea.ai](https://nodea.ai)) — a branching AI chat canvas.
+> Tight copy, a sharp gallery, and a real first-two-hours plan.
 
 **Canonical positioning (use verbatim in any description that states what Nodea is):**
 
@@ -60,9 +60,7 @@ On the roadmap (not shipped yet): bring-your-own API keys, plugins, full export,
 ```
 Hey Product Hunt 👋
 
-I'm the maker of Nodea.
-
-This is a relaunch. We shipped here once before and it barely registered — and honestly that was on me, not the idea. So I want to do it properly this time and actually talk to you in the comments all day.
+I'm the maker of Nodea, and I want to actually talk to you in the comments all day.
 
 Here's the itch I couldn't stop scratching: every AI chat is one long thread. The second you want to explore a tangent — "what if we tried the other approach?" — you either lose your place or fork the whole thing into a new tab you'll never find again. Good thinking is branchy. Chat UIs are linear. That mismatch is the whole problem.
 
@@ -122,7 +120,7 @@ Choose the most specific ones first — PH topic pages are real discovery surfac
 
 ---
 
-## 6. Relaunch checklist
+## 6. Launch checklist
 
 **Timing**
 - [ ] Launch **Tuesday, Wednesday, or Thursday** — avoid Mon (backlog) and Fri–Sun (low traffic).
@@ -133,7 +131,7 @@ Choose the most specific ones first — PH topic pages are real discovery surfac
 - [ ] Pre-write and schedule the maker's first comment (§3) so it posts the moment you go live.
 - [ ] Have your description, tagline, gallery, and thumbnail/GIF finalized and uploaded the night before — do not edit live.
 - [ ] Line up your warmest 15–25 people (people who already use or like Nodea) and DM them the link **the morning of**, not before — ask them to *check it out*, not to upvote.
-- [ ] Post the link in your own channels (X/Twitter, relevant communities, newsletter) within the first hour, framed as "we relaunched, here's why it's better" — link, don't beg.
+- [ ] Post the link in your own channels (X/Twitter, relevant communities, newsletter) within the first hour, framed as "here's what we built and why" — link, don't beg.
 - [ ] Be at your desk for the first two hours to respond instantly; early engagement compounds.
 
 **No vote-begging (PH will penalize this)**
@@ -147,7 +145,7 @@ Choose the most specific ones first — PH topic pages are real discovery surfac
 - [ ] Turn skeptics into a conversation, not a defense — the comment thread is your best marketing surface.
 
 **Hunter vs. self-post**
-- [ ] **Self-posting is fine** — since 2023 a maker hunting their own product carries no ranking penalty, and you keep full control of copy and timing. Recommended default for this relaunch.
+- [ ] **Self-posting is fine** — since 2023 a maker hunting their own product carries no ranking penalty, and you keep full control of copy and timing. Recommended default for this launch.
 - [ ] Only bring in an external **hunter** if they have a genuinely engaged AI/productivity following *and* will actually show up to comment. A passive big-name hunter adds little; a present, relevant one adds reach. Don't trade control for a name that won't engage.
 - [ ] Whoever posts: make sure the maker (you) is clearly present in the thread from minute one.
 
