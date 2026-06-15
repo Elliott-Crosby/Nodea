@@ -14,6 +14,26 @@ export interface PostMeta {
 
 export const POSTS: PostMeta[] = [
   {
+    slug: 'claude-conversation-tree-extension',
+    title: 'See Your Claude Conversations as a Tree (Free Chrome Extension)',
+    description:
+      'Claude.ai hides a branch tree behind every chat you edit or regenerate. The free Nodea Tree for Claude extension draws it beside your conversation — and imports the whole thing into a canvas you can fork and merge.',
+    category: 'Guide',
+    readMinutes: 6,
+    publishedAt: '2026-06-15',
+    keywords: [
+      'Claude conversation tree',
+      'Claude chat extension',
+      'view Claude conversation history',
+      'Claude.ai branches',
+      'branch Claude conversation',
+      'Claude conversation map',
+    ],
+    image: '/media/nodea-ai-extension-claude-scaled.png',
+    imageAlt:
+      'A Claude.ai conversation with the Nodea Tree for Claude panel open beside it, showing the chat rebuilt as a branching tree of nodes.',
+  },
+  {
     slug: 'branching-ai-chat-guide',
     title: 'Branching AI Chat: A Guide to Non-Linear Claude Chat',
     description:

@@ -6,6 +6,7 @@ export const NAV_LINKS = [
   { label: 'Glossary', href: '/glossary' },
   { label: 'How it works', href: '/#how-it-works' },
   { label: 'Features', href: '/#features' },
+  { label: 'Extension', href: '/extension' },
   { label: 'Blog', href: '/blog' },
   { label: 'Pricing', href: '/upgrade' },
   { label: 'Demo', href: '/demo' },
