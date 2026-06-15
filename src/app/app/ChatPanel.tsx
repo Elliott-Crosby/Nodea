@@ -932,13 +932,12 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
           <div
             style={{
               maxWidth: '100%',
-              padding: '12px 15px',
-              borderRadius: '4px 14px 14px 14px',
-              background: 'var(--ai-card-bg)',
-              border: '1px solid var(--ai-card-border)',
-              fontSize: 16, lineHeight: 1.65,
+              padding: '2px 18px',
+              background: 'transparent',
+              border: 'none',
+              fontSize: 15, lineHeight: 1.65,
               color: 'var(--text-primary)', wordBreak: 'break-word',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: 'none',
             }}
           >
             {msg.content
@@ -971,7 +970,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--input-bg)', border: '1px solid var(--accent)',
                 borderRadius: 12, padding: '10px 13px',
-                fontSize: 16, lineHeight: 1.6, color: 'var(--text-primary)',
+                fontSize: 15, lineHeight: 1.6, color: 'var(--text-primary)',
                 resize: 'none', outline: 'none', fontFamily: 'inherit',
                 maxHeight: 240, overflowY: 'auto',
               }}
@@ -1041,7 +1040,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                 borderRadius: '14px 14px 4px 14px',
                 background: 'var(--user-bubble-bg)',
                 border: isHighlighted ? '1px solid var(--accent)' : '1px solid var(--user-bubble-border)',
-                fontSize: 16, lineHeight: 1.65,
+                fontSize: 15, lineHeight: 1.65,
                 color: 'var(--text-primary)', wordBreak: 'break-word',
                 boxShadow: isHighlighted ? '0 0 0 3px var(--accent-bg)' : 'none',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -1242,7 +1241,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
           disabled={isLoading}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            fontSize: 16, color: 'var(--text-primary)', resize: 'none',
+            fontSize: 15, color: 'var(--text-primary)', resize: 'none',
             lineHeight: 1.5, maxHeight: 160, overflowY: 'auto',
             fontFamily: 'inherit',
           }}
@@ -1533,39 +1532,36 @@ export default function ChatPanel() {
             </div>
           </div>
         ) : (
-          /* Constrained reading column — keeps line length at a comfortable measure */
-          <div style={{ width: '100%', maxWidth: 780, marginInline: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {messages.map((msg, i) => (
-              <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} isHighlighted={msg.id === highlightedMessageId} />
-            ))}
+          messages.map((msg, i) => (
+            <Message key={msg.id} msg={msg} isLast={i === messages.length - 1} isHighlighted={msg.id === highlightedMessageId} />
+          ))
+        )}
 
-            {showThinkingBubble && <ThinkingBubble />}
+        {showThinkingBubble && <ThinkingBubble />}
 
-            {/* Chat error banner */}
-            {chatError && (
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'var(--color-error-bg)',
-                  border: '1px solid var(--color-error-border)',
-                  borderRadius: 10,
-                  fontSize: 12, color: 'var(--color-error)',
-                }}
-              >
-                <span>{chatError}</span>
-                <button
-                  onClick={clearChatError}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--color-error)', padding: '0 0 0 12px',
-                    fontSize: 12, fontWeight: 500, flexShrink: 0,
-                  }}
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
+        {/* Chat error banner */}
+        {chatError && (
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--color-error-bg)',
+              border: '1px solid var(--color-error-border)',
+              borderRadius: 10,
+              fontSize: 12, color: 'var(--color-error)',
+            }}
+          >
+            <span>{chatError}</span>
+            <button
+              onClick={clearChatError}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--color-error)', padding: '0 0 0 12px',
+                fontSize: 12, fontWeight: 500, flexShrink: 0,
+              }}
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
