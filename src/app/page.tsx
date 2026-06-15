@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import AnnounceBanner from './_components/landing/AnnounceBanner'
 import Nav from './_components/landing/Nav'
 import HeroVideo from './_components/landing/HeroVideo'
 import Bluf from './_components/landing/Bluf'
+import ExtensionPromo from './_components/landing/ExtensionPromo'
 import Contrast from './_components/landing/Contrast'
 import Features from './_components/landing/Features'
 import HowItWorks from './_components/landing/HowItWorks'
@@ -67,10 +69,12 @@ export default async function Home() {
 
   return (
     <div className="ln-root">
+      <AnnounceBanner />
       <Nav />
       <main>
         <HeroVideo />
         <Bluf />
+        <ExtensionPromo />
         <Contrast />
         <Features />
         <HowItWorks />

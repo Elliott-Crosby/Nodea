@@ -28,6 +28,8 @@ export const metadata: Metadata = {
 }
 
 export default function BlogIndex() {
+  const [featured, ...rest] = POSTS
+
   // Blog schema describes the publication; ItemList enumerates posts so
   // AI engines can pull a structured list of available articles in one shot.
   const blogJsonLd = {
@@ -92,8 +94,33 @@ export default function BlogIndex() {
 
         <section className="bl-list">
           <div className="ln-container">
+            {/* Featured lead post — spans the width of two standard cards. */}
+            <Link href={`/blog/${featured.slug}`} className="bl-featured">
+              <div className="bl-featured-art">
+                <img src={featured.image} alt={featured.imageAlt} loading="lazy" />
+              </div>
+              <div className="bl-featured-body">
+                <div className="bl-card-meta">
+                  <span className="bl-pill">{featured.category}</span>
+                  <span className="bl-read">Featured · {featured.readMinutes} min read</span>
+                </div>
+                <h2 className="bl-featured-title">{featured.title}</h2>
+                <p className="bl-featured-desc">{featured.description}</p>
+                <div className="bl-card-foot">
+                  <time dateTime={featured.publishedAt}>
+                    {new Date(featured.publishedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </time>
+                  <span className="bl-arrow">Read →</span>
+                </div>
+              </div>
+            </Link>
+
             <div className="bl-grid">
-              {POSTS.map((p) => (
+              {rest.map((p) => (
                 <Link key={p.slug} href={`/blog/${p.slug}`} className="bl-card">
                   <div className="bl-card-meta">
                     <span className="bl-pill">{p.category}</span>

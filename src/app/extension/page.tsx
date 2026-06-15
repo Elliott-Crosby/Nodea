@@ -4,6 +4,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
+import { CHROME_STORE_URL } from '@/lib/links'
 
 export const metadata: Metadata = {
   title: { absolute: 'Nodea Tree for Claude — Import Chats as a Branching Tree' },
@@ -79,23 +80,32 @@ export default function ExtensionUpsell() {
         {/* ── Hero ─────────────────────────────────────── */}
         <section style={{ padding: '88px 0 56px' }}>
           <div className="ln-container" style={{ maxWidth: 760, textAlign: 'center' }}>
-            <span className="ln-kicker">You imported a chat. Here&rsquo;s the rest.</span>
+            <span className="ln-kicker">Free Chrome extension for Claude</span>
             <h1 style={{ fontSize: 'clamp(34px, 5vw, 52px)', lineHeight: 1.08, letterSpacing: '-0.02em', margin: '14px 0 18px' }}>
-              The extension captures.<br />The canvas is where you work.
+              See your Claude chats<br />as a branching tree.
             </h1>
             <p style={{ fontSize: 18, lineHeight: 1.55, color: 'var(--ln-text-muted, #555)', maxWidth: 580, margin: '0 auto 28px' }}>
-              The browser extension brings your Claude conversations into Nodea as a
-              branching tree. That&rsquo;s the start. The full app is where you turn that
-              tree into something you can actually think in.
+              Nodea Tree for Claude draws your open Claude.ai conversation&rsquo;s hidden
+              branch tree right beside the chat &mdash; then imports the whole thing into
+              Nodea as a real tree you can fork, merge, and keep working in.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link href="/app" className="ln-btn ln-btn-primary ln-btn-lg">
+              <a
+                href={CHROME_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ln-btn ln-btn-primary ln-btn-lg"
+              >
+                Add to Chrome — Free
+              </a>
+              <Link href="/app" className="ln-btn ln-btn-outline ln-btn-lg">
                 Open the full app
               </Link>
-              <Link href="/what-is-nodea" className="ln-btn ln-btn-outline ln-btn-lg">
-                How branching works
-              </Link>
             </div>
+            <p style={{ fontSize: 13.5, color: 'var(--ln-text-muted, #888)', margin: '14px 0 0' }}>
+              Works on claude.ai · reads your own conversation through your login · not
+              affiliated with Anthropic.
+            </p>
           </div>
         </section>
 
@@ -186,9 +196,19 @@ export default function ExtensionUpsell() {
             <p style={{ fontSize: 17, lineHeight: 1.55, color: 'var(--ln-text-muted, #555)', margin: '0 0 26px' }}>
               Open the full canvas and pick up exactly where the extension left off.
             </p>
-            <Link href="/app" className="ln-btn ln-btn-primary ln-btn-lg">
-              Open Nodea →
-            </Link>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a
+                href={CHROME_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ln-btn ln-btn-outline ln-btn-lg"
+              >
+                Add to Chrome — Free
+              </a>
+              <Link href="/app" className="ln-btn ln-btn-primary ln-btn-lg">
+                Open Nodea →
+              </Link>
+            </div>
           </div>
         </section>
       </main>
