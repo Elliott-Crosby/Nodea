@@ -119,8 +119,9 @@ export default function ProjectModal({ editing, onClose, onSave }: Props) {
 
         {/* ── Name ── */}
         <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>NAME</label>
+          <label htmlFor="project-name" style={labelStyle}>NAME</label>
           <input
+            id="project-name"
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
@@ -132,11 +133,12 @@ export default function ProjectModal({ editing, onClose, onSave }: Props) {
 
         {/* ── Description ── */}
         <div style={{ marginBottom: 18 }}>
-          <label style={labelStyle}>
+          <label htmlFor="project-desc" style={labelStyle}>
             DESCRIPTION{' '}
             <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· optional</span>
           </label>
           <textarea
+            id="project-desc"
             value={desc}
             onChange={(e) => setDesc(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
             rows={2}

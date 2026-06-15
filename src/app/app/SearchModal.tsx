@@ -137,6 +137,7 @@ export default function SearchModal() {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label={mode === 'keyword' ? 'Search messages' : 'Describe a concept or idea'}
               placeholder={mode === 'keyword' ? 'Search messages…' : 'Describe a concept or idea…'}
               style={{
                 flex: 1,
@@ -152,6 +153,7 @@ export default function SearchModal() {
             )}
             <button
               type="button"
+              aria-label="Close search"
               onClick={() => setIsSearchOpen(false)}
               style={{
                 background: 'none',

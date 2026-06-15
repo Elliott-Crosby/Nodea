@@ -23,7 +23,7 @@ export default function NodeaVsClaudeProjects() {
       slug="nodea-vs-claude-projects"
       competitorName="Claude Projects"
       title="Nodea vs Claude Projects"
-      description="Both Nodea and Claude Projects sit on top of Anthropic&rsquo;s Claude models. The difference is what they optimize for. Claude Projects is built for persistent project context. Nodea is built for non-linear exploration."
+      description="Both Nodea and Claude Projects sit on top of Anthropic’s Claude models. The difference is what they optimize for. Claude Projects is built for persistent project context. Nodea is built for non-linear exploration."
       tldr={'Pick Claude Projects if your workflow is "same big context, many sessions": uploaded files, instructions, persistent memory. Pick Nodea if your workflow is "same starting point, many alternatives": branching, forking, side-by-side comparison. Many users keep both.'}
       rows={[
         { feature: 'Conversation shape',  competitor: 'Linear thread per chat',  nodea: 'Tree of nodes (branching)', nodeaWins: true },
@@ -63,7 +63,7 @@ export default function NodeaVsClaudeProjects() {
         },
         {
           q: "Can I branch in Claude Projects?",
-          a: "Only by using Claude.ai’s &ldquo;regenerate&rdquo; feature, which creates alternative versions of the most recent assistant reply. You can’t fork from a user message, you can’t see all branches on a canvas, and the branch doesn’t survive past the next turn.",
+          a: "Only by using Claude.ai’s “regenerate” feature, which creates alternative versions of the most recent assistant reply. You can’t fork from a user message, you can’t see all branches on a canvas, and the branch doesn’t survive past the next turn.",
         },
         {
           q: "Does Nodea support project-style file uploads?",

@@ -8,8 +8,8 @@ const FOOTER_GROUPS: { title: string; links: { label: string; href: string }[] }
     title: 'Product',
     links: [
       { label: 'What is Nodea', href: '/what-is-nodea' },
-      { label: 'How it works', href: '#how-it-works' },
-      { label: 'Features', href: '#features' },
+      { label: 'How it works', href: '/#how-it-works' },
+      { label: 'Features', href: '/#features' },
       { label: 'Demo', href: '/demo' },
       { label: 'Extension', href: '/extension' },
       { label: 'Pricing', href: '/upgrade' },
@@ -33,7 +33,7 @@ const FOOTER_GROUPS: { title: string; links: { label: string; href: string }[] }
     links: [
       { label: 'Blog', href: '/blog' },
       { label: 'Glossary', href: '/glossary' },
-      { label: 'FAQ', href: '#faq' },
+      { label: 'FAQ', href: '/#faq' },
       { label: 'ChatGPT alternative', href: '/chatgpt-alternative' },
       { label: 'AI chat canvas', href: '/ai-chat-canvas' },
       { label: 'RSS', href: '/feed.xml' },
@@ -51,9 +51,11 @@ const FOOTER_GROUPS: { title: string; links: { label: string; href: string }[] }
 ]
 
 // Hash anchors and static files (feed.xml) want a plain <a>; internal routes
-// get Next's <Link> for client-side nav + prefetch.
+// get Next's <Link> for client-side nav + prefetch. Root-relative hash links
+// ("/#...") also use a plain <a> so they navigate home and scroll to the
+// section from any page (per navLinks.ts convention).
 function FooterLink({ href, label }: { href: string; label: string }) {
-  if (href.startsWith('#') || href.startsWith('/feed')) {
+  if (href.startsWith('#') || href.includes('/#') || href.startsWith('/feed')) {
     return <a href={href}>{label}</a>
   }
   return <Link href={href}>{label}</Link>

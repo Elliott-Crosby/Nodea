@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
+import { OG_IMAGES } from '@/lib/og'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -9,6 +10,14 @@ export const metadata: Metadata = {
     'How Nodea and the "Nodea Tree for Claude" browser extension collect, use, store, and transmit your data.',
   alternates: { canonical: '/privacy' },
   robots: { index: true, follow: true },
+  openGraph: {
+    title: 'Privacy Policy — Nodea AI',
+    description:
+      'How Nodea and the "Nodea Tree for Claude" browser extension collect, use, store, and transmit your data.',
+    url: 'https://nodea.ai/privacy',
+    type: 'article',
+    images: OG_IMAGES,
+  },
 }
 
 const LAST_UPDATED = 'June 11, 2026'

@@ -580,6 +580,7 @@ function IconBtn({ children, title, onClick }: { children: React.ReactNode; titl
   return (
     <button
       title={title}
+      aria-label={title}
       onClick={onClick}
       style={{
         width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1181,6 +1182,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
         <button
           type="button"
           title="Attach file (images, PDF, text)"
+          aria-label="Attach file"
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
           style={{
@@ -1227,6 +1229,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
 
         <button
           type="submit"
+          aria-label="Send message"
           disabled={!canSend}
           style={{
             width: 34, height: 34, borderRadius: 9,

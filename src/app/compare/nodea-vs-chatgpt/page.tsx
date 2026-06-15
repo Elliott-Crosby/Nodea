@@ -23,8 +23,8 @@ export default function NodeaVsChatGPT() {
       slug="nodea-vs-chatgpt"
       competitorName="ChatGPT"
       title="Nodea vs ChatGPT"
-      description="ChatGPT is the default AI chatbot. Nodea is built for non-linear thinking. Here&rsquo;s how they actually compare, without the marketing fluff."
-      tldr="If you have one question and want one answer, ChatGPT is fine. If you regularly explore alternatives, compare framings, or get frustrated losing context, Nodea&rsquo;s tree-shaped canvas pays for itself on the first session. Both run on top-tier models: ChatGPT on GPT-4o/5, Nodea on Claude Haiku, Sonnet, and Opus."
+      description="ChatGPT is the default AI chatbot. Nodea is built for non-linear thinking. Here’s how they actually compare, without the marketing fluff."
+      tldr="If you have one question and want one answer, ChatGPT is fine. If you regularly explore alternatives, compare framings, or get frustrated losing context, Nodea’s tree-shaped canvas pays for itself on the first session. Both run on top-tier models: ChatGPT on GPT-4o/5, Nodea on Claude Haiku, Sonnet, and Opus."
       rows={[
         { feature: 'Conversation shape',     competitor: 'Linear thread',             nodea: 'Tree (branching canvas)', nodeaWins: true },
         { feature: 'Fork any reply',         competitor: 'Only via edit (hidden)',    nodea: 'Click any node, branch',  nodeaWins: true },

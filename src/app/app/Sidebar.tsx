@@ -177,7 +177,7 @@ export default function Sidebar() {
         }}
       >
         <span style={{ whiteSpace: 'nowrap', minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {!collapsed && <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.5px' }}>Nodea</span>}
+          {!collapsed && <span style={{ fontSize: 18, fontFamily: 'var(--font-bricolage), sans-serif', fontWeight: 500, color: 'var(--accent)', letterSpacing: '-0.025em' }}>Nodea</span>}
           {!collapsed && isAdmin && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, padding: '1px 5px', opacity: 0.7 }}>
               ADMIN

@@ -322,7 +322,7 @@ export default function MobileDemo() {
         <div className={`nm-sheet ${menu ? 'show' : ''}`}>
           <div className="nm-sheet-grip" />
           <div className="nm-sheet-h">
-            <div className="t" style={{ fontFamily: 'var(--font-bricolage)', color: 'var(--accent)' }}>Nodea</div>
+            <div className="t" style={{ fontFamily: 'var(--font-bricolage)', fontWeight: 500, letterSpacing: '-0.025em', color: 'var(--accent)' }}>Nodea</div>
             <div className="s">A branching AI chat canvas.</div>
           </div>
           <div className="nm-sheet-list">

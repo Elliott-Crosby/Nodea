@@ -225,6 +225,7 @@ export default function ShareModal({ target, onClose, onMembershipChanged }: Sha
         <form onSubmit={sendEmailInvite} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input
             type="email"
+            aria-label="Invite teammate by email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@email.com"

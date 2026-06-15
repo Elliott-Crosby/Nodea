@@ -72,7 +72,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
       fontFamily: 'system-ui, sans-serif', padding: 24,
     }}>
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#8b5cf6', marginBottom: 14 }}>Nodea</div>
+        <div style={{ fontFamily: 'var(--font-bricolage), sans-serif', fontSize: 22, fontWeight: 500, letterSpacing: '-0.025em', color: 'var(--accent)', marginBottom: 14 }}>Nodea</div>
         {status === 'working' && (
           <div aria-hidden style={{
             width: 22, height: 22, margin: '0 auto 14px', borderRadius: '50%',

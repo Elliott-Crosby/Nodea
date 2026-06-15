@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     types: { 'application/rss+xml': `${SITE_URL}/feed.xml` },
   },
   openGraph: {
-    title: 'Nodea Blog — Branching AI Chat',
+    title: 'Nodea AI Blog — Branching AI Chat',
     description:
       'Essays and guides on branching AI chat, prompt design, Claude vs ChatGPT, and non-linear AI workflows.',
     url: `${SITE_URL}/blog`,

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     'Nodea is free during beta with 25k daily / 450k monthly tokens. Pro is $8/mo for Claude Opus, 50k daily / 1M monthly tokens, and early access. Cancel anytime.',
   alternates: { canonical: '/upgrade' },
   openGraph: {
-    title: 'Pricing — Nodea',
+    title: 'Pricing — Nodea AI',
     description: 'Free with generous limits. Pro is $8/mo for Claude Opus, doubled daily tokens, and a 1M monthly budget.',
     url: `${SITE_URL}/upgrade`,
     images: OG_IMAGES,

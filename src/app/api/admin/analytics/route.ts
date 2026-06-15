@@ -13,7 +13,7 @@ import {
 
 // JSON summary of the dashboard's headline numbers. Mirrors the server component
 // in src/app/admin/page.tsx — admins excluded, signups from auth.users, EST.
-export async function GET(req: Request) {
+export async function GET() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })

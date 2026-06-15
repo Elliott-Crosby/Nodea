@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
+import { OG_IMAGES } from '@/lib/og'
 import '@/app/_components/landing/landing.css'
 
 export const metadata: Metadata = {
@@ -9,6 +10,14 @@ export const metadata: Metadata = {
     'The terms that govern your use of Nodea, the branching AI chat canvas at nodea.ai, and the "Nodea Tree for Claude" browser extension.',
   alternates: { canonical: '/terms' },
   robots: { index: true, follow: true },
+  openGraph: {
+    title: 'Terms of Service — Nodea AI',
+    description:
+      'The terms that govern your use of Nodea, the branching AI chat canvas at nodea.ai, and the "Nodea Tree for Claude" browser extension.',
+    url: 'https://nodea.ai/terms',
+    type: 'article',
+    images: OG_IMAGES,
+  },
 }
 
 const LAST_UPDATED = 'June 3, 2026'

@@ -82,8 +82,9 @@ export default function EditConversationModal({
           Edit conversation
         </h3>
 
-        <label style={labelStyle}>NAME</label>
+        <label htmlFor="edit-conv-name" style={labelStyle}>NAME</label>
         <input
+          id="edit-conv-name"
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}

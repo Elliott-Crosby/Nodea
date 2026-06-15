@@ -581,7 +581,7 @@ export default function TreePanel() {
   const isDragging   = useRef(false)
   const dragOrigin   = useRef({ mx: 0, my: 0, px: 0, py: 0 })
   const scaleRef     = useRef(scale)
-  const panRef       = useRef(pan)  // eslint-disable-line @typescript-eslint/no-unused-vars
+  const panRef       = useRef(pan)
   scaleRef.current   = scale
   panRef.current     = pan
 
