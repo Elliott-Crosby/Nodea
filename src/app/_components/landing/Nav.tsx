@@ -1,12 +1,26 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useTheme } from '@/lib/theme'
 import { Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase'
 import { NAV_LINKS } from './navLinks'
 
 export default function Nav() {
   const { theme, toggleTheme } = useTheme()
+  // null = unknown (still checking). Most visitors are signed out, so we render
+  // the signed-out CTAs until we learn otherwise to avoid a layout flash.
+  const [authed, setAuthed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) =>
+      setAuthed(!!session?.user)
+    )
+    return () => sub.subscription.unsubscribe()
+  }, [])
 
   return (
     <nav className="ln-nav">
@@ -29,8 +43,14 @@ export default function Nav() {
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <Link href="/login" className="ln-btn ln-btn-ghost">Sign in</Link>
-          <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">Get started free</Link>
+          {authed ? (
+            <Link href="/app" className="ln-btn ln-btn-primary">Open canvas</Link>
+          ) : (
+            <>
+              <Link href="/login" className="ln-btn ln-btn-ghost">Sign in</Link>
+              <Link href="/login?mode=signup" className="ln-btn ln-btn-primary">Get started free</Link>
+            </>
+          )}
         </div>
       </div>
     </nav>
