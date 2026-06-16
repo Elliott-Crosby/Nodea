@@ -23,6 +23,24 @@ interface IncomingMessage {
   attachments?: Attachment[]
 }
 
+// Only our own Supabase Storage origin may be fetched server-side (SSRF guard).
+const STORAGE_HOST = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).host
+  } catch {
+    return ''
+  }
+})()
+
+function isAllowedAttachmentUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw)
+    return u.protocol === 'https:' && !!STORAGE_HOST && u.host === STORAGE_HOST
+  } catch {
+    return false
+  }
+}
+
 // Resolve an attachment's `dataUrl` (either a `data:` URL or an https URL
 // from Supabase Storage) into raw base64 + mediaType. We fetch URLs server-
 // side rather than passing them through to Anthropic because:
@@ -39,6 +57,12 @@ async function resolveAttachmentData(
     return base64 ? { base64, mediaType: declaredType } : null
   }
   if (/^https?:\/\//i.test(dataUrl)) {
+    // SSRF guard: only fetch from our own Supabase Storage host. The client
+    // controls `dataUrl`, so without this allowlist the server could be coerced
+    // into fetching arbitrary internal/cloud-metadata URLs and relaying their
+    // contents to the model. Legitimate attachments are either inline `data:`
+    // URLs or public Storage URLs produced by /api/upload-attachment.
+    if (!isAllowedAttachmentUrl(dataUrl)) return null
     try {
       const r = await fetch(dataUrl)
       if (!r.ok) return null

@@ -28,6 +28,23 @@ export async function POST(req: Request) {
     return new Response('DB unavailable', { status: 500 })
   }
 
+  // Idempotency: Stripe can redeliver the same event. Record event.id first; a
+  // duplicate-key error means we've already processed it → ack and stop before
+  // any side effects. If the ledger table isn't present yet (migration not
+  // pushed), degrade gracefully and continue — today's handlers are idempotent.
+  const { error: dedupErr } = await db
+    .from('stripe_events')
+    .insert({ id: event.id, type: event.type })
+  if (dedupErr) {
+    if (dedupErr.code === '23505') {
+      return new Response('ok (duplicate)', { status: 200 })
+    }
+    if (dedupErr.code !== '42P01' && dedupErr.code !== 'PGRST205') {
+      // Real, unexpected error (not "table missing") — log but still process.
+      console.error('[stripe/webhook] dedup insert failed:', dedupErr.code, dedupErr.message)
+    }
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
     const userId = session.metadata?.userId

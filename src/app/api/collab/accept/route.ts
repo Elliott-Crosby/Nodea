@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
-import type { CollabInviteRow } from '@/lib/collab'
+import { canAccessConversation, canAccessChatProject, type CollabInviteRow } from '@/lib/collab'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/collab/accept — POST { token }
@@ -67,6 +67,18 @@ export async function POST(req: Request) {
     target = { kind: 'chat_project', id: cp.id, name: cp.name, ownerId: cp.user_id }
   } else {
     return NextResponse.json({ error: 'invite_malformed' }, { status: 400 })
+  }
+
+  // Stale-invite guard: a link keeps working until it expires, but if the
+  // person who created it has since lost access to the space (e.g. a member who
+  // was removed), their outstanding links must stop minting memberships. The
+  // space owner always passes this check, so owner-created links keep working.
+  const inviterStillHasAccess = target.kind === 'conversation'
+    ? await canAccessConversation(service, target.id, invite.invited_by)
+    : await canAccessChatProject(service, target.id, invite.invited_by)
+  if (!inviterStillHasAccess) {
+    await service.from('collab_invites').delete().eq('id', invite.id)
+    return NextResponse.json({ error: 'invite_revoked' }, { status: 410 })
   }
 
   // Owner re-opening their own link: nothing to mint.

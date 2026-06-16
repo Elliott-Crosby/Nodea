@@ -2,14 +2,12 @@ export const MODELS = {
   haiku:        'claude-haiku-4-5-20251001',
   sonnet:       'claude-sonnet-4-6',
   opus:         'claude-opus-4-7',
-  haikuLegacy:  'claude-3-haiku-20240307',
 } as const
 
 const MODEL_LABELS: Record<string, string> = {
   'claude-haiku-4-5-20251001': 'Haiku',
   'claude-sonnet-4-6':         'Sonnet',
   'claude-opus-4-7':           'Opus',
-  'claude-3-haiku-20240307':   'Haiku',
 }
 
 export function modelDisplayName(modelId: string): string {

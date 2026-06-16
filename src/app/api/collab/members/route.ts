@@ -137,5 +137,17 @@ export async function DELETE(req: Request) {
     console.error('[collab:member-delete]', error.code, error.message)
     return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
   }
+
+  // Defense-in-depth: revoke any outstanding invite links the removed member
+  // created for this space, so a stale link can't keep re-adding people after
+  // they've lost access. (The accept route also re-checks inviter access.)
+  const service = createServiceSupabaseClient()
+  if (service) {
+    const revoke = service.from('collab_invites').delete().eq('invited_by', userId)
+    await (conversationId
+      ? revoke.eq('project_id', conversationId)
+      : revoke.eq('chat_project_id', chatProjectId!))
+  }
+
   return NextResponse.json({ ok: true })
 }

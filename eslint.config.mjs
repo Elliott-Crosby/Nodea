@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     ".claude/**",
     // Standalone extension repo checkout (gitignored, lints in its own repo).
     "extension/**",
+    // Local analytics tooling (gitignored) — plain Node scripts, not app code.
+    ".claude-analytics/**",
   ]),
 ]);
 

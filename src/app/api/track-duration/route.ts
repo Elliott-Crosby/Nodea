@@ -7,8 +7,14 @@ export async function POST(req: Request) {
     if (rateLimited(`track:${clientIp(req)}`, 60, 60_000)) {
       return new Response('ok')
     }
-    const { id, duration_ms } = await req.json()
-    if (typeof id !== 'number' || typeof duration_ms !== 'number' || duration_ms < 0) {
+    const { id, duration_ms, session_id } = await req.json()
+    if (
+      typeof id !== 'number' ||
+      typeof duration_ms !== 'number' ||
+      duration_ms < 0 ||
+      typeof session_id !== 'string' ||
+      !session_id
+    ) {
       return new Response('ok')
     }
     const service = createServiceSupabaseClient()
@@ -17,6 +23,7 @@ export async function POST(req: Request) {
         .from('page_views')
         .update({ duration_ms: Math.min(duration_ms, 86_400_000) }) // cap at 24h
         .eq('id', id)
+        .eq('session_id', session_id) // scope to the owning visitor (anti-tamper)
         .is('duration_ms', null) // only set once — first beacon wins
     }
   } catch {

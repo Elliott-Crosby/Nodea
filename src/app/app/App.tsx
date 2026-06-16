@@ -1486,12 +1486,15 @@ export default function App() {
       } else {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('is_admin, plan')
+          .select('is_admin, plan, stripe_customer_id')
           .eq('user_id', user.id)
           .maybeSingle()
         const dbAdmin = profile?.is_admin === true
         if (dbAdmin) setIsAdmin(true)
-        setIsPro(dbAdmin || profile?.plan === 'pro')
+        // Mirror the canonical server gate (src/lib/plan.ts isProUser): a
+        // 'pro' row only counts when it carries a stripe_customer_id, else it
+        // could be a forged/legacy row.
+        setIsPro(dbAdmin || (profile?.plan === 'pro' && !!profile?.stripe_customer_id))
       }
 
       // A parked invite (the user opened /join while signed out) is accepted
@@ -1856,7 +1859,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Switch conversation ───────────────────────────────────────────────────
   const switchConversation = useCallback(

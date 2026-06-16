@@ -30,7 +30,8 @@ export async function GET(req: Request) {
     if (error.message.includes('page_views') || error.code === '42P01') {
       return Response.json({ error: 'MIGRATION_PENDING' }, { status: 400 })
     }
-    return Response.json({ error: `Database error: ${error.message}` }, { status: 500 })
+    console.error('[admin:traffic]', error.code, error.message)
+    return Response.json({ error: 'Database error' }, { status: 500 })
   }
 
   const pvMap      = buildDayMap(days, tz)

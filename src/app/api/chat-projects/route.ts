@@ -46,7 +46,7 @@ export async function GET() {
 
   if (error) {
     console.error('[chat-projects:list]', error.code, error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'list_failed' }, { status: 500 })
   }
 
   // Pull the chat-to-project mapping for this user in one query, then

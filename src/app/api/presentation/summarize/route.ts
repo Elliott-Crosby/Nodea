@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       model:  anthropic(MODELS.haiku),
       system,
       prompt: excerpts,
+      maxOutputTokens: 96,
     })
     let clean = text
       .trim()

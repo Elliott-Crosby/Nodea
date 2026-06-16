@@ -6,8 +6,10 @@ import { getSessionId } from '@/lib/track-event'
 
 function sendDuration(id: number, startMs: number) {
   const duration_ms = Date.now() - startMs
+  // session_id scopes the update to this visitor's own row, so a sequential id
+  // alone can't be used to overwrite another page view's duration.
   const blob = new Blob(
-    [JSON.stringify({ id, duration_ms })],
+    [JSON.stringify({ id, duration_ms, session_id: getSessionId() })],
     { type: 'application/json' },
   )
   navigator.sendBeacon('/api/track-duration', blob)
@@ -15,7 +17,9 @@ function sendDuration(id: number, startMs: number) {
 
 export function PageTracker() {
   const pathname  = usePathname()
-  const startRef  = useRef<number>(Date.now())
+  // Initialised to 0; the route-change effect below sets the real start time on
+  // mount. (Calling Date.now() in a ref initialiser is an impure-render lint error.)
+  const startRef  = useRef<number>(0)
   const rowIdRef  = useRef<number | null>(null)
 
   // On each route change: flush the previous page's duration, then record the new one

@@ -356,7 +356,8 @@ function MarkdownContent({ content }: { content: string }) {
 // ── Thinking bubble with elapsed time ────────────────────────────────────────
 function ThinkingBubble() {
   const [elapsed, setElapsed] = useState(0)
-  const startRef = useRef(Date.now())
+  // Set on mount in the effect below; 0 placeholder avoids an impure-render call.
+  const startRef = useRef(0)
 
   useEffect(() => {
     startRef.current = Date.now()

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { MODELS } from '@/lib/models'
+import { rateLimited } from '@/lib/request-limits'
 import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic()
@@ -9,6 +11,12 @@ export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Per-user flood backstop: model-backed and not metered against the token
+  // budget, so cap loop rate.
+  if (rateLimited(`search:${user.id}`, 30, 60_000)) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 })
+  }
 
   const { query, projectId } = await req.json()
   if (!query?.trim() || !projectId) {
@@ -60,12 +68,13 @@ ${messageList}`
 
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODELS.haiku,
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const raw = response.content[0].type === 'text' ? response.content[0].text : '[]'
+    const first = response.content[0]
+    const raw = first?.type === 'text' ? first.text : '[]'
 
     // Extract JSON from response (strip any markdown fences)
     const jsonMatch = raw.match(/\[[\s\S]*\]/)

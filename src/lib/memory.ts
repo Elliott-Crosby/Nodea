@@ -69,6 +69,7 @@ export async function extractMemoriesFromExchange(
         `Existing memories:\n${existingList}\n\n` +
         `Exchange:\nUser: ${userMessage.slice(0, 1500)}\n` +
         `Assistant: ${assistantReply.slice(0, 1500)}`,
+      maxOutputTokens: 256,
     })
 
     const clean = text.trim()

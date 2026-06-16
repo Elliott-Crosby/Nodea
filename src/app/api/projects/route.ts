@@ -23,7 +23,8 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[projects:list]', error.code, error.message)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 
   let projects = data
@@ -55,11 +56,13 @@ export async function GET() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
       if (refetchError) {
-        return NextResponse.json({ error: refetchError.message }, { status: 500 })
+        console.error('[projects:refetch]', refetchError.code, refetchError.message)
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
       }
       projects = refetched ?? []
     } else if (createError) {
-      return NextResponse.json({ error: createError.message }, { status: 500 })
+      console.error('[projects:create]', createError.code, createError.message)
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     } else {
       projects = newProject ? [newProject] : []
     }
@@ -115,7 +118,8 @@ export async function POST(req: Request) {
   }
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[projects:create]', error.code, error.message)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 
   return NextResponse.json({ project })
