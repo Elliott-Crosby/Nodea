@@ -7,20 +7,20 @@ import { OG_IMAGES } from '@/lib/og'
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'How Nodea and the "Nodea Tree for Claude" browser extension collect, use, store, and transmit your data.',
+    'How Nodea and the Nodea Tree browser extension collect, use, store, and transmit your data.',
   alternates: { canonical: '/privacy' },
   robots: { index: true, follow: true },
   openGraph: {
     title: 'Privacy Policy — Nodea AI',
     description:
-      'How Nodea and the "Nodea Tree for Claude" browser extension collect, use, store, and transmit your data.',
+      'How Nodea and the Nodea Tree browser extension collect, use, store, and transmit your data.',
     url: 'https://nodea.ai/privacy',
     type: 'article',
     images: OG_IMAGES,
   },
 }
 
-const LAST_UPDATED = 'June 11, 2026'
+const LAST_UPDATED = 'June 17, 2026'
 
 export default function PrivacyPage() {
   return (
@@ -43,18 +43,20 @@ export default function PrivacyPage() {
                 This policy explains how Nodea (&ldquo;Nodea,&rdquo; &ldquo;we,&rdquo;
                 &ldquo;us&rdquo;) handles your data across both the Nodea web app at{' '}
                 <a href="https://nodea.ai">nodea.ai</a> and the{' '}
-                <strong>&ldquo;Nodea Tree for Claude&rdquo;</strong> browser extension.
+                <strong>&ldquo;Nodea Tree&rdquo;</strong> browser extension.
               </p>
 
               <p>
-                The &ldquo;Nodea Tree for Claude&rdquo; extension reads the branch
-                structure of conversations you already have on{' '}
-                <a href="https://claude.ai">claude.ai</a> and draws them as a visual
-                tree inside the page. It does this using your existing, logged-in
-                Claude session; we never ask for, see, or store your Claude
-                credentials. The sections below describe, in full, what data we
-                collect, how we use (handle) it, how and where it is stored, and how
-                it is shared.
+                The &ldquo;Nodea Tree&rdquo; extension reads the branch structure of
+                conversations you already have on supported AI chat sites &mdash;{' '}
+                <a href="https://claude.ai">claude.ai</a>,{' '}
+                <a href="https://chatgpt.com">chatgpt.com</a> (and chat.openai.com),
+                and <a href="https://gemini.google.com">gemini.google.com</a> &mdash;
+                and draws them as a visual tree inside the page. It does this using
+                your existing, logged-in session on that site; we never ask for, see,
+                or store your credentials for any of these services. The sections below
+                describe, in full, what data we collect, how we use (handle) it, how
+                and where it is stored, and how it is shared.
               </p>
 
               <h2>1. Data we collect</h2>
@@ -77,12 +79,14 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Personal communications &amp; website content.</strong> The
-                  extension reads the content of the Claude conversation you are
-                  viewing &mdash; the message text (your prompts and Claude&rsquo;s
-                  replies), the branch structure, and message IDs &mdash; from
-                  Claude&rsquo;s own API in your browser, in order to render the visual
-                  tree and to power the &ldquo;Open in Nodea&rdquo; and
-                  &ldquo;Update Conversation&rdquo; features.
+                  extension reads the content of the AI chat conversation you are
+                  viewing &mdash; the message text (your prompts and the assistant&rsquo;s
+                  replies), the branch structure, and, where the service provides them,
+                  message IDs. For Claude and ChatGPT this is read from each service&rsquo;s
+                  own API in your browser using your existing session; for Gemini, which
+                  exposes no such API, it is read from the conversation rendered on the
+                  page. This is used to draw the visual tree and to power the
+                  &ldquo;Open in Nodea&rdquo; feature.
                 </li>
                 <li>
                   <strong>Display preferences.</strong> Per-conversation settings such
@@ -100,7 +104,8 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Conversation content.</strong> The conversations you create
-                  in Nodea or import from Claude, including the messages within them.
+                  in Nodea or import from Claude, ChatGPT, or Gemini, including the
+                  messages within them.
                 </li>
               </ul>
 
@@ -113,11 +118,10 @@ export default function PrivacyPage() {
                   app. It is not used for any other purpose.
                 </li>
                 <li>
-                  <strong>Claude conversation content</strong> read by the extension is
-                  used only to draw the branch tree in your browser and, when you
-                  explicitly click &ldquo;Open in Nodea&rdquo; or &ldquo;Update
-                  Conversation,&rdquo; to rebuild that conversation inside your own
-                  Nodea account.
+                  <strong>Conversation content</strong> read by the extension is used
+                  only to draw the branch tree in your browser and, when you explicitly
+                  click &ldquo;Open in Nodea,&rdquo; to rebuild that conversation inside
+                  your own Nodea account.
                 </li>
                 <li>
                   <strong>Conversation content in the web app</strong> is used to show
@@ -147,8 +151,8 @@ export default function PrivacyPage() {
                   the Nodea app, and is then immediately deleted.
                 </li>
                 <li>
-                  <strong>While visualizing the tree,</strong> the Claude conversation
-                  data stays in your browser. Nothing is sent to Nodea&rsquo;s servers
+                  <strong>While visualizing the tree,</strong> the conversation data
+                  stays in your browser. Nothing is sent to Nodea&rsquo;s servers
                   unless you explicitly trigger an import.
                 </li>
                 <li>
@@ -167,20 +171,20 @@ export default function PrivacyPage() {
               </p>
               <ul>
                 <li><strong>Supabase</strong>: authentication and database (stores your account and conversations).</li>
-                <li><strong>Anthropic</strong>: the Claude AI models that generate replies to messages you send in the web app.</li>
+                <li><strong>Anthropic</strong>: the Claude AI models that generate replies to messages you send in the web app. (Replies in the Nodea web app are generated by Claude regardless of which service a conversation was imported from.)</li>
                 <li><strong>Stripe</strong>: payment processing for paid plans (we never see your full card details).</li>
                 <li><strong>Vercel</strong>: application hosting.</li>
               </ul>
               <p>
-                When you click &ldquo;Open in Nodea&rdquo; or &ldquo;Update
-                Conversation,&rdquo; the conversation tree you chose is sent to{' '}
+                When you click &ldquo;Open in Nodea,&rdquo; the conversation tree you
+                chose is sent to{' '}
                 <strong>your own authenticated Nodea account</strong> so it can be
                 rebuilt there. This happens only on your explicit action, never
                 automatically, and the data goes only to your account &mdash; never to
                 the developer or any analytics endpoint. The extension does not collect
-                data from any site other than claude.ai and nodea.ai, and does not
-                access your Claude data unless you have the extension installed and are
-                actively using it.
+                data from any site other than claude.ai, chatgpt.com, chat.openai.com,
+                gemini.google.com, and nodea.ai, and does not access your conversation
+                data unless you have the extension installed and are actively using it.
               </p>
 
               <h2>Data retention &amp; deletion</h2>
@@ -192,8 +196,9 @@ export default function PrivacyPage() {
 
               <h2>Limited Use disclosure</h2>
               <p>
-                The &ldquo;Nodea Tree for Claude&rdquo; extension&rsquo;s use of
-                information received from Claude/claude.ai adheres to the{' '}
+                The &ldquo;Nodea Tree&rdquo; extension&rsquo;s use of information
+                received from claude.ai, chatgpt.com, chat.openai.com, and
+                gemini.google.com adheres to the{' '}
                 <a
                   href="https://developer.chrome.com/docs/webstore/program-policies/limited-use/"
                   target="_blank"
@@ -207,11 +212,15 @@ export default function PrivacyPage() {
                 other purpose.
               </p>
 
-              <h2>Not affiliated with Anthropic</h2>
+              <h2>Not affiliated with Anthropic, OpenAI, or Google</h2>
               <p>
-                Nodea and the &ldquo;Nodea Tree for Claude&rdquo; extension are not
-                affiliated with, endorsed by, or sponsored by Anthropic. &ldquo;Claude&rdquo;
-                is a trademark of Anthropic, PBC.
+                Nodea and the &ldquo;Nodea Tree&rdquo; extension are not affiliated
+                with, endorsed by, or sponsored by Anthropic, OpenAI, or Google.
+                &ldquo;Claude&rdquo; is a trademark of Anthropic, PBC;
+                &ldquo;ChatGPT&rdquo; is a trademark of OpenAI; and
+                &ldquo;Gemini&rdquo; is a trademark of Google LLC. All product names,
+                logos, and brands are property of their respective owners and are used
+                here only to identify the services the extension is compatible with.
               </p>
 
               <h2>Changes to this policy</h2>
