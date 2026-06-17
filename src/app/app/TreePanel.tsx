@@ -794,6 +794,10 @@ export default function TreePanel() {
 
     const ps   = Array.from(pairPositions.values())
     const hPad = 40
+    // The floating header pills sit at top:0 over the canvas (~46px tall), so the
+    // topmost node has to start below them or it gets tucked under the controls.
+    const TOP_INSET = 60
+    const BOT_INSET = 32
     const bx0  = Math.min(...ps.map(p => p.x))
     const bx1  = Math.max(...ps.map(p => p.x))
     const by0  = Math.min(...ps.map(p => p.y))
@@ -802,11 +806,11 @@ export default function TreePanel() {
     // Cards zoom with the canvas, so the content spans the position range plus
     // one node footprint (LAYOUT_W × nodeHMax) — all of which scales by s.
     const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + LAYOUT_W)
-    const sByH = (ch - 28 - 32) / Math.max(1, (by1 - by0) + nodeHMax)
+    const sByH = (ch - TOP_INSET - BOT_INSET) / Math.max(1, (by1 - by0) + nodeHMax)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
-    setPan({ x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s, y: 24 - by0 * s })
+    setPan({ x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s, y: TOP_INSET - by0 * s })
   }, [pairPositions, nodeHMax])
 
   // ── Fit active branch ─────────────────────────────────────────────────────────
@@ -2007,8 +2011,11 @@ export default function TreePanel() {
           (p.aiNode && p.aiNode.id === selectedNodeId)
         )
         const hasSelection = !!selPair
+        // Strip the inline attachment marker so the preview shows the typed text,
+        // never the raw `<<<NODEA_ATT_V1 …` metadata header.
+        const previewText  = selPair ? stripAttachmentMarker(selPair.userNode.content) : ''
         const preview      = selPair
-          ? (selPair.userNode.content.length > 32 ? selPair.userNode.content.slice(0, 32) + '…' : selPair.userNode.content)
+          ? (previewText.length > 32 ? previewText.slice(0, 32) + '…' : previewText)
           : null
         const mergeSel  = [...selectedPairIds].map((id) => pairs.find((p) => p.id === id)).filter((p): p is Pair => !!p)
         const canMerge  = mergeSel.length >= 2

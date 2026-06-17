@@ -8,6 +8,12 @@ import { selectChatModel, supportsWebSearch } from '@/lib/models'
 import { loadUserMemories, formatMemoryBlock } from '@/lib/memory'
 import { loadProjectMemoryForConversation, formatProjectMemoryBlock } from '@/lib/chat-projects'
 
+// Long answers (Opus on a complex prompt, especially with a PDF attached) can
+// run well past Vercel's default function ceiling, which silently kills the
+// stream mid-reply so the client hangs forever. Raise the ceiling to the
+// platform max that's safe on every plan.
+export const maxDuration = 60
+
 const BASE_SYSTEM_PROMPT =
   'You are a concise, helpful assistant. Match your response length to the complexity of the question — short questions get short answers, detailed questions get detailed answers. Use plain prose. Avoid emojis, unnecessary headers, and bullet lists unless structure genuinely helps clarity.'
 

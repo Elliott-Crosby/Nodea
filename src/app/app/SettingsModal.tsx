@@ -5,6 +5,7 @@ import { track } from '@vercel/analytics'
 import { useTheme } from '@/lib/theme'
 import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
+import { downloadConversationMarkdown } from '@/lib/conversation-export'
 
 type Section = 'appearance' | 'account' | 'usage' | 'memory'
 
@@ -36,20 +37,8 @@ export default function SettingsModal() {
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   function handleExportMarkdown() {
-    const lines: string[] = [`# ${convName || 'Conversation'}`, '']
-    for (const msg of messages) {
-      lines.push(`**${msg.role === 'user' ? 'You' : 'Claude'}:**`)
-      lines.push(msg.content)
-      lines.push('')
-    }
     track('export_markdown', { message_count: messages.length })
-    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${(convName || 'conversation').replace(/[^a-z0-9]/gi, '_')}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadConversationMarkdown(convName, messages)
   }
 
   async function handleSaveAccount(e: React.FormEvent) {
