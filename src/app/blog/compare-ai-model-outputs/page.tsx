@@ -167,27 +167,27 @@ export default function CompareAIOutputsPost() {
             </p>
             <ul>
               <li>
-                <strong>Clear evaluation criteria.</strong> You need to know what
+                <strong>Clear evaluation criteria.</strong>{' '}You need to know what
                 &ldquo;better&rdquo; means before you run the comparison, not after. Write
                 down: what does a good response contain? What does a bad response
                 contain? If you can&rsquo;t answer this before running the prompt, the
                 comparison will be rationalizing a gut reaction.
               </li>
               <li>
-                <strong>Identical context.</strong> Both models receive the same
+                <strong>Identical context.</strong>{' '}Both models receive the same
                 system prompt, the same conversation history, and the same user message.
                 Not semantically equivalent — literally identical. Any difference in
                 context is a confound.
               </li>
               <li>
-                <strong>Task specificity.</strong> Broad prompts produce broad outputs
+                <strong>Task specificity.</strong>{' '}Broad prompts produce broad outputs
                 that are hard to evaluate. &ldquo;Explain machine learning&rdquo; produces
                 outputs that vary based on what level the model assumes. &ldquo;Explain
                 gradient descent to a software engineer who knows calculus but has
                 never studied ML&rdquo; produces outputs you can actually compare.
               </li>
               <li>
-                <strong>Edge case coverage.</strong> The prompt that&rsquo;s easiest for
+                <strong>Edge case coverage.</strong>{' '}The prompt that&rsquo;s easiest for
                 both models isn&rsquo;t the most informative. Include at least one prompt
                 that tests a known weakness — ambiguity, conflicting constraints, or
                 tasks requiring careful instruction following.
@@ -201,25 +201,25 @@ export default function CompareAIOutputsPost() {
             </p>
             <ul>
               <li>
-                <strong>Accuracy.</strong> For factual tasks: is the information correct?
+                <strong>Accuracy.</strong>{' '}For factual tasks: is the information correct?
                 Can you verify it independently?
               </li>
               <li>
-                <strong>Instruction following.</strong> Did the model do what you asked?
+                <strong>Instruction following.</strong>{' '}Did the model do what you asked?
                 If you said &ldquo;respond in bullet points,&rdquo; did it? If you said &ldquo;under
                 200 words,&rdquo; did it honor that?
               </li>
               <li>
-                <strong>Appropriate scope.</strong> Did the model answer the question
+                <strong>Appropriate scope.</strong>{' '}Did the model answer the question
                 that was asked, or did it answer an easier related question instead?
                 Models frequently scope down to avoid uncertainty.
               </li>
               <li>
-                <strong>Calibrated uncertainty.</strong> When the model doesn&rsquo;t know
+                <strong>Calibrated uncertainty.</strong>{' '}When the model doesn&rsquo;t know
                 something, does it say so — or does it confabulate confidently?
               </li>
               <li>
-                <strong>Usefulness for your specific task.</strong> This is the most
+                <strong>Usefulness for your specific task.</strong>{' '}This is the most
                 important dimension and the hardest to define generically. What is the
                 output going to be used for? Does this response get you closer to that
                 goal?
@@ -234,7 +234,7 @@ export default function CompareAIOutputsPost() {
               prompt in both. This is accessible and fast.
             </p>
             <p>
-              <strong>Drawbacks:</strong> context contamination is easy (you know which
+              <strong>Drawbacks:</strong>{' '}context contamination is easy (you know which
               model is which as you read), you can&rsquo;t do multi-turn comparisons without
               substantial overhead, and the evaluation is live rather than blinded.
               Works for quick gut-check comparisons; breaks down for systematic work.
@@ -252,7 +252,7 @@ export default function CompareAIOutputsPost() {
               as models update.
             </p>
             <p>
-              <strong>Drawbacks:</strong> setup cost. You need access to both APIs,
+              <strong>Drawbacks:</strong>{' '}setup cost. You need access to both APIs,
               a logging layer, and a scoring system. Overkill for most comparisons
               unless you&rsquo;re selecting a model for production use.
             </p>
@@ -289,27 +289,27 @@ export default function CompareAIOutputsPost() {
             </p>
             <ol>
               <li>
-                <strong>Set up the shared context.</strong> Open a new canvas and send
+                <strong>Set up the shared context.</strong>{' '}Open a new canvas and send
                 the system prompt or background context as the first message. This becomes
                 the root node — the shared starting point for all branches.
               </li>
               <li>
-                <strong>Send the comparison prompt as a branch.</strong> Submit your
+                <strong>Send the comparison prompt as a branch.</strong>{' '}Submit your
                 test prompt from the root. The AI&rsquo;s response becomes a child node.
               </li>
               <li>
-                <strong>Branch again from the root.</strong> Navigate back to the root
+                <strong>Branch again from the root.</strong>{' '}Navigate back to the root
                 node and send the same prompt again — or a variant prompt with different
                 model selection if the tool supports multiple models. This creates a
                 second branch with independent context.
               </li>
               <li>
-                <strong>Compare on the canvas.</strong> Both responses are now visible
+                <strong>Compare on the canvas.</strong>{' '}Both responses are now visible
                 as sibling nodes. You can read them in parallel without switching tabs
                 or scrolling.
               </li>
               <li>
-                <strong>Go deeper on each.</strong> If you want to evaluate multi-turn
+                <strong>Go deeper on each.</strong>{' '}If you want to evaluate multi-turn
                 behavior, continue each branch with follow-up questions. The branches
                 remain independent — the model in branch B never sees branch A&rsquo;s
                 responses.
@@ -331,29 +331,29 @@ export default function CompareAIOutputsPost() {
             <h2 id="common-mistakes">Common comparison mistakes</h2>
             <ul>
               <li>
-                <strong>Comparing different model tiers.</strong> GPT-4o vs Claude Haiku
+                <strong>Comparing different model tiers.</strong>{' '}GPT-4o vs Claude Haiku
                 is not a fair comparison. GPT-4o vs Claude Sonnet, or GPT-4o vs Claude
                 Opus, is more meaningful. Check which model version you&rsquo;re actually
                 running.
               </li>
               <li>
-                <strong>Evaluating before re-running.</strong> Run each prompt at least
+                <strong>Evaluating before re-running.</strong>{' '}Run each prompt at least
                 three times before drawing conclusions. A single run may capture an
                 outlier.
               </li>
               <li>
-                <strong>Comparing on only one task type.</strong> If Claude wins on
+                <strong>Comparing on only one task type.</strong>{' '}If Claude wins on
                 creative writing, that says nothing about code or factual retrieval.
                 A model that&rsquo;s right for your use case is not the same as a model
                 that wins the benchmark.
               </li>
               <li>
-                <strong>Not controlling for prompt phrasing.</strong> If your ChatGPT
+                <strong>Not controlling for prompt phrasing.</strong>{' '}If your ChatGPT
                 prompt has been refined over months and your Claude prompt is first-draft,
                 you&rsquo;re comparing prompts, not models.
               </li>
               <li>
-                <strong>Using response length as a tiebreaker.</strong> Longer is not
+                <strong>Using response length as a tiebreaker.</strong>{' '}Longer is not
                 better. For most practical tasks, the right answer is the correct and
                 concise answer.
               </li>

@@ -748,6 +748,10 @@ export default function App() {
   // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
   // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
   const inFlightRef       = useRef<Set<string>>(new Set())
+  // Aborts the in-flight /api/chat stream. Clicking a node mid-generation used to
+  // leave a half-painted reply on a path the user had navigated away from; we now
+  // cancel the request cleanly instead.
+  const genAbortRef       = useRef<AbortController | null>(null)
   // Recent reversible deletions (most-recent last). Capped so Ctrl+Z only ever
   // reaches back over "the last few actions", not the whole session.
   const undoStackRef        = useRef<UndoEntry[]>([])
@@ -2194,10 +2198,16 @@ export default function App() {
         const messagesForApi = nextMessages.map((m) =>
           m.id === userMsgId ? { ...m, attachments: attachmentsSnapshot } : m
         )
+        // One controller per generation: abort any prior in-flight stream and let
+        // a node-click (handleNodeClick) cancel this one cleanly.
+        genAbortRef.current?.abort()
+        const abortController = new AbortController()
+        genAbortRef.current = abortController
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: messagesForApi, conversationId: targetConvId }),
+          signal: abortController.signal,
         })
         if (response.status === 429) {
           const data = await response.json().catch(() => ({}))
@@ -2318,11 +2328,16 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error('Chat error', err)
         // The user's message is already persisted (saveUserNode, above), so keep
         // it on screen and in the conversation — only drop the empty assistant
         // bubble we optimistically added. The conversation stays put.
         setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+        // Deliberate cancellation (the user clicked another node mid-stream): the
+        // user node stays, the empty assistant bubble is gone — no error to show.
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return
+        }
+        console.error('Chat error', err)
         // Only surface the upgrade modal for free users who exhausted the daily
         // pool — Pro users and per-message size caps don't get fixed by upgrading.
         if (err instanceof RateLimitError && !isPro && err.limitType === 'daily') {
@@ -2547,6 +2562,9 @@ export default function App() {
   const handleNodeClick = useCallback(
     async (nodeId: string) => {
       if (!activeConvId) return
+      // Navigating away cancels an in-flight reply cleanly, rather than leaving a
+      // half-streamed bubble on a path we're about to leave (looked like a crash).
+      genAbortRef.current?.abort()
       // Navigating cancels any armed merge (beginMerge re-arms it after this call).
       pendingMergeRef.current = null
       const { data: allNodes } = await supabase

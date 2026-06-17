@@ -153,7 +153,7 @@ export default function WhatIsNodea() {
                 <li><strong>Who it&rsquo;s for:</strong> people who think by exploring alternatives: writers, researchers, founders, engineers.</li>
                 <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $8/mo for Claude Opus and a doubled daily + 1M monthly token budget.</li>
                 <li><strong>What powers it:</strong> Claude Haiku 4.5, Sonnet 4.6, and Opus 4.7, auto-routed by prompt complexity.</li>
-                <li><strong>What you keep:</strong> every message you&rsquo;ve ever sent, every branch you&rsquo;ve ever explored, in one queryable tree.</li>
+                <li><strong>What you keep:</strong> every message and every branch you explore stays on the canvas &mdash; searchable and revisitable, never overwritten.</li>
               </ul>
             </div>
           </div>
@@ -298,7 +298,8 @@ nodes (
             <h3 className="wn-h3">5. Streaming and token accounting</h3>
             <p>
               The chat endpoint (<code>/api/chat</code>) is a streaming POST that
-              calls <code>streamText</code> from the Vercel AI SDK. Tokens are
+              calls <code>streamText</code>{' '}
+              from the Vercel AI SDK. Tokens are
               estimated up front (using a 4&nbsp;chars-per-token approximation), checked
               against the user&rsquo;s daily budget, and the actual usage is recorded
               after the stream completes, so a runaway response can&rsquo;t silently
@@ -348,8 +349,8 @@ nodes (
               </li>
               <li>
                 <strong>Anonymous sign-in</strong>: Supabase&rsquo;s anonymous user
-                feature creates a real <code>auth.users</code> row without
-                requiring an email. Anonymous users can chat, branch, and save
+                feature creates a real <code>auth.users</code>{' '}
+                row without requiring an email. Anonymous users can chat, branch, and save
                 projects exactly like signed-up users. They can later &ldquo;claim&rdquo;
                 their data by linking an email, with no data migration required.
               </li>
@@ -402,8 +403,8 @@ nodes (
                 onto the tree.
               </li>
               <li>
-                <strong>Friction kills exploration.</strong> Anonymous sign-in,
-                no credit card, no waitlist. If you have to think about whether
+                <strong>Friction kills exploration.</strong>{' '}
+                Anonymous sign-in, no credit card, no waitlist. If you have to think about whether
                 opening a canvas is &ldquo;worth it,&rdquo; you&rsquo;ll never see the second
                 branch.
               </li>

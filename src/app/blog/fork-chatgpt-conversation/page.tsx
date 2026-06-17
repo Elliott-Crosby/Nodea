@@ -156,18 +156,18 @@ export default function ForkChatGPTPost() {
                 submit. ChatGPT regenerates from that point.
               </li>
               <li>
-                Look for small <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code> arrows
+                Look for small <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code>{' '}arrows
                 that appear above the message. These let you flip between versions.
                 Each version has its own continuation.
               </li>
             </ol>
             <p>
-              <strong>What you get:</strong> a genuine branch in the conversation, stored
+              <strong>What you get:</strong>{' '}a genuine branch in the conversation, stored
               in ChatGPT&rsquo;s servers. You can navigate back and forth between the
               original and the variant.
             </p>
             <p>
-              <strong>What you don&rsquo;t get:</strong> any visual overview of your branches,
+              <strong>What you don&rsquo;t get:</strong>{' '}any visual overview of your branches,
               the ability to fork from an AI message (only your own), a way to see the
               full shape of your exploration at a glance, or reliable access to old
               branches if the conversation gets long. The pagination arrows are visually
@@ -188,16 +188,16 @@ export default function ForkChatGPTPost() {
                 Click it. Claude generates a new response to the same user message.
               </li>
               <li>
-                Use the <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code> arrows above
+                Use the <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code>{' '}arrows above
                 the response to switch between the original and the regenerated version.
               </li>
             </ol>
             <p>
-              <strong>What you get:</strong> multiple AI responses to the same user
+              <strong>What you get:</strong>{' '}multiple AI responses to the same user
               prompt, which is useful when you want to compare tone or approach.
             </p>
             <p>
-              <strong>The critical limitation:</strong> the branch only survives until
+              <strong>The critical limitation:</strong>{' '}the branch only survives until
               your next message. Once you continue the conversation, you&rsquo;re locked
               to whichever variant was active when you typed. The other variant becomes
               inaccessible — technically it exists, but there&rsquo;s no UX to navigate
@@ -244,11 +244,11 @@ export default function ForkChatGPTPost() {
               <li>Open the shared link in a new session and continue from there.</li>
             </ol>
             <p>
-              <strong>What you get:</strong> genuinely independent branches with
+              <strong>What you get:</strong>{' '}genuinely independent branches with
               independent context — neither one sees the other&rsquo;s messages.
             </p>
             <p>
-              <strong>What you don&rsquo;t get:</strong> any connection between the two
+              <strong>What you don&rsquo;t get:</strong>{' '}any connection between the two
               tabs. There&rsquo;s no canvas, no map, no way to see both branches at once,
               and no way to come back tomorrow and reconstruct which tab was which
               branch without spelunking through your chat history. You become the
@@ -262,15 +262,15 @@ export default function ForkChatGPTPost() {
             </p>
             <ul>
               <li>
-                <strong>Edit trick (ChatGPT):</strong> can&rsquo;t fork from an AI message;
+                <strong>Edit trick (ChatGPT):</strong>{' '}can&rsquo;t fork from an AI message;
                 no canvas overview; branches are easy to lose in long conversations.
               </li>
               <li>
-                <strong>Regenerate trick (Claude.ai):</strong> branch dies after your
+                <strong>Regenerate trick (Claude.ai):</strong>{' '}branch dies after your
                 next message; can&rsquo;t explore both variants independently; no overview.
               </li>
               <li>
-                <strong>Duplicate tabs:</strong> no connection between branches; you
+                <strong>Duplicate tabs:</strong>{' '}no connection between branches; you
                 are the mental tracking system; collapses completely after a few days.
               </li>
             </ul>
@@ -317,7 +317,7 @@ export default function ForkChatGPTPost() {
               </li>
               <li>
                 You&rsquo;re doing research, writing, or decision-making where the
-                branching <em>is</em> the work — not a nice-to-have but the whole point.
+                branching <em>is</em>{' '}the work — not a nice-to-have but the whole point.
               </li>
             </ul>
             <p>
@@ -340,7 +340,7 @@ export default function ForkChatGPTPost() {
             <h3>Does ChatGPT delete old branches when I edit?</h3>
             <p>
               No — the old branch is preserved and accessible via the{' '}
-              <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code> arrows. It just doesn&rsquo;t
+              <code>&lt;</code>&nbsp;/&nbsp;<code>&gt;</code>{' '}arrows. It just doesn&rsquo;t
               look like a branch management system. If you continue a conversation for
               many more messages, the earlier branch points are still there but harder
               to find.

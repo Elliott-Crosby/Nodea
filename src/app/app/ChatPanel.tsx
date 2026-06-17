@@ -6,6 +6,7 @@ import { useApp, type AttachmentItem, type ChatMessage } from './App'
 import { avatarColor } from './ShareModal'
 import { modelDisplayName } from '@/lib/models'
 import { providerForModel, getAISource } from '@/lib/ai-sources'
+import { downloadConversationMarkdown } from '@/lib/conversation-export'
 
 // ── Accepted file types (Claude API limits) ───────────────────────────────────
 const ACCEPTED_MIME_TYPES: Record<string, string> = {
@@ -484,7 +485,7 @@ function ImportedUpsellBanner() {
 function TopBar() {
   const {
     convName, setIsSearchOpen, setIsChatCollapsed,
-    activeConvId, openShareModal, presencePeers, activeConvIsShared,
+    activeConvId, openShareModal, presencePeers, activeConvIsShared, messages,
   } = useApp()
 
   const pill: React.CSSProperties = {
@@ -566,6 +567,20 @@ function TopBar() {
             <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </IconBtn>
+        {messages.length > 0 && (
+          <IconBtn
+            title="Export chat as Markdown"
+            onClick={() => {
+              track('export_markdown', { message_count: messages.length, source: 'topbar' })
+              downloadConversationMarkdown(convName, messages)
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 1.5v8M7.5 9.5L4.5 6.5M7.5 9.5l3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2.5 11v1.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </IconBtn>
+        )}
         <IconBtn title="Collapse chat" onClick={() => setIsChatCollapsed(true)}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { track } from '@vercel/analytics'
+import { Search, X, Type, Sparkles } from 'lucide-react'
 import { useApp } from './App'
+import { stripAttachmentMarker } from '@/lib/conversation-export'
 
 type Mode = 'keyword' | 'concept'
 
@@ -33,12 +35,13 @@ export default function SearchModal() {
     const lower = q.toLowerCase().trim()
     if (!lower) { setResults([]); setHasSearched(false); return }
     const matches = allDbNodes
-      .filter((n) => n.content.toLowerCase().includes(lower))
-      .map((n) => {
-        const idx = n.content.toLowerCase().indexOf(lower)
+      .map((n) => ({ n, text: stripAttachmentMarker(n.content) }))
+      .filter(({ text }) => text.toLowerCase().includes(lower))
+      .map(({ n, text }) => {
+        const idx = text.toLowerCase().indexOf(lower)
         const start = Math.max(0, idx - 40)
-        const excerpt = (start > 0 ? '…' : '') + n.content.slice(start, idx + lower.length + 60).trim() + '…'
-        return { id: n.id, role: n.role, content: n.content, excerpt }
+        const excerpt = (start > 0 ? '…' : '') + text.slice(start, idx + lower.length + 60).trim() + '…'
+        return { id: n.id, role: n.role, content: text, excerpt }
       })
     setResults(matches)
     setHasSearched(true)
@@ -90,6 +93,8 @@ export default function SearchModal() {
     setIsSearchOpen(false)
   }
 
+  const placeholder = mode === 'keyword' ? 'Search messages…' : 'Describe a concept or idea…'
+
   return (
     <div
       style={{
@@ -125,26 +130,22 @@ export default function SearchModal() {
               display: 'flex',
               alignItems: 'center',
               padding: '14px 16px',
-              gap: 10,
-              borderBottom: '1px solid var(--border)',
+              gap: 11,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <Search size={17} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label={mode === 'keyword' ? 'Search messages' : 'Describe a concept or idea'}
-              placeholder={mode === 'keyword' ? 'Search messages…' : 'Describe a concept or idea…'}
+              placeholder={placeholder}
               style={{
                 flex: 1,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                fontSize: 14,
+                fontSize: 15,
                 color: 'var(--text-primary)',
               }}
             />
@@ -156,6 +157,7 @@ export default function SearchModal() {
               aria-label="Close search"
               onClick={() => setIsSearchOpen(false)}
               style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
@@ -164,59 +166,62 @@ export default function SearchModal() {
                 flexShrink: 0,
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <X size={16} />
             </button>
           </div>
         </form>
 
-        {/* Mode toggle */}
+        {/* Mode toggle — segmented control */}
         <div
           style={{
             display: 'flex',
-            padding: '8px 16px',
-            gap: 4,
+            padding: '0 16px 12px',
+            gap: 6,
             borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-subtle)',
           }}
         >
-          {(['keyword', 'concept'] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setMode(m)
-                setResults([])
-                setHasSearched(false)
-                setSearchError(null)
-              }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 500,
-                background: mode === m ? 'var(--accent)' : 'transparent',
-                color: mode === m ? '#fff' : 'var(--text-secondary)',
-                transition: 'background 0.12s',
-              }}
-            >
-              {m === 'keyword' ? '🔤 Keyword' : '💡 Concept'}
-            </button>
-          ))}
-          <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>
-            {mode === 'keyword'
-              ? 'Exact text match'
-              : 'AI finds related ideas, even when the wording differs'}
-          </span>
+          {([
+            { id: 'keyword' as Mode, label: 'Keyword', icon: Type },
+            { id: 'concept' as Mode, label: 'Concept', icon: Sparkles },
+          ]).map(({ id, label, icon: Icon }) => {
+            const active = mode === id
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setMode(id)
+                  setResults([])
+                  setHasSearched(false)
+                  setSearchError(null)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
+                  cursor: 'pointer',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: active ? '#fff' : 'var(--text-secondary)',
+                  transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+                }}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Results */}
         <div style={{ maxHeight: 360, overflowY: 'auto' }}>
           {!hasSearched && !isSearching && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              {mode === 'keyword' ? 'Start typing to search' : 'Enter a concept and press Enter to search'}
+            <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.5 }}>
+              {mode === 'keyword'
+                ? 'Find an exact word or phrase across every branch.'
+                : 'Describe an idea and Claude finds related messages, even when the wording differs. Press Enter to search.'}
             </div>
           )}
 

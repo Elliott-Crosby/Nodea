@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
+import { generateText } from 'ai'
+import { anthropic } from '@/lib/anthropic'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { MODELS } from '@/lib/models'
 import { rateLimited } from '@/lib/request-limits'
-import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic()
+// Model call against a whole conversation can take a few seconds; keep the
+// function alive long enough to finish.
+export const maxDuration = 30
 
 export async function POST(req: Request) {
   // Auth guard
@@ -67,14 +70,14 @@ Messages:
 ${messageList}`
 
   try {
-    const response = await client.messages.create({
-      model: MODELS.haiku,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+    // Use the shared AI SDK provider (correct baseURL) — the raw Anthropic SDK
+    // reads ANTHROPIC_BASE_URL from the environment, which is set without the
+    // "/v1" segment for that SDK and made every concept search fail silently.
+    const { text: raw } = await generateText({
+      model: anthropic(MODELS.haiku),
+      prompt,
+      maxOutputTokens: 1024,
     })
-
-    const first = response.content[0]
-    const raw = first?.type === 'text' ? first.text : '[]'
 
     // Extract JSON from response (strip any markdown fences)
     const jsonMatch = raw.match(/\[[\s\S]*\]/)
