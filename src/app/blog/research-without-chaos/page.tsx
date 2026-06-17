@@ -128,21 +128,21 @@ export default function ResearchWithoutChaosPost() {
             </p>
             <ul>
               <li>
-                <strong>Hypotheses contaminate each other.</strong> Once you
+                <strong>Hypotheses contaminate each other.</strong>{' '}Once you
                 ask the AI &ldquo;what about explanation X?&rdquo;, every
                 subsequent reply is colored by X being in context. Asking
                 about Y after asking about X is not the same as asking about
                 Y from scratch.
               </li>
               <li>
-                <strong>Tangents bury the trunk.</strong> A good follow-up
+                <strong>Tangents bury the trunk.</strong>{' '}A good follow-up
                 question pulls the conversation sideways. The original
                 research question is now ten turns up the scroll and
                 effectively gone. By the end, you&rsquo;ve answered five
                 related questions and forgotten which one you started with.
               </li>
               <li>
-                <strong>Provenance dissolves.</strong> Halfway through, the
+                <strong>Provenance dissolves.</strong>{' '}Halfway through, the
                 model says something that becomes a load-bearing claim in
                 your final synthesis. Two days later, you can&rsquo;t tell
                 whether that claim was the model speaking with confidence,
@@ -165,19 +165,18 @@ export default function ResearchWithoutChaosPost() {
             </p>
             <ol>
               <li>
-                <strong>A research question</strong> stated specifically
+                <strong>A research question</strong>{' '}stated specifically
                 enough that you&rsquo;d know whether you&rsquo;d answered it.
               </li>
               <li>
-                <strong>A set of candidate explanations or hypotheses</strong>
-                that, taken together, plausibly span the answer space.
+                <strong>A set of candidate explanations or hypotheses</strong>{' '}that, taken together, plausibly span the answer space.
               </li>
               <li>
                 <strong>Independent investigation of each candidate</strong>
                 — evidence for and against, sources, counterarguments.
               </li>
               <li>
-                <strong>A synthesis</strong> that weighs the candidates and
+                <strong>A synthesis</strong>{' '}that weighs the candidates and
                 commits to a conclusion (or to remaining open).
               </li>
             </ol>
@@ -239,8 +238,7 @@ Background:
               </li>
             </ul>
             <p>
-              For each branch, ask the AI to argue the case <em>for</em>
-              that hypothesis given the background. You&rsquo;ll get four
+              For each branch, ask the AI to argue the case <em>for</em>{' '}that hypothesis given the background. You&rsquo;ll get four
               parallel cases, each generated without knowledge of the others.
             </p>
 
@@ -318,11 +316,11 @@ Background:
             </p>
             <ul>
               <li>
-                A <strong>question</strong> opens up the answer space.
+                A <strong>question</strong>{' '}opens up the answer space.
                 &ldquo;Why did activation drop?&rdquo;
               </li>
               <li>
-                A <strong>hypothesis</strong> commits to one specific
+                A <strong>hypothesis</strong>{' '}commits to one specific
                 explanation and tries to break it. &ldquo;Activation dropped
                 because paid-social acquisition brings lower-intent signups.
                 If true, I&rsquo;d expect to see X, Y, and Z.&rdquo;
@@ -384,19 +382,16 @@ Background:
             </p>
             <ol>
               <li>
-                <strong>Restate the question.</strong> Copy the root.
+                <strong>Restate the question.</strong>{' '}Copy the root.
               </li>
               <li>
-                <strong>List the candidate explanations you considered.</strong>
-                One sentence per branch.
+                <strong>List the candidate explanations you considered.</strong>{' '}One sentence per branch.
               </li>
               <li>
-                <strong>Report what evidence each survived or failed.</strong>
-                Cite the relevant child node for each major claim.
+                <strong>Report what evidence each survived or failed.</strong>{' '}Cite the relevant child node for each major claim.
               </li>
               <li>
-                <strong>Commit to a conclusion or to remaining open.</strong>
-                Either way, be explicit about confidence and what would
+                <strong>Commit to a conclusion or to remaining open.</strong>{' '}Either way, be explicit about confidence and what would
                 change your mind.
               </li>
             </ol>

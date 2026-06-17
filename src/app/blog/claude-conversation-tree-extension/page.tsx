@@ -132,7 +132,7 @@ export default function ClaudeConversationTreePost() {
               and almost completely invisible.
             </p>
             <p>
-              <strong>Nodea Tree for Claude</strong> is a free Chrome extension that
+              <strong>Nodea Tree for Claude</strong>{' '}is a free Chrome extension that
               reconstructs that hidden tree and draws it right beside your conversation
               &mdash; then, on one click, imports the whole thing into the{' '}
               <Link href="/what-is-nodea">Nodea canvas</Link> where you can actually fork,
@@ -211,15 +211,15 @@ export default function ClaudeConversationTreePost() {
             </p>
             <ul>
               <li>
-                <strong>Every branch, visible at once.</strong> The whole shape of the
+                <strong>Every branch, visible at once.</strong>{' '}The whole shape of the
                 conversation &mdash; not just the path you&rsquo;re currently on.
               </li>
               <li>
-                <strong>Jump to any node.</strong> Click a branch in the tree to see where
+                <strong>Jump to any node.</strong>{' '}Click a branch in the tree to see where
                 it sits in the conversation.
               </li>
               <li>
-                <strong>Color-code paths.</strong> Mark the branches that matter so a big
+                <strong>Color-code paths.</strong>{' '}Mark the branches that matter so a big
                 tree stays readable instead of becoming a wall of identical boxes.
               </li>
             </ul>
@@ -241,7 +241,7 @@ export default function ClaudeConversationTreePost() {
             <h2 id="from-viewing-to-working">From viewing a tree to working in one</h2>
             <p>
               Seeing the tree is the hook. The reason it matters is what comes next: a{' '}
-              <strong>&ldquo;Open in Nodea&rdquo;</strong> button that imports the entire
+              <strong>&ldquo;Open in Nodea&rdquo;</strong>{' '}button that imports the entire
               conversation &mdash; every branch &mdash; into your Nodea canvas as a real,
               editable tree. The viewer is read-only by nature; Nodea is where the tree
               becomes something you can think in.
@@ -249,9 +249,9 @@ export default function ClaudeConversationTreePost() {
             <p>Once it&rsquo;s in Nodea, you can:</p>
             <ul>
               <li><strong>Fork from any node</strong> &mdash; user message or AI reply, no edit tricks.</li>
-              <li><strong>Merge branches</strong> back into one node so the AI answers with all of that context combined.</li>
+              <li><strong>Merge branches</strong>{' '}back into one node so the AI answers with all of that context combined.</li>
               <li><strong>Switch Claude models per branch</strong> &mdash; Haiku for fast passes, Opus for the heavy thinking.</li>
-              <li><strong>Search everything</strong> across all your conversations, by keyword or meaning.</li>
+              <li><strong>Search everything</strong>{' '}across all your conversations, by keyword or meaning.</li>
             </ul>
             <p>
               See the full list of what the canvas adds on the{' '}
@@ -274,7 +274,7 @@ export default function ClaudeConversationTreePost() {
               </li>
               <li>
                 The Nodea panel docks beside the chat and draws its branch tree. Click{' '}
-                <strong>Open in Nodea</strong> to import it into your canvas.
+                <strong>Open in Nodea</strong>{' '}to import it into your canvas.
               </li>
             </ol>
 
@@ -294,7 +294,7 @@ export default function ClaudeConversationTreePost() {
             <h2 id="privacy">Is it safe? What it can and can&rsquo;t see</h2>
             <p>
               The extension only works on <code>claude.ai</code>, and it reads the
-              conversation you currently have open through <em>your own</em> logged-in
+              conversation you currently have open through <em>your own</em>{' '}logged-in
               session &mdash; the same way the page itself loads it. It&rsquo;s read-only:
               it reconstructs and displays the tree locally in your browser.
             </p>
@@ -339,8 +339,9 @@ export default function ClaudeConversationTreePost() {
 
             <h3>What&rsquo;s the difference between the extension and the Nodea app?</h3>
             <p>
-              The extension <em>captures and shows</em> the tree hidden in a Claude.ai
-              chat. The <Link href="/what-is-nodea">Nodea app</Link> is where that tree
+              The extension <em>captures and shows</em>{' '}the tree hidden in a Claude.ai
+              chat. The <Link href="/what-is-nodea">Nodea app</Link>{' '}
+              is where that tree
               becomes editable &mdash; forking, merging, sticky notes, color, search, and
               cross-chat memory. The <Link href="/extension">extension page</Link> lists
               everything the full canvas adds.

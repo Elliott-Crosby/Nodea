@@ -162,16 +162,16 @@ export default function AiForDeepWorkPost() {
                 and you&rsquo;d rather not lose it.
               </li>
               <li>
-                <strong>You ask the AI to try something.</strong> A draft,
+                <strong>You ask the AI to try something.</strong>{' '}A draft,
                 an approach, an implementation, an explanation.
               </li>
               <li>
                 <strong>You read the result against the problem in your
-                head.</strong> This is the work — comparing what the AI
+                head.</strong>{' '}This is the work — comparing what the AI
                 produced to what you actually need.
               </li>
               <li>
-                <strong>You adjust.</strong> You ask for a variant, push back
+                <strong>You adjust.</strong>{' '}You ask for a variant, push back
                 on a specific aspect, or branch in a new direction based on
                 what the first attempt taught you.
               </li>
@@ -243,21 +243,21 @@ export default function AiForDeepWorkPost() {
             </p>
             <ul>
               <li>
-                <strong>Variants don&rsquo;t cost the original.</strong> You
+                <strong>Variants don&rsquo;t cost the original.</strong>{' '}You
                 fork from the draft node, ask for the variant on a sibling
                 branch, and have both in front of you. If the variant is
                 worse, you click the original and keep going. No undo, no
                 copy-paste, no flow break.
               </li>
               <li>
-                <strong>Side questions have their own subtree.</strong> When
+                <strong>Side questions have their own subtree.</strong>{' '}When
                 a tangent comes up, you branch a side question off the
                 relevant node, get the answer, and return to the main
                 trunk. The trunk is still right where you left it, with
                 full context intact.
               </li>
               <li>
-                <strong>Restart doesn&rsquo;t mean reset.</strong> When a
+                <strong>Restart doesn&rsquo;t mean reset.</strong>{' '}When a
                 particular branch gets too long, you branch from an earlier
                 node in the same project. The context you built — the
                 project charter at the root, the decisions along the way —
@@ -341,7 +341,7 @@ export default function AiForDeepWorkPost() {
               session itself.
             </p>
             <p>
-              <strong>Sessions get longer.</strong> When the friction is
+              <strong>Sessions get longer.</strong>{' '}When the friction is
               low, you stay in a problem instead of context-switching out
               of it. People who use a branching canvas for serious work
               report two- and three-hour sessions on a single project — not
@@ -350,7 +350,7 @@ export default function AiForDeepWorkPost() {
               over&rdquo;) doesn&rsquo;t arrive.
             </p>
             <p>
-              <strong>The output gets sharper.</strong> The output you
+              <strong>The output gets sharper.</strong>{' '}The output you
               ship is rarely the AI&rsquo;s first attempt. It&rsquo;s the result
               of you reading the first attempt against the problem in your
               head, asking for a variant, comparing, asking for another

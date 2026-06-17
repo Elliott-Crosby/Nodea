@@ -78,8 +78,8 @@ export default function PrivacyPage() {
                   signed in across page reloads.
                 </li>
                 <li>
-                  <strong>Personal communications &amp; website content.</strong> The
-                  extension reads the content of the AI chat conversation you are
+                  <strong>Personal communications &amp; website content.</strong>{' '}
+                  The extension reads the content of the AI chat conversation you are
                   viewing &mdash; the message text (your prompts and the assistant&rsquo;s
                   replies), the branch structure, and, where the service provides them,
                   message IDs. For Claude and ChatGPT this is read from each service&rsquo;s
@@ -118,7 +118,8 @@ export default function PrivacyPage() {
                   app. It is not used for any other purpose.
                 </li>
                 <li>
-                  <strong>Conversation content</strong> read by the extension is used
+                  <strong>Conversation content</strong>{' '}
+                  read by the extension is used
                   only to draw the branch tree in your browser and, when you explicitly
                   click &ldquo;Open in Nodea,&rdquo; to rebuild that conversation inside
                   your own Nodea account.
@@ -142,16 +143,19 @@ export default function PrivacyPage() {
               <h2>3. How and where your data is stored (storage)</h2>
               <ul>
                 <li>
-                  <strong>Locally in your browser.</strong> The extension stores your
+                  <strong>Locally in your browser.</strong>{' '}
+                  The extension stores your
                   Nodea session tokens, your per-conversation color preferences, and
                   any pending &ldquo;Open in Nodea&rdquo; handoff payload using{' '}
-                  <code>chrome.storage.local</code> on your own device. The handoff
+                  <code>chrome.storage.local</code>{' '}
+                  on your own device. The handoff
                   payload (the conversation tree you chose to send) is written only when
                   you click &ldquo;Open in Nodea,&rdquo; is read once to deliver it to
                   the Nodea app, and is then immediately deleted.
                 </li>
                 <li>
-                  <strong>While visualizing the tree,</strong> the conversation data
+                  <strong>While visualizing the tree,</strong>{' '}
+                  the conversation data
                   stays in your browser. Nothing is sent to Nodea&rsquo;s servers
                   unless you explicitly trigger an import.
                 </li>
@@ -178,8 +182,8 @@ export default function PrivacyPage() {
               <p>
                 When you click &ldquo;Open in Nodea,&rdquo; the conversation tree you
                 chose is sent to{' '}
-                <strong>your own authenticated Nodea account</strong> so it can be
-                rebuilt there. This happens only on your explicit action, never
+                <strong>your own authenticated Nodea account</strong>{' '}
+                so it can be rebuilt there. This happens only on your explicit action, never
                 automatically, and the data goes only to your account &mdash; never to
                 the developer or any analytics endpoint. The extension does not collect
                 data from any site other than claude.ai, chatgpt.com, chat.openai.com,

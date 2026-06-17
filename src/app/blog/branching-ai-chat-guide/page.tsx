@@ -132,7 +132,7 @@ export default function PillarPost() {
 
             <h2 id="what-is-branching">What is branching AI chat?</h2>
             <p>
-              <strong>Branching AI chat</strong> is a conversation interface
+              <strong>Branching AI chat</strong>{' '}is a conversation interface
               where each message in your dialogue with an AI model is stored as
               a node in a tree, and any node can have multiple children. The
               &ldquo;current conversation&rdquo; you see in the chat panel is the path from
@@ -149,22 +149,22 @@ export default function PillarPost() {
             <p>The defining properties of branching AI chat:</p>
             <ul>
               <li>
-                <strong>Every reply is a fork point.</strong> You can branch
+                <strong>Every reply is a fork point.</strong>{' '}You can branch
                 from the AI&rsquo;s answer, your own prior question, or any
                 message in between — not just the latest.
               </li>
               <li>
-                <strong>Branches are independent.</strong> The AI never sees a
+                <strong>Branches are independent.</strong>{' '}The AI never sees a
                 sibling branch&rsquo;s contents. Each conversation is just the path
                 from root to selected node.
               </li>
               <li>
-                <strong>Nothing is overwritten.</strong> Editing or regenerating
+                <strong>Nothing is overwritten.</strong>{' '}Editing or regenerating
                 creates a new branch. The original stays in place, visible on
                 the canvas.
               </li>
               <li>
-                <strong>A visual map exists.</strong> You can see the full shape
+                <strong>A visual map exists.</strong>{' '}You can see the full shape
                 of your exploration — which branches went deep, which were
                 abandoned, which converged.
               </li>
@@ -206,7 +206,7 @@ export default function PillarPost() {
             <h3>The cognitive-load tax</h3>
             <p>
               Even if you successfully maintain three parallel ChatGPT tabs,
-              <em>you</em> are the one holding the mental map of which tab
+              <em>you</em>{' '}are the one holding the mental map of which tab
               represents which branch. You become the database. As soon as you
               come back tomorrow, the metaphor collapses and you can&rsquo;t
               reconstruct what you were thinking.
@@ -231,7 +231,7 @@ export default function PillarPost() {
               <li>Find the message you want to branch from.</li>
               <li>Click the small pencil edit icon next to your message.</li>
               <li>Change the wording slightly and submit — a new branch is created.</li>
-              <li>Switch between branches using the <code>&lt;</code> / <code>&gt;</code> arrows that appear above the message.</li>
+              <li>Switch between branches using the <code>&lt;</code> / <code>&gt;</code>{' '}arrows that appear above the message.</li>
             </ol>
             <p>
               Limitations: you can only branch from your own messages, not the
@@ -395,7 +395,7 @@ export default function PillarPost() {
             <p>
               When you click a node, Nodea rebuilds the message array sent to
               Claude from that path. When you submit a new message, it inserts
-              a new node with <code>parent_id</code> set to the previously
+              a new node with <code>parent_id</code>{' '}set to the previously
               selected node, then streams Claude&rsquo;s response into a child of
               that. Branching is just &ldquo;new node, different parent.&rdquo;
             </p>
@@ -424,12 +424,12 @@ export default function PillarPost() {
                 — that&rsquo;s a branch.
               </li>
               <li>
-                <strong>The workaround option.</strong> Go to ChatGPT, edit one of
+                <strong>The workaround option.</strong>{' '}Go to ChatGPT, edit one of
                 your earlier messages, and use the <code>&lt;</code>/<code>&gt;</code>{' '}
                 arrows to flip between versions. Functional, ugly.
               </li>
               <li>
-                <strong>The developer option.</strong> Build it yourself using the
+                <strong>The developer option.</strong>{' '}Build it yourself using the
                 Claude or OpenAI API and a Postgres parent-id schema. Plan for two
                 weeks if you&rsquo;ve never built a graph UI.
               </li>
@@ -458,7 +458,7 @@ export default function PillarPost() {
               Tree of Thought (ToT) is a prompting technique where the model
               internally explores branches of reasoning before committing to an
               answer — it&rsquo;s an algorithm, not a UI. Branching AI chat is
-              a UI pattern where <em>the user</em> explores branches across
+              a UI pattern where <em>the user</em>{' '}explores branches across
               multiple turns. They&rsquo;re complementary: a branching UI lets
               you launch ToT-style exploration manually.
             </p>

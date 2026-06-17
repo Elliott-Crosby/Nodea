@@ -185,7 +185,7 @@ export default function NeverLoseThinkingPost() {
               don&rsquo;t consciously track.
             </p>
             <p>
-              <strong>You stop exploring.</strong> If branching alternatives
+              <strong>You stop exploring.</strong>{' '}If branching alternatives
               destroys the original, you implicitly learn to only branch when
               you&rsquo;re fairly sure you&rsquo;re done with the original. That&rsquo;s the
               opposite of exploration. The whole point of trying a variant is
@@ -194,7 +194,7 @@ export default function NeverLoseThinkingPost() {
               you stay in narrower territory than you would otherwise.
             </p>
             <p>
-              <strong>You stop revisiting.</strong> A conversation you can&rsquo;t
+              <strong>You stop revisiting.</strong>{' '}A conversation you can&rsquo;t
               navigate is a conversation you can&rsquo;t reuse. Six weeks from now
               you&rsquo;ll have the same question, and you won&rsquo;t go looking through
               your old transcripts because the search interface in mainstream
@@ -217,20 +217,20 @@ export default function NeverLoseThinkingPost() {
             </p>
             <ul>
               <li>
-                <strong>Variants are free.</strong> You can ask for the warmer
+                <strong>Variants are free.</strong>{' '}You can ask for the warmer
                 draft, the more direct draft, and the funnier draft as three
                 sibling branches from the same node. All three remain visible.
                 None overwrites the others.
               </li>
               <li>
-                <strong>Tangents stop being terminal.</strong> If you go down
+                <strong>Tangents stop being terminal.</strong>{' '}If you go down
                 an interesting side road and it turns out to be a dead end,
                 the main thread is still right there. You don&rsquo;t have to
                 undo, scroll back, or copy your way out — you click the
                 original node and keep going.
               </li>
               <li>
-                <strong>The past is structurally addressable.</strong> Every
+                <strong>The past is structurally addressable.</strong>{' '}Every
                 node has a position on the canvas. You can see the shape of
                 where you&rsquo;ve been. Old branches don&rsquo;t live inside a
                 transcript you&rsquo;d have to scroll — they sit on a map you can
@@ -304,18 +304,18 @@ export default function NeverLoseThinkingPost() {
             </p>
             <ul>
               <li>
-                <strong>Keep:</strong> branches that produced an answer you
+                <strong>Keep:</strong>{' '}branches that produced an answer you
                 actually used, or that established a constraint you might
                 need again. These are the seeds of future work.
               </li>
               <li>
-                <strong>Trim:</strong> dead-end exploratory branches once
+                <strong>Trim:</strong>{' '}dead-end exploratory branches once
                 you&rsquo;ve made the decision they were exploring. The point of
                 the branch was to learn whether it led somewhere; once you
                 know it didn&rsquo;t, the node has done its job.
               </li>
               <li>
-                <strong>Promote:</strong> the path you ended up following
+                <strong>Promote:</strong>{' '}the path you ended up following
                 becomes the &ldquo;main&rdquo; line. Treat it the way you&rsquo;d
                 treat a merged branch in git: it&rsquo;s the canonical record.
               </li>

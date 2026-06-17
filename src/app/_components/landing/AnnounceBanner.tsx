@@ -28,8 +28,8 @@ export default function AnnounceBanner() {
       <Link href="/extension" className="ln-announce-msg">
         <span className="ln-announce-tag">New</span>
         <span className="ln-announce-text">
-          <strong>Nodea Tree for Claude</strong> is live &mdash; see your Claude
-          chats as a branching tree.
+          <strong>Nodea Tree for Claude</strong>{' '}
+          is live &mdash; see your Claude chats as a branching tree.
         </span>
       </Link>
       <a

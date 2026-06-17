@@ -162,14 +162,14 @@ export default function OrganizeAiLikeYourBrainPost() {
                 Working memory does the job the UI should be doing.
               </li>
               <li>
-                <strong>Side trips destroy the main road.</strong> Asking a
+                <strong>Side trips destroy the main road.</strong>{' '}Asking a
                 clarifying question mid-thread pushes the original goal off
                 screen. When you come back, the model&rsquo;s next reply is
                 shaped by the side trip, not the goal. Linear context is
                 cumulative whether you want it to be or not.
               </li>
               <li>
-                <strong>You scroll instead of seeing.</strong> A thirty-turn
+                <strong>You scroll instead of seeing.</strong>{' '}A thirty-turn
                 conversation is information dense, but its structure is
                 opaque: which turns were the load-bearing ones? Which were
                 detours? You can&rsquo;t tell from scroll position, so you
@@ -351,8 +351,8 @@ export default function OrganizeAiLikeYourBrainPost() {
 
             <h3>How is this different from using folders for ChatGPT conversations?</h3>
             <p>
-              Folders organize <em>across</em> conversations. Branching
-              organizes <em>within</em> one. They solve different problems.
+              Folders organize <em>across</em>{' '}conversations. Branching
+              organizes <em>within</em>{' '}one. They solve different problems.
               You can have both — a folder per project, and within each
               project a branching tree of related explorations.
             </p>

@@ -176,19 +176,19 @@ export default function PersistentProjectIntelligencePost() {
             </p>
             <ul>
               <li>
-                <strong>Addressable.</strong> You can point at a specific
+                <strong>Addressable.</strong>{' '}You can point at a specific
                 decision or constraint and say &ldquo;continue from
                 here.&rdquo; You aren&rsquo;t scrolling — you&rsquo;re
                 navigating.
               </li>
               <li>
-                <strong>Composable.</strong> You can combine pieces of past
+                <strong>Composable.</strong>{' '}You can combine pieces of past
                 context selectively. The model gets exactly the relevant
                 history for the question at hand, not everything you&rsquo;ve
                 ever discussed.
               </li>
               <li>
-                <strong>Durable.</strong> Context survives the session. You
+                <strong>Durable.</strong>{' '}Context survives the session. You
                 close the tab, come back in two weeks, and the structure is
                 still there waiting.
               </li>
@@ -359,23 +359,23 @@ no exclamation points, no second-person pep talk.`}</code></pre>
             </p>
             <ul>
               <li>
-                <strong>Prune at the end of each session.</strong> Delete
+                <strong>Prune at the end of each session.</strong>{' '}Delete
                 exploratory branches that didn&rsquo;t lead anywhere. The
                 point of a dead branch was to find out it was dead — once
                 you know, the node has done its job.
               </li>
               <li>
-                <strong>Promote what mattered.</strong> When a branch
+                <strong>Promote what mattered.</strong>{' '}When a branch
                 settled a question, name it (&ldquo;decided: Postgres&rdquo;)
                 so the structural meaning is visible.
               </li>
               <li>
-                <strong>Snapshot the canonical path.</strong> The
+                <strong>Snapshot the canonical path.</strong>{' '}The
                 root-to-current-leaf path of the &ldquo;main&rdquo; work is
                 effectively the live state of the project. Keep it tidy.
               </li>
               <li>
-                <strong>Don&rsquo;t over-organize.</strong> The canvas isn&rsquo;t
+                <strong>Don&rsquo;t over-organize.</strong>{' '}The canvas isn&rsquo;t
                 meant to be a curated artifact — it&rsquo;s a working
                 surface. Tolerate some mess. Trim only the parts that get
                 in the way of finding things next time.
@@ -389,7 +389,7 @@ no exclamation points, no second-person pep talk.`}</code></pre>
               Both let you group chats by topic and share files across them.
               Useful, but each chat inside the project is still linear.
               Persistent project intelligence is about the structure
-              <em> within</em> a long conversation — the branching tree,
+              <em> within</em>{' '}a long conversation — the branching tree,
               the addressable decisions, the layered context — not just
               sharing files across separate threads. You can think of
               Nodea&rsquo;s projects as one level deeper than Projects in
