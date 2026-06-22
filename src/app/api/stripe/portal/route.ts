@@ -17,7 +17,9 @@ export async function POST(req: Request) {
     return Response.json({ error: 'no_subscription' }, { status: 400 })
   }
 
-  const origin = req.headers.get('origin') ?? ''
+  // Use `||` (not `??`) so a missing OR empty Origin still yields an absolute
+  // return_url — Stripe rejects a relative one.
+  const origin = req.headers.get('origin') || 'https://nodea.ai'
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: profile.stripe_customer_id,
     return_url: `${origin}/app`,

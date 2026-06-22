@@ -67,5 +67,22 @@ export async function POST(req: Request) {
       .eq('stripe_customer_id', customerId)
   }
 
+  // Dunning / cancel-at-period-end / portal cancel all arrive as `updated`, not
+  // `deleted`. Without this, a subscription that goes past_due/unpaid/canceled
+  // keeps the user on Pro indefinitely (Opus, higher limits, projects, memory)
+  // because nothing flips plan back to 'free' until an eventual `deleted` that
+  // may never come. Only active/trialing stays entitled. A cancel-at-period-end
+  // subscription stays 'active' until the period ends, so it correctly keeps Pro
+  // until Stripe later fires `deleted`. Redelivery is safe (idempotent update).
+  if (event.type === 'customer.subscription.updated') {
+    const sub = event.data.object as Stripe.Subscription
+    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
+    const entitled = sub.status === 'active' || sub.status === 'trialing'
+
+    await db.from('user_profiles')
+      .update({ plan: entitled ? 'pro' : 'free' })
+      .eq('stripe_customer_id', customerId)
+  }
+
   return new Response('ok', { status: 200 })
 }

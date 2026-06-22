@@ -17,7 +17,10 @@ export async function POST(req: Request) {
     return Response.json({ error: 'already_pro' }, { status: 400 })
   }
 
-  const origin = req.headers.get('origin') ?? ''
+  // Use `||` (not `??`) so a missing OR empty Origin still falls through to the
+  // absolute production base — a relative success_url makes Stripe reject the
+  // session and the checkout silently fails for the user.
+  const origin = req.headers.get('origin') || 'https://nodea.ai'
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
