@@ -31,9 +31,11 @@ export default function SearchModal() {
   }, [])
 
   // ── Keyword search (client-side) ──────────────────────────────────────────
-  function doKeywordSearch(q: string) {
+  // Returns the match count so callers can track it directly — reading the
+  // `results` state right after setResults() would see the stale prior value.
+  function doKeywordSearch(q: string): number {
     const lower = q.toLowerCase().trim()
-    if (!lower) { setResults([]); setHasSearched(false); return }
+    if (!lower) { setResults([]); setHasSearched(false); return 0 }
     const matches = allDbNodes
       .map((n) => ({ n, text: stripAttachmentMarker(n.content) }))
       .filter(({ text }) => text.toLowerCase().includes(lower))
@@ -45,6 +47,7 @@ export default function SearchModal() {
       })
     setResults(matches)
     setHasSearched(true)
+    return matches.length
   }
 
   // ── Concept / semantic search (via Claude) ────────────────────────────────
@@ -75,16 +78,20 @@ export default function SearchModal() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (mode === 'keyword') {
-      doKeywordSearch(query)
-      track('search_performed', { mode: 'keyword', result_count: results.length })
+      const count = doKeywordSearch(query)
+      track('search_performed', { mode: 'keyword', result_count: count })
     } else {
       doConceptSearch(query)
     }
   }
 
-  // Live keyword search as user types
+  // Live keyword search as user types (debounced so a large branching tree isn't
+  // re-scanned and re-rendered on every keystroke). The cleanup clears the
+  // pending timer, so only the latest query runs and the final keystroke applies.
   useEffect(() => {
-    if (mode === 'keyword') doKeywordSearch(query)
+    if (mode !== 'keyword') return
+    const t = setTimeout(() => doKeywordSearch(query), 120)
+    return () => clearTimeout(t)
   }, [query, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleResultClick(id: string, rank: number) {

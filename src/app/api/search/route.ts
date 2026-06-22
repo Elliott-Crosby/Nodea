@@ -4,6 +4,7 @@ import { anthropic } from '@/lib/anthropic'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { MODELS } from '@/lib/models'
 import { rateLimited } from '@/lib/request-limits'
+import { stripAttachmentMarker } from '@/lib/conversation-export'
 
 // Model call against a whole conversation can take a few seconds; keep the
 // function alive long enough to finish.
@@ -50,8 +51,12 @@ export async function POST(req: Request) {
   }
 
   // Build a compact message list for Claude to analyze
+  // Strip the inline attachment marker before truncating: for an attachment-
+  // bearing user node the marker + JSON header is prefixed before the real text,
+  // so an un-stripped slice(0,300) would feed Claude the marker (which can leak
+  // into the excerpt) and push the user's actual words out of the window.
   const messageList = nodes
-    .map((n, i) => `[${i}] (${n.role}) id:${n.id}\n${n.content.slice(0, 300)}`)
+    .map((n, i) => `[${i}] (${n.role}) id:${n.id}\n${stripAttachmentMarker(n.content).slice(0, 300)}`)
     .join('\n\n---\n\n')
 
   const prompt = `You are a semantic search engine for a conversation history.
