@@ -49,6 +49,20 @@ function LoginForm() {
     if (initialMode === 'signup') track('signup_started')
   }, [initialMode])
 
+  // Surface a reason when we were redirected here by a failure (e.g. the email
+  // confirm route bounces to /login?error=confirm_failed). Without this the user
+  // lands on a blank sign-in form with no idea their link expired.
+  useEffect(() => {
+    const err = searchParams.get('error')
+    if (err) {
+      setError(
+        err === 'confirm_failed'
+          ? 'That confirmation link is invalid or has expired. Sign in below, or request a new one.'
+          : 'Something went wrong. Please try again.',
+      )
+    }
+  }, [searchParams])
+
   function switchMode(next: Mode) {
     if (next === 'signup') track('signup_started')
     setMode(next)
