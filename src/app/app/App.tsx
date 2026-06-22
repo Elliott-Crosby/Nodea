@@ -748,10 +748,13 @@ export default function App() {
   // Synchronous mirror of `inFlightConvIds`, safe to read inside async closures
   // (a finished stream) and cleanup guards (deleteIfEmpty) where state may be stale.
   const inFlightRef       = useRef<Set<string>>(new Set())
-  // Aborts the in-flight /api/chat stream. Clicking a node mid-generation used to
-  // leave a half-painted reply on a path the user had navigated away from; we now
-  // cancel the request cleanly instead.
-  const genAbortRef       = useRef<AbortController | null>(null)
+  // Aborts in-flight /api/chat streams, keyed by conversation id. Clicking a node
+  // mid-generation used to leave a half-painted reply on a path the user had
+  // navigated away from; we now cancel that conversation's request cleanly. Keying
+  // by conversation is essential: the app deliberately keeps a reply streaming in
+  // the background when you switch conversations, so a send/click in one
+  // conversation must never abort another's in-flight stream.
+  const genAbortRef       = useRef<Map<string, AbortController>>(new Map())
   // Recent reversible deletions (most-recent last). Capped so Ctrl+Z only ever
   // reaches back over "the last few actions", not the whole session.
   const undoStackRef        = useRef<UndoEntry[]>([])
@@ -1501,6 +1504,29 @@ export default function App() {
         setIsPro(dbAdmin || (profile?.plan === 'pro' && !!profile?.stripe_customer_id))
       }
 
+      // Just returned from Stripe Checkout (success_url = /app?upgraded=true).
+      // The webhook that flips plan→'pro' is async and often hasn't committed by
+      // the time this redirect resolves, and init() only reads the profile once —
+      // so without this the canvas keeps showing Free (Opus locked, upgrade modal
+      // still offered) until a hard reload. Poll briefly to outrun webhook
+      // latency, then clean the URL. Mirrors the server gate exactly so it can't
+      // be tricked into a forged-pro state.
+      if (new URLSearchParams(window.location.search).get('upgraded') === 'true') {
+        window.history.replaceState({}, '', '/app')
+        for (let i = 0; i < 6; i++) {
+          await new Promise((r) => setTimeout(r, 1500))
+          const { data: p } = await supabase
+            .from('user_profiles')
+            .select('plan, stripe_customer_id')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (p?.plan === 'pro' && p?.stripe_customer_id) {
+            setIsPro(true)
+            break
+          }
+        }
+      }
+
       // A parked invite (the user opened /join while signed out) is accepted
       // BEFORE the lists load, so the joined space is already in them.
       const joined = await acceptPendingJoin()
@@ -2159,6 +2185,9 @@ export default function App() {
       // Set once the user message is persisted (before the model call); the
       // assistant reply is then saved as this node's child after the stream.
       let savedUserNodeId: string | null = null
+      // Hoisted so the finally block can deregister this conversation's abort
+      // controller; assigned just before the fetch below.
+      let abortController: AbortController | null = null
 
       try {
         // Upload any newly-attached files (data: URLs) to Supabase Storage so
@@ -2198,11 +2227,12 @@ export default function App() {
         const messagesForApi = nextMessages.map((m) =>
           m.id === userMsgId ? { ...m, attachments: attachmentsSnapshot } : m
         )
-        // One controller per generation: abort any prior in-flight stream and let
-        // a node-click (handleNodeClick) cancel this one cleanly.
-        genAbortRef.current?.abort()
-        const abortController = new AbortController()
-        genAbortRef.current = abortController
+        // One controller per CONVERSATION: abort only this conversation's prior
+        // in-flight stream (never a backgrounded reply in another conversation),
+        // and let a node-click within this conversation cancel it cleanly.
+        if (targetConvId) genAbortRef.current.get(targetConvId)?.abort()
+        abortController = new AbortController()
+        if (targetConvId) genAbortRef.current.set(targetConvId, abortController)
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2326,6 +2356,16 @@ export default function App() {
               if (data?.title) renameConversation(targetConvId, data.title)
             }).catch(() => {})
           }
+        } else if (!full.trim()) {
+          // Stream completed (HTTP 200) but produced no text — e.g. an empty
+          // refusal, a tool-only turn, or a body that closed with zero bytes.
+          // Nothing threw, so the catch below won't run: drop the optimistic
+          // empty bubble ourselves and surface an inline error instead of
+          // leaving a frozen 'Thinking…' placeholder that never clears.
+          setMessages((prev) => prev.filter((m) => m.id !== assistantId))
+          if (activeConvIdRef.current === targetConvId) {
+            setChatError('No response was generated. Please try again.')
+          }
         }
       } catch (err) {
         // The user's message is already persisted (saveUserNode, above), so keep
@@ -2353,7 +2393,14 @@ export default function App() {
           )
         }
       } finally {
-        if (targetConvId) clearInFlight(targetConvId)
+        if (targetConvId) {
+          // Only forget THIS conversation's controller if it's still the current
+          // one — a newer send for the same conv may have already replaced it.
+          if (abortController && genAbortRef.current.get(targetConvId) === abortController) {
+            genAbortRef.current.delete(targetConvId)
+          }
+          clearInFlight(targetConvId)
+        }
       }
     },
     [saveUserNode, saveAssistantNode, isPro, clearInFlight, renameConversation],
@@ -2562,15 +2609,24 @@ export default function App() {
   const handleNodeClick = useCallback(
     async (nodeId: string) => {
       if (!activeConvId) return
-      // Navigating away cancels an in-flight reply cleanly, rather than leaving a
-      // half-streamed bubble on a path we're about to leave (looked like a crash).
-      genAbortRef.current?.abort()
+      // Navigating away within this conversation cancels ITS in-flight reply
+      // cleanly, rather than leaving a half-streamed bubble on a path we're about
+      // to leave (looked like a crash). A backgrounded reply in another
+      // conversation is left untouched.
+      genAbortRef.current.get(activeConvId)?.abort()
       // Navigating cancels any armed merge (beginMerge re-arms it after this call).
       pendingMergeRef.current = null
-      const { data: allNodes } = await supabase
+      const { data: allNodes, error } = await supabase
         .from('nodes')
         .select('*')
         .eq('project_id', activeConvId)
+      if (error) {
+        // We already aborted the in-flight stream above; don't silently no-op the
+        // navigation on a transient read failure — tell the user it didn't load.
+        console.error('node load failed', error)
+        setChatError('Could not load that branch. Please try again.')
+        return
+      }
       if (!allNodes) return
 
       const enriched = enrichDbNodes(allNodes as DbNode[])

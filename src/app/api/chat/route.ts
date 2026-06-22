@@ -122,8 +122,22 @@ export async function POST(req: Request) {
 
   const validMessages = messages.filter(msg => (msg.content ?? '').trim() || (msg.attachments ?? []).length > 0)
 
-  const inputText      = validMessages.map(m => m.content ?? '').join(' ')
-  const estimatedInput = estimateTokens(inputText)
+  // Nothing to answer (all messages blank/attachment-only-stripped) — bail before
+  // we'd send an empty messages array to Anthropic (which 400s).
+  if (validMessages.length === 0) {
+    return new Response('No message content', { status: 400 })
+  }
+
+  const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
+
+  // The per-request input cap (MAX_INPUT_TOKENS) guards against a single
+  // oversized *message*, not the whole branch. Nodea resends the full
+  // conversation path every turn, so measuring the joined path would falsely
+  // reject any moderately long thread with "your message is too long" — the
+  // core branching loop would break a dozen turns in. Cumulative cost is bounded
+  // separately by the daily/monthly token budgets (recorded from real usage in
+  // onFinish), so capping just the newest user message is the correct guard.
+  const estimatedInput = estimateTokens(lastUserMessage)
 
   const admin = await isAdmin(user.id, supabase)
   const isPro = await isProUser(user.id, supabase, admin)
@@ -142,7 +156,6 @@ export async function POST(req: Request) {
     )
   }
 
-  const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
   const modelId = selectChatModel(isPro, lastUserMessage)
 
   // Cross-chat memory is a Pro feature. Loaded inline so it's available
