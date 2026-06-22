@@ -13,8 +13,11 @@ export async function GET(req: Request) {
   const service = createServiceSupabaseClient()
   if (!service) return Response.json({ error: 'Service client unavailable' }, { status: 500 })
 
-  const url  = new URL(req.url)
-  const days = Math.min(90, Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10)))
+  const url     = new URL(req.url)
+  const daysRaw = parseInt(url.searchParams.get('days') ?? '30', 10)
+  // A non-numeric ?days= yields NaN, which flows into windowStartUtc as an
+  // Invalid Date and 500s the route — clamp to the default instead.
+  const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(7, daysRaw)) : 30
   // Always Eastern time, regardless of the viewer's browser timezone.
   const tz   = ADMIN_TZ
 

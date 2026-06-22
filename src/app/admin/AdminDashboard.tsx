@@ -527,10 +527,15 @@ function GrowthSection({ initialUsersByDay, initialConversationsByDay, initialPr
     fetch(`/api/admin/growth?days=${days}`)
       .then(r => r.json())
       .then(d => {
-        setUsersByDay(d.usersByDay)
-        setConversationsByDay(d.conversationsByDay)
-        setProjectsByDay(d.projectsByDay)
+        // Guard against an error response ({error}) or a failed fetch — feeding
+        // undefined into SparkChart crashes the whole Growth section.
+        if (d?.usersByDay) {
+          setUsersByDay(d.usersByDay)
+          setConversationsByDay(d.conversationsByDay)
+          setProjectsByDay(d.projectsByDay)
+        }
       })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [days])
 
