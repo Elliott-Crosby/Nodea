@@ -562,10 +562,14 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
   // ── Export ───────────────────────────────────────────────────────────────────
   const buildScene = useCallback((): ExportScene => {
     const d = docRef.current
-    const nodes = pairs.map(p => {
-      const b = boxFor(p.id)!
-      const c = content.get(p.id)!
-      return {
+    const nodes = pairs.flatMap(p => {
+      // Skip any pair without a computed box/content (e.g. an orphan pair in an
+      // imported/merged tree). The edges/callouts paths already guard this way;
+      // the un-guarded `boxFor(p.id)!` here made every PNG/PDF export throw.
+      const b = boxFor(p.id)
+      const c = content.get(p.id)
+      if (!b || !c) return []
+      return [{
         x: b.x, y: b.y, w: b.w, h: b.h,
         color:    d.colors[p.id] ?? '',
         title:    c.title,
@@ -574,7 +578,7 @@ export default function PresentationMode({ onClose }: { onClose: () => void }) {
         answer:   c.answer,
         expanded: !!d.expanded[p.id],
         hidden:   !!d.hidden[p.id],
-      }
+      }]
     })
     const edges = pairs.flatMap(p => {
       if (!p.parentPairId) return []
