@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { isProUser } from '@/lib/plan'
-import { MAX_MEMORY_ENTRIES, MAX_MEMORY_LENGTH } from '@/lib/memory'
+import { MAX_MEMORY_ENTRIES, MAX_MEMORY_LENGTH, loadUserMemories, dedupAgainstExisting } from '@/lib/memory'
 
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -45,6 +45,14 @@ export async function POST(req: Request) {
 
   if ((count ?? 0) >= MAX_MEMORY_ENTRIES) {
     return Response.json({ error: 'limit_reached', max: MAX_MEMORY_ENTRIES }, { status: 400 })
+  }
+
+  // Auto-extraction dedups against existing memories; manual adds must too, or a
+  // user re-adding the same fact (or a casing/punctuation variant) bloats the
+  // injected system-prompt memory block and wastes cap slots.
+  const existing = await loadUserMemories(user.id, supabase)
+  if (dedupAgainstExisting([trimmed], existing).length === 0) {
+    return Response.json({ error: 'duplicate' }, { status: 400 })
   }
 
   const { data, error } = await supabase

@@ -632,6 +632,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
           data.error === 'limit_reached' ? `You can have at most ${MEMORY_MAX_ENTRIES} memories. Delete some first.` :
           data.error === 'too_long'      ? `Memories must be under ${MEMORY_MAX_LENGTH} characters.` :
           data.error === 'pro_required'  ? 'Adding memories requires Pro.' :
+          data.error === 'duplicate'     ? 'You already have that memory saved.' :
           'Could not save that memory.'
         )
       }
