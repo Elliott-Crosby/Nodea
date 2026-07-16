@@ -18,6 +18,10 @@ import {
 } from './treeModel'
 import './mobile.css'
 
+// Owner-only gate: the Analytics/admin dashboard is restricted to this account
+// (the hardcoded owner UID mirrored from App.tsx's admin check).
+const OWNER_USER_ID = '64b415d7-4b59-4ff1-aa35-5f88de1599de'
+
 // ── attachment-header strip (user content stores att metadata inline) ────────
 const ATT_OPEN = '<<<NODEA_ATT_V1\n', ATT_CLOSE = '\nNODEA_ATT_V1>>>\n'
 function stripAtt(c: string): string {
@@ -446,12 +450,16 @@ function Drawer({ show, onClose }: { show: boolean; onClose: () => void }) {
             )
           })}
         </div>
+        {app.myUserId === OWNER_USER_ID && (
+          <a className="nm-dr-analytics" href="/admin" onClick={onClose}>
+            <span className="ic"><IcChart s={17} /></span>
+            <span className="lbl">Analytics</span>
+            <span className="chev"><IcChevR s={15} /></span>
+          </a>
+        )}
         <div className="nm-dr-foot">
           <div className="nm-dr-ava">{initials(app.userName, app.userEmail)}</div>
           <div className="who">{app.userName || 'You'}<small>{app.isPro ? 'Pro plan' : 'Free plan'}</small></div>
-          {app.isAdmin && (
-            <a className="ico" href="/admin" aria-label="Analytics" title="Analytics" onClick={onClose}><IcChart s={18} /></a>
-          )}
           <button className="ico" aria-label="Settings" onClick={() => { app.setIsSettingsOpen(true); onClose() }}><IcSettings s={18} /></button>
         </div>
       </aside>
