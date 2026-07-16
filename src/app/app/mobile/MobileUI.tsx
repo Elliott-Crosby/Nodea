@@ -24,6 +24,7 @@ export const IcX = (p: P) => <Ico {...p}><path d="M18 6 6 18M6 6l12 12" /></Ico>
 export const IcChat = (p: P) => <Ico {...p}><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.3-4A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" /></Ico>
 export const IcTree = (p: P) => <Ico {...p}><rect x="9" y="3" width="6" height="5" rx="1.4" /><rect x="2.5" y="16" width="6" height="5" rx="1.4" /><rect x="15.5" y="16" width="6" height="5" rx="1.4" /><path d="M12 8v3M12 11H5.5v5M12 11h6.5v5" /></Ico>
 export const IcChevR = (p: P) => <Ico {...p}><path d="m9 6 6 6-6 6" /></Ico>
+export const IcChart = (p: P) => <Ico {...p}><rect x="3" y="13" width="4" height="8" rx="1" /><rect x="10" y="8" width="4" height="13" rx="1" /><rect x="17" y="3" width="4" height="18" rx="1" /></Ico>
 export const IcCopy = (p: P) => <Ico {...p}><rect x="9" y="9" width="11" height="11" rx="2.2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></Ico>
 export const IcCheck = (p: P) => <Ico {...p}><path d="M20 6 9 17l-5-5" /></Ico>
 

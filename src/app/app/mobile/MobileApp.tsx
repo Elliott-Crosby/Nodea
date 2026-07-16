@@ -10,7 +10,7 @@ import type { Conversation } from '../App'
 import TreeThumb, { type MiniTree } from '../TreeThumb'
 import {
   IcMenu, IcPlus, IcSearch, IcSettings, IcSun, IcMoon, IcBranch, IcX, IcChat,
-  IcTree, IcChevR, ProjectIcon, PinGlyph, Markdown, CopyBtn,
+  IcTree, IcChevR, IcChart, ProjectIcon, PinGlyph, Markdown, CopyBtn,
 } from './MobileUI'
 import { MobileTree } from './MobileTree'
 import {
@@ -449,6 +449,9 @@ function Drawer({ show, onClose }: { show: boolean; onClose: () => void }) {
         <div className="nm-dr-foot">
           <div className="nm-dr-ava">{initials(app.userName, app.userEmail)}</div>
           <div className="who">{app.userName || 'You'}<small>{app.isPro ? 'Pro plan' : 'Free plan'}</small></div>
+          {app.isAdmin && (
+            <a className="ico" href="/admin" aria-label="Analytics" title="Analytics" onClick={onClose}><IcChart s={18} /></a>
+          )}
           <button className="ico" aria-label="Settings" onClick={() => { app.setIsSettingsOpen(true); onClose() }}><IcSettings s={18} /></button>
         </div>
       </aside>
