@@ -46,6 +46,53 @@ export default function PillarPost() {
     keywords: post.keywords.join(', '),
   }
 
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'Can you branch a chat in Claude?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Claude creates a branch every time you edit one of your messages or click Retry on a reply — the old version stays behind small pagination arrows. Claude.ai never shows the branch tree, though. The free Nodea Tree for Claude extension draws the hidden tree beside your conversation, and Nodea itself is a chat canvas where branching is the core interaction.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How do I branch a chat in Claude?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Hover one of your messages, click the pencil (edit) icon, change the wording, and submit — Claude forks the conversation and keeps both versions behind < / > arrows. Alternatively, click Retry on any Claude reply to generate alternative answers. To see and manage all branches at once, use a tree-view tool such as the free Nodea Tree for Claude extension.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can ChatGPT branch conversations?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Partially. ChatGPT lets you edit a prior user message, which silently creates a new branch behind a pagination control. You cannot branch from an assistant message and there is no overview of all branches.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How do I see all the branches in a Claude conversation?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Claude.ai has no built-in tree view — branches stay buried behind per-message arrows. The free Nodea Tree for Claude Chrome extension draws the full branch tree beside any Claude chat and can import the conversation into a forkable canvas.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Does branching cost more tokens?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Each branch is an independent conversation with its own tokens, but branches never include sibling context, so you avoid the context bloat of mashing every alternative into one linear chat. In practice branching is roughly token-neutral and often cheaper.',
+        },
+      },
+    ],
+  }
+
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -82,6 +129,7 @@ export default function PillarPost() {
             <nav className="bl-toc" aria-label="Table of contents">
               <p className="bl-toc-title">Contents</p>
               <ol>
+                <li><a href="#short-answer">Can you branch a chat in Claude? (short answer)</a></li>
                 <li><a href="#what-is-branching">What is branching AI chat?</a></li>
                 <li><a href="#why-linear-fails">Why linear chatbots fail at exploration</a></li>
                 <li><a href="#fork-chatgpt">How to fork a ChatGPT or Claude conversation today</a></li>
@@ -93,6 +141,27 @@ export default function PillarPost() {
                 <li><a href="#faq">FAQ</a></li>
               </ol>
             </nav>
+
+            <h2 id="short-answer">Can you branch a chat in Claude? Yes — Claude just hides it</h2>
+            <p>
+              <strong>To branch a chat in Claude:</strong>{' '}hover one of your
+              messages, click the pencil (edit) icon, change the wording, and
+              submit. Claude creates a new branch and keeps the old one behind
+              the small <code>&lt;</code>/<code>&gt;</code>{' '}arrows. You can
+              also click <em>Retry</em>{' '}on any Claude reply to fork
+              alternative answers. Every edit and every retry is a real branch
+              — Claude.ai just never draws the tree, so your branches are
+              invisible and easy to lose.
+            </p>
+            <p>
+              If you want to actually <em>see</em>{' '}those branches, the free{' '}
+              <Link href="/extension">Nodea Tree for Claude extension</Link>{' '}
+              draws the hidden tree beside your Claude conversation — and can
+              import the whole thing into a canvas where any node is forkable.
+              The rest of this guide covers why branching matters, every
+              workaround in detail, and the tools that treat branching as a
+              first-class feature.
+            </p>
 
             <p>
               You&rsquo;re mid-conversation with ChatGPT or Claude. The AI just gave
@@ -251,6 +320,22 @@ export default function PillarPost() {
               that was active at the time of your next message.
             </p>
 
+            <div className="bl-cta-inline">
+              <h3>Claude already has your branches. See them.</h3>
+              <p>
+                The free <strong>Nodea Tree for Claude</strong>{' '}Chrome
+                extension draws the branch tree Claude.ai hides — every edit
+                and retry, mapped beside your conversation. One click imports
+                it into a forkable canvas.{' '}
+                <Link href="/blog/claude-conversation-tree-extension">
+                  How it works →
+                </Link>
+              </p>
+              <Link href="/extension" className="ln-btn ln-btn-primary">
+                Get the free extension →
+              </Link>
+            </div>
+
             <h3>The duplicate-tab pattern</h3>
             <ol>
               <li>Get a conversation to the point you want to branch from.</li>
@@ -378,6 +463,12 @@ export default function PillarPost() {
                 messages, doesn&rsquo;t survive past the next turn.
               </li>
               <li>
+                <strong>Nodea Tree for Claude (free extension)</strong> — draws
+                the branch tree Claude.ai hides, right beside the conversation,
+                and imports it into Nodea in one click.{' '}
+                <Link href="/extension">Install free →</Link>
+              </li>
+              <li>
                 <strong>LangGraph / DIY</strong> — if you&rsquo;re a developer, you
                 can build branching into your own LLM tooling. Cost: weeks of
                 engineering.
@@ -447,10 +538,22 @@ export default function PillarPost() {
 
             <h3>Can Claude branch?</h3>
             <p>
-              Partially. Claude.ai lets you regenerate an assistant message,
-              creating an alternative version. You can&rsquo;t branch from a
-              user message and the branch doesn&rsquo;t persist past the next
-              turn.
+              Yes, partially — and it&rsquo;s hidden. Editing one of your
+              messages or clicking Retry on a reply creates a real branch, but
+              Claude.ai only exposes it through tiny pagination arrows, with no
+              view of the tree. The free{' '}
+              <Link href="/extension">Nodea Tree for Claude extension</Link>{' '}
+              makes those hidden branches visible and importable.
+            </p>
+
+            <h3>How do I see all the branches in a Claude conversation?</h3>
+            <p>
+              Claude.ai itself has no tree view — branches created by edits and
+              retries stay buried behind per-message arrows. Install the free{' '}
+              <Link href="/extension">Nodea Tree for Claude extension</Link>{' '}
+              to draw the full branch tree beside any Claude chat, or import
+              the conversation into <Link href="/what-is-nodea">Nodea</Link>{' '}
+              to keep branching it on a canvas.
             </p>
 
             <h3>What&rsquo;s the difference between branching AI chat and Tree of Thought?</h3>
@@ -512,6 +615,10 @@ export default function PillarPost() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
     </div>
   )
