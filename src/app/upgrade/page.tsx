@@ -6,6 +6,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import { createClient } from '@/lib/supabase'
+import { EARLY_BIRD_SEATS, STANDARD_PRICE, EARLY_BIRD_DISCOUNT_PCT, type EarlyBirdStatus } from '@/lib/earlyBird'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
@@ -56,6 +57,80 @@ function CheckIcon({ on }: { on: boolean }) {
 }
 
 type AuthState = 'loading' | 'anonymous' | 'free' | 'pro'
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+/**
+ * Live founding-seat urgency strip. Seats-left comes from /api/early-bird
+ * (real count of non-admin Pro profiles vs the cap) and the countdown runs
+ * to the real offer deadline — both are enforced server-side in checkout,
+ * so this never advertises scarcity that isn't real. Renders nothing while
+ * loading, after sell-out, or past the deadline.
+ */
+function EarlyBirdUrgency() {
+  const [status, setStatus] = useState<EarlyBirdStatus | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    fetch('/api/early-bird')
+      .then(r => (r.ok ? r.json() : null))
+      .then(setStatus)
+      .catch(() => {})
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  if (!status?.active || status.remaining === null) return null
+  const msLeft = new Date(status.deadline).getTime() - now
+  if (msLeft <= 0 || status.remaining <= 0) return null
+
+  const days = Math.floor(msLeft / 86_400_000)
+  const hours = Math.floor((msLeft % 86_400_000) / 3_600_000)
+  const mins = Math.floor((msLeft % 3_600_000) / 60_000)
+  const secs = Math.floor((msLeft % 60_000) / 1000)
+  const taken = EARLY_BIRD_SEATS - status.remaining
+
+  return (
+    <div
+      style={{
+        marginTop: 14,
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: 'rgba(251,191,36,0.08)',
+        border: '1px solid rgba(251,191,36,0.28)',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 5, marginBottom: 8 }} aria-hidden="true">
+        {Array.from({ length: EARLY_BIRD_SEATS }, (_, i) => (
+          <span
+            key={i}
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              background: i < taken ? 'rgba(255,255,255,0.18)' : '#fbbf24',
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.01em' }}>
+        Only {status.remaining} of {EARLY_BIRD_SEATS} founding seats left
+      </div>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: 'rgba(255,255,255,0.6)',
+          marginTop: 3,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        Offer ends in {days}d {pad(hours)}h {pad(mins)}m {pad(secs)}s — then Pro is ${STANDARD_PRICE}/mo
+      </div>
+    </div>
+  )
+}
 
 export default function UpgradePage() {
   const [authState, setAuthState] = useState<AuthState>('loading')
@@ -254,9 +329,10 @@ export default function UpgradePage() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                 <span style={{ fontSize: 42, fontWeight: 800, fontFamily: 'var(--font-bricolage)', color: '#fff', letterSpacing: '-2px', lineHeight: 1 }}>$8</span>
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mo</span>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>$15</span>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>${STANDARD_PRICE}</span>
               </div>
-              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>47% off, rate locked forever</p>
+              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{EARLY_BIRD_DISCOUNT_PCT}% off, rate locked forever</p>
+              <EarlyBirdUrgency />
             </div>
 
             <div style={{ padding: '20px 28px 24px', display: 'flex', flexDirection: 'column', flex: 1 }}>

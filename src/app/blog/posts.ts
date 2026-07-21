@@ -35,19 +35,22 @@ export const POSTS: PostMeta[] = [
   },
   {
     slug: 'branching-ai-chat-guide',
-    title: 'Branching AI Chat: A Guide to Non-Linear Claude Chat',
+    title: 'How to Branch a Chat in Claude (See the Hidden Tree)',
     description:
-      'What branching AI chat is, why linear chatbots fail at exploration, how to fork ChatGPT and Claude conversations, and the tools that make it possible.',
+      'Yes, you can branch a chat in Claude — it already forks every time you edit or regenerate. Claude just hides the tree. Here are the two built-in tricks, their limits, and a free extension that shows every branch.',
     category: 'Pillar',
     readMinutes: 14,
     publishedAt: '2026-05-22',
+    updatedAt: '2026-07-20',
     keywords: [
+      'how to branch a chat in Claude',
+      'can you branch a chat in Claude',
+      'Claude branch conversation',
+      'Claude branch chat',
       'branching AI chat',
       'fork ChatGPT conversation',
-      'tree of thought AI',
       'non-linear AI chat',
       'Claude conversation branching',
-      'ChatGPT alternative',
     ],
     image: '/media/nodea-ai-linear-vs-branching-canvas.png',
     imageAlt:
