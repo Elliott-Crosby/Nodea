@@ -8,6 +8,15 @@
 export const EARLY_BIRD_SEATS = 10
 export const EARLY_BIRD_DEADLINE = '2026-07-31T23:59:59-07:00'
 
+// Displayed prices. EARLY_BIRD_PRICE must match the Stripe product behind
+// STRIPE_PRICE_ID; STANDARD_PRICE must match STRIPE_PRICE_ID_STANDARD (the
+// price checkout switches to once the offer ends). The struck-through anchor
+// and the "then Pro is $X/mo" countdown both read from these so the promise
+// and the eventual charge stay in sync.
+export const EARLY_BIRD_PRICE = 8
+export const STANDARD_PRICE = 24
+export const EARLY_BIRD_DISCOUNT_PCT = Math.round((1 - EARLY_BIRD_PRICE / STANDARD_PRICE) * 100)
+
 export interface EarlyBirdStatus {
   /** Seats still available, or null if the count is unavailable. */
   remaining: number | null

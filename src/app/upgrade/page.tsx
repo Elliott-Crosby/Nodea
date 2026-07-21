@@ -6,7 +6,7 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import { createClient } from '@/lib/supabase'
-import { EARLY_BIRD_SEATS, type EarlyBirdStatus } from '@/lib/earlyBird'
+import { EARLY_BIRD_SEATS, STANDARD_PRICE, EARLY_BIRD_DISCOUNT_PCT, type EarlyBirdStatus } from '@/lib/earlyBird'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
@@ -126,7 +126,7 @@ function EarlyBirdUrgency() {
           fontVariantNumeric: 'tabular-nums',
         }}
       >
-        Offer ends in {days}d {pad(hours)}h {pad(mins)}m {pad(secs)}s — then Pro is $15/mo
+        Offer ends in {days}d {pad(hours)}h {pad(mins)}m {pad(secs)}s — then Pro is ${STANDARD_PRICE}/mo
       </div>
     </div>
   )
@@ -329,9 +329,9 @@ export default function UpgradePage() {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                 <span style={{ fontSize: 42, fontWeight: 800, fontFamily: 'var(--font-bricolage)', color: '#fff', letterSpacing: '-2px', lineHeight: 1 }}>$8</span>
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mo</span>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>$15</span>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>${STANDARD_PRICE}</span>
               </div>
-              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>47% off, rate locked forever</p>
+              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{EARLY_BIRD_DISCOUNT_PCT}% off, rate locked forever</p>
               <EarlyBirdUrgency />
             </div>
 
