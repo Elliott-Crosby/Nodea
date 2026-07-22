@@ -37,7 +37,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 const SITE_URL = 'https://nodea.ai'
 const SITE_NAME = 'Nodea'
-const DEFAULT_TITLE = 'Nodea AI — Branching AI Chat Canvas'
+const DEFAULT_TITLE = 'Nodea AI - Branching AI Chat Canvas'
 const DEFAULT_DESC =
   'Nodea is a branching AI chat canvas. Fork any reply, compare branches side-by-side, and never lose context. Built on Claude. Free during beta — no credit card.'
 
