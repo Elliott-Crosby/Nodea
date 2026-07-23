@@ -485,33 +485,46 @@ function ImportedUpsellBanner() {
 function TopBar() {
   const {
     convName, setIsSearchOpen, setIsChatCollapsed,
-    activeConvId, openShareModal, presencePeers, activeConvIsShared, messages,
+    activeConvId, openShareModal, presencePeers, activeConvIsShared, messages, mvpUI,
   } = useApp()
 
-  const pill: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', pointerEvents: 'auto',
-    background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)',
-    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid var(--border)', borderRadius: 11,
-    boxShadow: 'var(--shadow-sm)',
-  }
+  // MVP: floating glass pills over the scroll area. Minimal (2a): one flat
+  // 48px bar with a bottom border — no blur, no shadow, no pill chrome.
+  const pill: React.CSSProperties = mvpUI
+    ? {
+        display: 'flex', alignItems: 'center', pointerEvents: 'auto',
+        background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid var(--border)', borderRadius: 11,
+        boxShadow: 'var(--shadow-sm)',
+      }
+    : { display: 'flex', alignItems: 'center', pointerEvents: 'auto' }
 
   return (
     <div
-      style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px', gap: 8, pointerEvents: 'none',
-      }}
+      style={mvpUI
+        ? {
+            position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', gap: 8, pointerEvents: 'none',
+          }
+        : {
+            position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30,
+            height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 20px', gap: 8,
+            background: 'var(--bg-base)', borderBottom: '1px solid var(--border)',
+          }
+      }
     >
-      <div style={{ ...pill, minWidth: 0, height: 36, padding: '0 14px' }}>
-        <h1 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+      <div style={{ ...pill, minWidth: 0, ...(mvpUI ? { height: 36, padding: '0 14px' } : {}) }}>
+        <h1 style={{ fontSize: mvpUI ? 14 : 13.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
           {convName}
         </h1>
       </div>
-      <div style={{ ...pill, gap: 2, flexShrink: 0, height: 38, padding: '0 4px' }}>
-        {/* Who else is here right now (live presence in shared spaces). */}
-        {presencePeers.length > 0 && (
+      <div style={{ ...pill, gap: 2, flexShrink: 0, ...(mvpUI ? { height: 38, padding: '0 4px' } : {}) }}>
+        {/* Who else is here right now (live presence in shared spaces).
+            MVP-only: the 2a mock has no presence chrome. */}
+        {mvpUI && presencePeers.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
             {presencePeers.slice(0, 4).map((p, i) => (
               <span
@@ -538,17 +551,28 @@ function TopBar() {
         )}
         {activeConvId && (
           <button
-            title="Share this chat"
+            title={activeConvIsShared ? 'Shared — manage sharing' : 'Share this chat'}
+            aria-label="Share this chat"
             onClick={() => openShareModal({ kind: 'conversation', id: activeConvId, name: convName })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
-              background: activeConvIsShared ? 'var(--accent-bg)' : 'transparent',
-              border: `1px solid ${activeConvIsShared ? 'var(--user-bubble-border)' : 'var(--border)'}`,
-              borderRadius: 8,
-              cursor: 'pointer', color: activeConvIsShared ? 'var(--accent-text)' : 'var(--text-secondary)',
-              fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
-              transition: 'background 0.1s, color 0.1s',
-            }}
+            style={mvpUI
+              ? {
+                  display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 10px', marginRight: 4,
+                  background: activeConvIsShared ? 'var(--accent-bg)' : 'transparent',
+                  border: `1px solid ${activeConvIsShared ? 'var(--user-bubble-border)' : 'var(--border)'}`,
+                  borderRadius: 8,
+                  cursor: 'pointer', color: activeConvIsShared ? 'var(--accent-text)' : 'var(--text-secondary)',
+                  fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+                  transition: 'background 0.1s, color 0.1s',
+                }
+              // Minimal (2a): icon-only, matching the 28px muted icon row; the
+              // shared state tints the icon violet instead of a labeled pill.
+              : {
+                  width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none', borderRadius: 6,
+                  cursor: 'pointer', color: activeConvIsShared ? 'var(--accent-text)' : 'var(--text-secondary)',
+                  transition: 'background 0.1s, color 0.1s',
+                }
+            }
             onMouseEnter={(e) => { if (!activeConvIsShared) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'var(--bg-subtle)'; t.style.color = 'var(--text-primary)' } }}
             onMouseLeave={(e) => { if (!activeConvIsShared) { const t = e.currentTarget as HTMLButtonElement; t.style.background = 'transparent'; t.style.color = 'var(--text-secondary)' } }}
           >
@@ -558,7 +582,7 @@ function TopBar() {
               <circle cx="18" cy="19" r="3" />
               <path d="M8.6 10.7l6.8-3.9M8.6 13.3l6.8 3.9" />
             </svg>
-            {activeConvIsShared ? 'Shared' : 'Share'}
+            {mvpUI && (activeConvIsShared ? 'Shared' : 'Share')}
           </button>
         )}
         <IconBtn title="Search (⌘K)" onClick={() => setIsSearchOpen(true)}>
@@ -784,10 +808,24 @@ function VersionArrow({ dir, disabled, onClick }: { dir: 'prev' | 'next'; disabl
 function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boolean; isHighlighted: boolean }) {
   const {
     isLoading, memorySavedByMsgId, editUserMessage, promptVersionInfo, handleNodeClick, activeConvSource,
-    activeConvIsShared, collabProfiles, myUserId,
+    activeConvIsShared, collabProfiles, myUserId, mvpUI, chatInputRef,
   } = useApp()
   const savedMemories = !msg.role || msg.role === 'assistant' ? memorySavedByMsgId[msg.id] : undefined
   const isUser = msg.role === 'user'
+  const [copied, setCopied] = useState(false)
+  const copyMessage = useCallback(() => {
+    const text = msg.content ?? ''
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1400) }
+    try {
+      if (navigator.clipboard?.writeText) { void navigator.clipboard.writeText(text).then(done).catch(() => {}); return }
+    } catch { /* fall through to legacy path */ }
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
+      done()
+    } catch { /* clipboard unavailable */ }
+  }, [msg.content])
   const isEmptyStreaming = isLast && isLoading && !isUser && !msg.content
   const [elapsed, setElapsed] = useState(0)
   const [editing, setEditing] = useState(false)
@@ -827,16 +865,36 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
     void editUserMessage(msg.id, t)
   }
 
+  // Minimal (2a) shrinks the provider logo to sit on the demoted 11px meta line.
+  const logoSize = mvpUI ? 15 : 13
+
   return (
     <div
       data-highlighted-msg={isHighlighted ? 'true' : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0 }}
+      style={{
+        display: 'flex', gap: 10, alignItems: 'flex-start', paddingLeft: isUser ? 48 : 0,
+        // Minimal (2a): centered reading column. The mock's 600px is 95% of its
+        // chat content box at 1280px — expressed as a ratio so the column grows
+        // with the panel instead of stranding itself on a wide screen. Capped so
+        // line length stays readable on ultrawide.
+        ...(mvpUI ? {} : { width: '100%', maxWidth: 'min(95%, 1000px)', alignSelf: 'center', paddingLeft: 0 }),
+      }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isUser && (
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={mvpUI
+            ? { fontSize: 14, fontWeight: 600, color: 'var(--accent-text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 7 }
+            // Minimal (2a): the model line drops to quiet meta text, hover-revealed
+            // (always shown while streaming so the elapsed indicator stays visible),
+            // leaving violet as the single accent (the Branch action below).
+            : {
+                fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6,
+                display: 'flex', alignItems: 'center', gap: 7,
+                opacity: (hovered || isEmptyStreaming) ? 1 : 0, transition: 'opacity 0.15s',
+              }
+          }>
             {(() => {
               // Imported from a third party (e.g. claude.ai)? Name it, with its
               // brand logo inline (the standalone avatar chip has been removed).
@@ -844,9 +902,10 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
               if (importedSrc) {
                 return (
                   <>
-                    {importedSrc.logo ? (
+                    {/* Minimal (2a): text-only meta — no provider logo in chat. */}
+                    {mvpUI && importedSrc.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={importedSrc.logo} width={15} height={15} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+                      <img src={importedSrc.logo} width={logoSize} height={logoSize} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
                     ) : null}
                     <span>{importedSrc.name}</span>
                   </>
@@ -858,9 +917,10 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
               const logo = getAISource(providerForModel(msg.modelId))?.logo
               return (
                 <>
-                  {logo ? (
+                  {/* Minimal (2a): text-only meta — no Claude logo in chat. */}
+                  {mvpUI && logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={logo} width={15} height={15} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
+                    <img src={logo} width={logoSize} height={logoSize} alt="" aria-hidden style={{ display: 'block', flexShrink: 0 }} />
                   ) : null}
                   <span>Claude{msg.modelId ? ` · ${modelDisplayName(msg.modelId)}` : ''}</span>
                 </>
@@ -927,10 +987,10 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
           <div
             style={{
               maxWidth: '100%',
-              padding: '2px 20px',
+              padding: mvpUI ? '2px 20px' : 0,   // mock: reply text flush with the column
               background: 'transparent',
               border: 'none',
-              fontSize: 15, lineHeight: 1.65,
+              fontSize: mvpUI ? 15 : 14.5, lineHeight: mvpUI ? 1.65 : 1.7,
               color: 'var(--text-primary)', wordBreak: 'break-word',
               boxShadow: 'none',
             }}
@@ -942,6 +1002,63 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
                     ? `${elapsed < 5 ? 'Thinking' : elapsed < 12 ? 'Processing' : 'Analyzing'}… ${elapsed}s`
                     : 'Thinking…'}
                 </span>}
+          </div>
+        )}
+
+        {/* Assistant Copy action. The refined Minimal UI puts it *below* the
+            response text (not in the top meta row). The MVP UI had no per-message
+            copy button, so gating on !mvpUI makes the Settings toggle flip it. */}
+        {!isUser && !mvpUI && msg.content && !isEmptyStreaming && (
+          <div style={{ marginTop: 6, padding: 0, display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              title="Copy message"
+              onClick={copyMessage}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: 'transparent', border: 'none', padding: 0,
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                color: copied ? 'var(--accent-text)' : 'var(--text-muted)',
+                // Hover-revealed (stays visible mid-feedback so "Copied" doesn't
+                // vanish if the pointer drifts off the row).
+                opacity: (hovered || copied) ? 1 : 0,
+                transition: 'color 0.12s, opacity 0.15s',
+              }}
+              onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              {copied ? (
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M5.5 3.5V2.5A1 1 0 0 1 6.5 1.5h4A1 1 0 0 1 11.5 2.5v6a1 1 0 0 1-1 1h-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              )}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+
+            {/* Branch — 2a's one accented action. Mirrors the tree's "Branch from"
+                control: select this node, then focus the composer so the next
+                message forks from here. */}
+            <button
+              type="button"
+              title="Branch from this reply"
+              onClick={async () => { await handleNodeClick(msg.id); chatInputRef?.current?.focus() }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: 'transparent', border: 'none', padding: 0,
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                color: 'var(--accent-text)', transition: 'opacity 0.12s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="6" y1="3" x2="6" y2="15" />
+                <circle cx="18" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <path d="M18 9a9 9 0 0 1-9 9" />
+              </svg>
+              Branch
+            </button>
           </div>
         )}
 
@@ -1006,7 +1123,9 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
         {/* User prompt — bubble with hover-revealed edit affordance */}
         {isUser && !editing && msg.content && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', gap: 6 }}>
-            {canEdit && (
+            {/* MVP keeps the pencil beside the bubble; Minimal (2a) moves Edit
+                into the hover-revealed footer row below as a text link. */}
+            {canEdit && mvpUI && (
               <button
                 type="button"
                 title="Edit message"
@@ -1032,10 +1151,10 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
               style={{
                 maxWidth: '76%',
                 padding: '9px 14px',
-                borderRadius: '14px 14px 4px 14px',
+                borderRadius: mvpUI ? '14px 14px 4px 14px' : '12px 12px 4px 12px',
                 background: 'var(--user-bubble-bg)',
                 border: isHighlighted ? '1px solid var(--accent)' : '1px solid var(--user-bubble-border)',
-                fontSize: 15, lineHeight: 1.65,
+                fontSize: mvpUI ? 15 : 14, lineHeight: mvpUI ? 1.65 : 1.6,
                 color: 'var(--text-primary)', wordBreak: 'break-word',
                 boxShadow: isHighlighted ? '0 0 0 3px var(--accent-bg)' : 'none',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -1046,9 +1165,31 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
           </div>
         )}
 
-        {/* User prompt footer: version arrows (‹ n/m ›) + timestamp */}
-        {isUser && !editing && (msg.timestamp || versions) && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        {/* User prompt footer: Edit link (Minimal) + version arrows (‹ n/m ›) + timestamp */}
+        {isUser && !editing && (msg.timestamp || versions || (!mvpUI && canEdit)) && (
+          <div style={mvpUI
+            ? { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 4 }
+            : {
+                display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 4,
+                opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
+              }
+          }>
+            {!mvpUI && canEdit && (
+              <button
+                type="button"
+                title="Edit message (forks a new version)"
+                onClick={() => { setDraft(msg.content); setEditing(true) }}
+                style={{
+                  background: 'transparent', border: 'none', padding: 0,
+                  fontSize: 11, fontWeight: 500, color: 'var(--text-muted)',
+                  cursor: 'pointer', transition: 'color 0.12s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+              >
+                Edit
+              </button>
+            )}
             {versions && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, color: 'var(--text-muted)' }}>
                 <VersionArrow
@@ -1099,7 +1240,7 @@ function Message({ msg, isLast, isHighlighted }: { msg: ChatMessage; isLast: boo
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: string) => void; variant?: 'docked' | 'centered' }) {
-  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, clearAttachments, activeConvId } = useApp()
+  const { input, setInput, isLoading, handleSend, chatInputRef, pendingAttachments, addAttachment, removeAttachment, clearAttachments, activeConvId, mvpUI } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canSend = !isLoading && (input.trim().length > 0 || pendingAttachments.length > 0)
 
@@ -1157,7 +1298,10 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
           ? { padding: 0, background: 'transparent' }
           : {
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30,
-              padding: '12px 20px 16px', background: 'transparent', pointerEvents: 'none',
+              // 24px matches the scroll container's side padding so the composer
+              // and the message column resolve to the same width and centre.
+              padding: mvpUI ? '12px 20px 16px' : '12px 24px 16px',
+              background: 'transparent', pointerEvents: 'none',
             }
       }
     >
@@ -1177,9 +1321,11 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
         onClick={(e) => { if (e.target === e.currentTarget) focusAtEnd() }}
         style={{
           display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto',
+          // Minimal (2a): the composer tracks the message column exactly.
+          ...(mvpUI ? {} : { maxWidth: 'min(95%, 1000px)', margin: '0 auto' }),
           background: 'var(--input-bg)', border: '1px solid var(--border)',
-          borderRadius: 13, padding: '8px 8px 8px 14px',
-          boxShadow: isCentered ? 'var(--shadow-sm)' : '0 6px 24px rgba(0,0,0,0.10), var(--shadow-sm)',
+          borderRadius: mvpUI ? 13 : 12, padding: '8px 8px 8px 14px',
+          boxShadow: isCentered || !mvpUI ? 'var(--shadow-sm)' : '0 6px 24px rgba(0,0,0,0.10), var(--shadow-sm)',
           transition: 'border-color 0.15s',
           cursor: 'text',
         }}
@@ -1233,7 +1379,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
               }
             }
           }}
-          placeholder="Message Claude… (Enter to send, Shift+Enter for newline)"
+          placeholder={mvpUI ? 'Message Claude… (Enter to send, Shift+Enter for newline)' : 'Message Nodea…'}
           disabled={isLoading}
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -1248,16 +1394,23 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
           aria-label="Send message"
           disabled={!canSend}
           style={{
-            width: 34, height: 34, borderRadius: 9,
+            width: mvpUI ? 34 : 28, height: mvpUI ? 34 : 28, borderRadius: mvpUI ? 9 : 8,
             background: canSend ? 'var(--accent)' : 'var(--bg-muted)',
             border: 'none', cursor: canSend ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             transition: 'background 0.15s',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M13 1L1 5.5l5 1.5 1.5 5L13 1z" stroke={canSend ? 'white' : 'var(--text-muted)'} strokeWidth="1.3" strokeLinejoin="round" />
-          </svg>
+          {mvpUI ? (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M13 1L1 5.5l5 1.5 1.5 5L13 1z" stroke={canSend ? 'white' : 'var(--text-muted)'} strokeWidth="1.3" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            // Minimal (2a): a plain upward arrow rather than the paper plane.
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 10V2M6 2L2.5 5.5M6 2l3.5 3.5" stroke={canSend ? '#fff' : 'var(--text-muted)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </button>
       </form>
     </div>
@@ -1266,7 +1419,7 @@ function InputBar({ onFileError, variant = 'docked' }: { onFileError: (msg: stri
 
 // ── Chat panel ────────────────────────────────────────────────────────────────
 export default function ChatPanel() {
-  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed, isPro, isAdmin, setIsUpgradeOpen } = useApp()
+  const { messages, isLoading, activeConvId, createConversation, chatError, clearChatError, saveError, clearSaveError, highlightedMessageId, addAttachment, userName, isChatCollapsed, setIsChatCollapsed, isPro, isAdmin, setIsUpgradeOpen, mvpUI } = useApp()
   const bottomRef    = useRef<HTMLDivElement>(null)
   const scrollRef    = useRef<HTMLDivElement>(null)
   // Whether to keep pinning the view to the latest output. Set false the moment
@@ -1460,7 +1613,7 @@ export default function ChatPanel() {
         onScroll={handleScroll}
         style={{
           flex: 1, overflowY: 'auto', padding: '68px 24px 98px',
-          display: 'flex', flexDirection: 'column', gap: 20,
+          display: 'flex', flexDirection: 'column', gap: mvpUI ? 20 : 26,
         }}
       >
         {/* ── Empty state: no conversation selected ── */}

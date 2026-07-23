@@ -20,7 +20,7 @@ const MEMORY_MAX_LENGTH  = 300
 const MEMORY_MAX_ENTRIES = 30
 
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection, decisionTrackingEnabled, setDecisionTrackingEnabled } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection, decisionTrackingEnabled, setDecisionTrackingEnabled, mvpUI, setMvpUI } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>((settingsInitialSection as Section) ?? 'appearance')
 
@@ -242,6 +242,12 @@ export default function SettingsModal() {
 
               <SettingRow label="Decision tracking" description="Tag nodes as decided, rejected, considering and more — and see decisions across the tree. Experimental.">
                 <Toggle on={decisionTrackingEnabled} onChange={(v) => { setDecisionTrackingEnabled(v); track('decision_tracking_toggled', { on: v }) }} />
+              </SettingRow>
+
+              <Divider />
+
+              <SettingRow label="MVP UI" description="Revert to the previous chat interface. The refined Minimal UI is on by default; turn this on to switch back.">
+                <Toggle on={mvpUI} onChange={(v) => { setMvpUI(v); track('mvp_ui_toggled', { on: v }) }} />
               </SettingRow>
 
               <Divider />

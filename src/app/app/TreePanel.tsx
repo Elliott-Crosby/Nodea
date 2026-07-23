@@ -211,7 +211,11 @@ function buildPairs(dbNodes: DbNode[]): Pair[] {
   return pairs
 }
 
-function computePairLayout(pairs: Pair[], vSpacing: number = V_SPACING): Map<string, { x: number; y: number }> {
+function computePairLayout(
+  pairs: Pair[],
+  vSpacing: number = V_SPACING,
+  hSpacing: number = H_SPACING,
+): Map<string, { x: number; y: number }> {
   const childrenMap = new Map<string | null, Pair[]>()
   for (const pair of pairs) {
     const k = pair.parentPairId
@@ -224,7 +228,7 @@ function computePairLayout(pairs: Pair[], vSpacing: number = V_SPACING): Map<str
   function walk(id: string, depth: number): number {
     const children = childrenMap.get(id) ?? []
     if (children.length === 0) {
-      const x = leafIdx * H_SPACING
+      const x = leafIdx * hSpacing
       leafIdx++
       positions.set(id, { x, y: depth * vSpacing })
       return x
@@ -528,7 +532,9 @@ function ViewModeIcon({ mode, size = 11 }: { mode: 'tree' | 'outline' | 'full'; 
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function TreePanel() {
-  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge } = useApp()
+  const { allDbNodes, selectedNodeId, handleNodeClick, nodeColors, setNodeColor, nodeDecisions, setNodeDecision, decisionTrackingEnabled, deleteNode, nodeSummaries, input, chatInputRef, lastSavedPairId, isLoading, isChatCollapsed, activeConvId, canMergeInto, addMergeSource, removeMergeSource, beginMerge, mvpUI } = useApp()
+  // Minimal (2a): the bottom-right "⋯" menu holding view / present / sticky / merge.
+  const [treeMenuOpen, setTreeMenuOpen] = useState(false)
 
   const [collapsed,       setCollapsed]       = useState(false)
   const [presentOpen,     setPresentOpen]     = useState(false)
@@ -549,10 +555,19 @@ export default function TreePanel() {
   const [panelWidth,      setPanelWidth]      = useState(DEFAULT_WIDTH)
 
   // Restore the user's last panel width (after mount, to avoid hydration mismatch).
+  // Width is stored per UI mode: Minimal opens at the mock's 372px rather than
+  // inheriting an MVP-era width that would squeeze the chat column.
+  const widthKey = mvpUI ? PANEL_WIDTH_KEY : `${PANEL_WIDTH_KEY}_min`
   useEffect(() => {
-    const saved = Number(localStorage.getItem(PANEL_WIDTH_KEY))
-    if (saved >= MIN_WIDTH && saved <= MAX_WIDTH) setPanelWidth(saved)
-  }, [])
+    const saved = Number(localStorage.getItem(widthKey))
+    if (saved >= MIN_WIDTH && saved <= MAX_WIDTH) { setPanelWidth(saved); return }
+    // Minimal (2a): the mock is drawn at 1280px (tree 372 = 29.1% of the window).
+    // Pinning 372px on a 1920 screen leaves the chat absurdly wide and its text
+    // column stranded, so hold the mock's *ratio* instead of its pixel value.
+    setPanelWidth(mvpUI
+      ? DEFAULT_WIDTH
+      : Math.round(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, window.innerWidth * 0.291))))
+  }, [widthKey, mvpUI])
   const [hoveredId,       setHoveredId]       = useState<string | null>(null)
   const [hoverPos,        setHoverPos]        = useState<{ x: number; y: number } | null>(null)
   const [colorMenu,       setColorMenu]       = useState<{ nodeId: string; x: number; y: number; confirmDelete?: boolean } | null>(null)
@@ -761,14 +776,21 @@ export default function TreePanel() {
   // stored merge_sources edges take over, so drop the ghost preview edges.
   useEffect(() => { setPendingFanInSourceIds([]) }, [lastSavedPairId])
 
-  const vSpacing      = viewMode === 'full' ? V_SPACING_FULL : V_SPACING
-  const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing), [displayPairs, vSpacing])
+  // Minimal (2a): the mock's compact 160×56 cards. Spacing has to shrink with
+  // them or the tree reads as tiny cards adrift — the mock's sibling columns
+  // step 176px (18→194) and its rows step 112px (28→140).
+  const isMinimalTree = !mvpUI && viewMode !== 'full'
+  const nodeW         = isMinimalTree ? 160 : NODE_W
+  const nodeH         = viewMode === 'full' ? NODE_H_FULL : (mvpUI ? NODE_H : 56)
+  const layoutW       = isMinimalTree ? 176 : LAYOUT_W
+  const hSpacing      = isMinimalTree ? 176 : H_SPACING
+  const vSpacing      = viewMode === 'full' ? V_SPACING_FULL : (mvpUI ? V_SPACING : 112)
+  const nodeHMax      = nodeH
+
+  const pairPositions = useMemo(() => computePairLayout(displayPairs, vSpacing, hSpacing), [displayPairs, vSpacing, hSpacing])
   // Cards are one fixed size at every zoom; only their content changes. Far
   // enough out (titleOnly) they show just the title, but the box never shrinks.
   const titleOnly     = scale < TITLE_ONLY_SCALE
-  const nodeW         = NODE_W
-  const nodeH         = viewMode === 'full' ? NODE_H_FULL : NODE_H
-  const nodeHMax      = nodeH
 
   // No counter-scaling: cards zoom uniformly with the canvas, keeping their
   // size and spacing relative to each other constant at every zoom level.
@@ -779,7 +801,7 @@ export default function TreePanel() {
     const xs = Array.from(pairPositions.values()).map(p => p.x)
     const ys = Array.from(pairPositions.values()).map(p => p.y)
     return {
-      canvasW: Math.max(...xs) + LAYOUT_W + 80,
+      canvasW: Math.max(...xs) + layoutW + 80,
       canvasH: Math.max(...ys) + nodeHMax + 80,
     }
   }, [pairPositions, nodeHMax])
@@ -804,13 +826,13 @@ export default function TreePanel() {
     const by1  = Math.max(...ps.map(p => p.y))
 
     // Cards zoom with the canvas, so the content spans the position range plus
-    // one node footprint (LAYOUT_W × nodeHMax) — all of which scales by s.
-    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + LAYOUT_W)
+    // one node footprint (layoutW × nodeHMax) — all of which scales by s.
+    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + layoutW)
     const sByH = (ch - TOP_INSET - BOT_INSET) / Math.max(1, (by1 - by0) + nodeHMax)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
-    setPan({ x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s, y: TOP_INSET - by0 * s })
+    setPan({ x: cw / 2 - ((bx0 + bx1) / 2 + layoutW / 2) * s, y: TOP_INSET - by0 * s })
   }, [pairPositions, nodeHMax])
 
   // ── Fit active branch ─────────────────────────────────────────────────────────
@@ -831,13 +853,13 @@ export default function TreePanel() {
     const by0  = Math.min(...poses.map(p => p.y))
     const by1  = Math.max(...poses.map(p => p.y))
 
-    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + LAYOUT_W)
+    const sByW = (cw - hPad * 2) / Math.max(1, (bx1 - bx0) + layoutW)
     const sByH = (ch - 28 - 48) / Math.max(1, (by1 - by0) + nodeHMax)
     const s    = Math.max(MIN_READABLE_SCALE, Math.min(sByW, sByH, 1.15))
 
     setScale(s)
     setPan({
-      x: cw / 2 - ((bx0 + bx1) / 2 + LAYOUT_W / 2) * s,
+      x: cw / 2 - ((bx0 + bx1) / 2 + layoutW / 2) * s,
       y: ch / 2 - ((by0 + by1) / 2) * s - (nodeHMax * s) / 2,
     })
   }, [activePairIds, pairPositions, fitView, nodeHMax])
@@ -861,7 +883,7 @@ export default function TreePanel() {
 
     setScale(s)
     setPan({
-      x: cw / 2 - (pos.x + LAYOUT_W / 2) * s,
+      x: cw / 2 - (pos.x + layoutW / 2) * s,
       y: ch / 2 - pos.y * s - (nodeHMax * s) / 2,
     })
   }, [pairPositions, nodeHMax])
@@ -978,7 +1000,7 @@ export default function TreePanel() {
     }
     function onUp() {
       isResizing.current = false
-      localStorage.setItem(PANEL_WIDTH_KEY, String(lastW))
+      localStorage.setItem(widthKey, String(lastW))
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -1011,7 +1033,7 @@ export default function TreePanel() {
 
       const isGhost      = pair.id === '__ghost__'
       const isActivePath = !isGhost && activePairIds.has(pair.id) && activePairIds.has(pair.parentPairId)
-      const cx           = LAYOUT_W / 2
+      const cx           = layoutW / 2
       const x1           = p0.x + cx
       const y1           = p0.y + nodeHVis
       const x2           = p1.x + cx
@@ -1038,7 +1060,7 @@ export default function TreePanel() {
   // to skirt around intervening nodes. Returns the path `d` plus the target
   // connection-point coordinates.
   function mergeEdgeGeometry(s: { x: number; y: number }, t: { x: number; y: number }) {
-    const cx  = LAYOUT_W / 2
+    const cx  = layoutW / 2
     const x1  = s.x + cx
     const x2  = t.x + cx
     const y1  = s.y <= t.y ? s.y + nodeHVis : s.y
@@ -1135,7 +1157,7 @@ export default function TreePanel() {
     if (!srcPos) return
     const sourceNodeId = pair.aiNode?.id ?? pair.userNode.id
     const sourcePairId = pair.id
-    const sx = srcPos.x + LAYOUT_W / 2
+    const sx = srcPos.x + layoutW / 2
     const sy = srcPos.y + nodeHVis
     setDragMerge({ sourceNodeId, sourcePairId, sx, sy, cx: sx, cy: sy, validTarget: false })
 
@@ -1243,7 +1265,7 @@ export default function TreePanel() {
 
   // ── Full panel ────────────────────────────────────────────────────────────────
   return (
-    <div style={{
+    <div className="mui-hrp" style={{
       ...(isChatCollapsed
         ? { flex: 1, minWidth: 0 }
         : { width: panelWidth, flexShrink: 0 }),
@@ -1261,6 +1283,26 @@ export default function TreePanel() {
 
       {/* Floating header controls */}
       <div style={{ position: 'absolute', top: 0, left: 5, right: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 10px 0', gap: 8, pointerEvents: 'none' }}>
+        {/* Minimal (2a): no header pills — just a hover-revealed collapse box
+            top-right (rendered after the MVP pills below). */}
+        {!mvpUI && (
+          <button
+            className="mui-hr"
+            onClick={() => setCollapsed(true)}
+            title="Collapse tree"
+            style={{
+              marginLeft: 'auto', width: 26, height: 26, pointerEvents: 'auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--node-bg)', border: '1px solid var(--node-border)', borderRadius: 8,
+              cursor: 'pointer', color: 'var(--text-secondary)', padding: 0,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+        {mvpUI && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, height: 36, padding: '0 10px 0 4px', pointerEvents: 'auto', background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 11, boxShadow: 'var(--shadow-sm)' }}>
         <button onClick={() => setCollapsed(true)} title="Collapse tree"
           style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0, transition: 'background 0.1s, color 0.1s' }}
@@ -1275,7 +1317,9 @@ export default function TreePanel() {
 
         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Conversation Tree</span>
         </div>
+        )}
 
+        {mvpUI && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, height: 36, padding: '0 5px', pointerEvents: 'auto', background: 'color-mix(in srgb, var(--topbar-bg) 80%, transparent)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: 11, boxShadow: 'var(--shadow-sm)' }}>
         {/* Tree / Outline / Full dropdown */}
         <div ref={viewMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
@@ -1358,6 +1402,7 @@ export default function TreePanel() {
           {pairs.length}
         </span>
         </div>
+        )}
       </div>
 
       {/* Presentation mode overlay (portals to <body>) */}
@@ -1415,7 +1460,7 @@ export default function TreePanel() {
 
                 // ── Ghost node ────────────────────────────────────────────────
                 if (pair.id === '__ghost__') {
-                  const offsetX = pos.x + (LAYOUT_W - nodeW) / 2
+                  const offsetX = pos.x + (layoutW - nodeW) / 2
                   const rawText = input.trim() || lastInputRef.current
                   const ghostText = rawText.length > 35 ? rawText.slice(0, 34) + '…' : rawText
                   return (
@@ -1451,9 +1496,13 @@ export default function TreePanel() {
                 const mergeSrcIds   = Array.isArray(pair.userNode.merge_sources) ? pair.userNode.merge_sources : []
                 const hasMergeSources = mergeSrcIds.length > 0
 
+                // Minimal (2a): cards are always white; a node's color becomes a
+                // 3px left bar (mock's "Budget breakdown" card) instead of a
+                // tinted fill/border; the active path is a plain violet border
+                // with no glow.
                 const borderCol = (isDropTarget || isSelForMerge || isMergeSourceHL)
                   ? MERGE_BLUE
-                  : color
+                  : (mvpUI && color)
                   ? color
                   : isActive  ? 'var(--accent)'
                   : isHovered ? 'var(--border-strong)'
@@ -1461,7 +1510,7 @@ export default function TreePanel() {
 
                 const bgCol = (isSelForMerge || isMergeSourceHL)
                   ? `${MERGE_BLUE}14`
-                  : color
+                  : (mvpUI && color)
                   ? `${color}14`
                   : isActive ? 'var(--node-active-bg)'
                   : 'var(--node-bg)'
@@ -1471,13 +1520,13 @@ export default function TreePanel() {
                   : (isSelForMerge || isMergeSourceHL)
                   ? `0 0 0 2px ${MERGE_BLUE}`
                   : isActive
-                  ? `0 0 0 3px ${color ? color + '30' : 'var(--accent-bg)'}`
+                  ? (mvpUI ? `0 0 0 3px ${color ? color + '30' : 'var(--accent-bg)'}` : 'none')
                   : isHovered ? 'var(--shadow-sm)' : 'none'
 
                 // The connection handle drags this node into another to merge it.
                 const showMergeHandle = isHovered && !mergeMode && !dragMerge
 
-                const offsetX = pos.x + (LAYOUT_W - nodeW) / 2
+                const offsetX = pos.x + (layoutW - nodeW) / 2
 
                 return (
                   <div
@@ -1499,6 +1548,30 @@ export default function TreePanel() {
                     }}
                     onMouseLeave={() => { setHoveredId(null); setHoverPos(null) }}
                   >
+                    {/* Minimal (2a): "Branch from here" circle under the selected
+                        card — replaces the MVP bottom "Branch from:" pill. The
+                        node is already selected, so branching = focus the composer. */}
+                    {!mvpUI && isActive && !mergeMode && viewMode !== 'full' && (
+                      <button
+                        data-node="true"
+                        title="Branch from here — type your next message"
+                        onClick={(e) => { e.stopPropagation(); chatInputRef?.current?.focus() }}
+                        style={{
+                          position: 'absolute', left: nodeW / 2 - 10, top: nodeH + 8,
+                          width: 20, height: 20,
+                          background: 'var(--node-bg)', border: '1px solid var(--accent)',
+                          borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', padding: 0, zIndex: 5,
+                        }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="6" y1="3" x2="6" y2="15" />
+                          <circle cx="18" cy="6" r="3" />
+                          <circle cx="6" cy="18" r="3" />
+                          <path d="M18 9a9 9 0 0 1-9 9" />
+                        </svg>
+                      </button>
+                    )}
                     {showMergeHandle && (
                       <div
                         data-node="true"
@@ -1607,8 +1680,10 @@ export default function TreePanel() {
                         width:      nodeW,
                         height:     nodeH,
                         background: bgCol,
-                        border:     `1.5px solid ${borderCol}`,
-                        borderRadius: 10,
+                        border:     `${mvpUI || isActive || isDropTarget || isSelForMerge || isMergeSourceHL ? 1.5 : 1}px solid ${borderCol}`,
+                        // Minimal (2a): node color = 3px left bar on a white card.
+                        ...(!mvpUI && color ? { borderLeft: `3px solid ${color}` } : {}),
+                        borderRadius: mvpUI ? 10 : 8,
                         cursor:     'pointer',
                         overflow:   'hidden',
                         position:   'relative',
@@ -1616,13 +1691,18 @@ export default function TreePanel() {
                         transition: 'border-color 0.12s, box-shadow 0.12s',
                       }}
                     >
-                      {/* Full card — summary mode: generated title + summary + attachment row */}
+                      {/* Full card — summary mode: generated title + summary + attachment row.
+                          Minimal (2a): 56px cards fit the title only (12px/1.45,
+                          weight 500 on the active path, quiet gray otherwise). */}
                       {!titleOnly && viewMode === 'tree' && (
-                        <div style={{ padding: '9px 10px 8px 10px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ padding: mvpUI ? '9px 10px 8px 10px' : '9px 12px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 3 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span
                               style={{
-                                fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1,
+                                fontSize: mvpUI ? 11.5 : 12,
+                                fontWeight: mvpUI ? 600 : (isActive ? 500 : 400),
+                                color: mvpUI ? 'var(--text-primary)' : (isActive ? 'var(--text-primary)' : 'var(--text-secondary)'),
+                                lineHeight: mvpUI ? 1.3 : 1.45, flex: 1,
                                 overflow: 'hidden',
                                 display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
                                 wordBreak: 'break-word',
@@ -1631,7 +1711,7 @@ export default function TreePanel() {
                               {title}
                             </span>
                           </div>
-                          {summary && (
+                          {mvpUI && summary && (
                             <div
                               style={{
                                 fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45,
@@ -1944,8 +2024,8 @@ export default function TreePanel() {
         )
       })()}
 
-      {/* Zoom toolbar */}
-      {pairs.length > 0 && viewMode !== 'outline' && (
+      {/* Zoom toolbar (MVP: vertical stack bottom-left) */}
+      {mvpUI && pairs.length > 0 && viewMode !== 'outline' && (
         <div style={{ position: 'absolute', bottom: 72, left: 12, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 10 }}>
           {([
             { title: 'Zoom in',  action: () => setScale(s => Math.min(2, +(s + 0.15).toFixed(2))),    icon: <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg> },
@@ -2000,6 +2080,70 @@ export default function TreePanel() {
               <line x1="5"   y1="8"   x2="8"   y2="8"   stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Minimal (2a): hover-revealed bottom-right cluster — [fit][−][+][⋯].
+          Everything else (view mode, present, sticky notes, merge, fit-branch,
+          auto-zoom) lives behind the ⋯ menu, matching the mock's tooltip
+          "View, present, sticky notes, merge". */}
+      {!mvpUI && pairs.length > 0 && viewMode !== 'outline' && (
+        <div className="mui-hr" style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 10 }}>
+          {treeMenuOpen && (
+            <div style={{
+              position: 'absolute', bottom: 32, right: 0, minWidth: 168, padding: 3,
+              background: 'var(--node-bg)', border: '1px solid var(--node-border)',
+              borderRadius: 9, boxShadow: 'var(--shadow-md)',
+            }}>
+              {([
+                { label: 'Fit active branch', onPick: fitBranch },
+                { label: autoZoom ? 'Auto-zoom · on' : 'Auto-zoom · off', onPick: () => setAutoZoom(z => !z) },
+                ...VIEW_MODES.map(m => ({ label: `View · ${m.label}${viewMode === m.id ? ' ✓' : ''}`, onPick: () => setViewMode(m.id) })),
+                { label: 'Present & export…', onPick: () => setPresentOpen(true) },
+                { label: 'Add sticky note', onPick: addStickyNote },
+                ...(pairs.length >= 2 ? [{ label: 'Merge branches…', onPick: () => setMergeMode(true) }] : []),
+              ] as { label: string; onPick: () => void }[]).map(({ label, onPick }) => (
+                <button
+                  key={label}
+                  onClick={() => { onPick(); setTreeMenuOpen(false) }}
+                  style={{
+                    width: '100%', display: 'block', textAlign: 'left', padding: '6px 9px',
+                    background: 'transparent', border: 'none', borderRadius: 6,
+                    cursor: 'pointer', fontSize: 11.5, color: 'var(--text-secondary)',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', background: 'var(--node-bg)', border: '1px solid var(--node-border)', borderRadius: 8, overflow: 'hidden' }}>
+            {([
+              { title: 'Fit all',  onPick: fitView, divider: false, icon: <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.1" /><rect x="7" y="7" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.1" /><rect x="7" y="1" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.1" /><rect x="1" y="7" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.1" /></svg> },
+              { title: 'Zoom out', onPick: () => setScale(s => Math.max(0.3, +(s - 0.15).toFixed(2))), divider: true, icon: <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg> },
+              { title: 'Zoom in',  onPick: () => setScale(s => Math.min(2, +(s + 0.15).toFixed(2))), divider: true, icon: <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg> },
+              { title: 'View, present, sticky notes, merge', onPick: () => setTreeMenuOpen(o => !o), divider: true, icon: <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor"><circle cx="2.5" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" /><circle cx="11.5" cy="7" r="1.2" /></svg> },
+            ] as { title: string; onPick: () => void; divider: boolean; icon: React.ReactNode }[]).map(({ title, onPick, divider, icon }) => (
+              <button
+                key={title}
+                onClick={onPick}
+                title={title}
+                style={{
+                  width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none',
+                  borderLeft: divider ? '1px solid var(--bg-muted)' : 'none',
+                  cursor: 'pointer', color: 'var(--text-secondary)', padding: 0,
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)' }}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -2066,7 +2210,9 @@ export default function TreePanel() {
                   Cancel
                 </button>
               </>
-            ) : (
+            ) : mvpUI ? (
+              /* MVP only: Minimal replaces this pill with the "Branch from here"
+                 circle under the selected card, and Merge lives in the ⋯ menu. */
               <>
                 <button
                   disabled={!hasSelection}
@@ -2121,7 +2267,7 @@ export default function TreePanel() {
                   </button>
                 )}
               </>
-            )}
+            ) : null}
           </div>
         )
       })()}

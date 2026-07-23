@@ -470,6 +470,10 @@ export interface AppContextType {
   /** Master switch for the decision-tracking features (tags, badges, menu). Off by default. */
   decisionTrackingEnabled: boolean
   setDecisionTrackingEnabled: (on: boolean) => void
+  /** "MVP UI" escape hatch: when on, revert the chat surface to the previous UI
+   *  instead of the refined Minimal skin. Off by default (Minimal is default). */
+  mvpUI: boolean
+  setMvpUI: (on: boolean) => void
   /** Delete a prompt+reply pair. Returns false (no-op) if it has branches below. */
   deleteNode: (pairId: string) => Promise<boolean>
   // ── Merge overlay ──
@@ -676,6 +680,17 @@ export default function App() {
     // Turning off drops any decision tags held in memory so nothing lingers in
     // state (the DB columns are untouched — re-enabling reloads them).
     if (!on) setNodeDecisions({})
+  }, [])
+  // "MVP UI" toggle. When on, the chat surface renders in the previous ("MVP")
+  // style instead of the refined Minimal skin. localStorage-backed and off by
+  // default, so the Minimal UI is what ships unless a user opts back out.
+  const [mvpUI, setMvpUIState] = useState(false)
+  useEffect(() => {
+    try { setMvpUIState(localStorage.getItem('nodea_mvp_ui_v1') === '1') } catch {}
+  }, [])
+  const setMvpUI = useCallback((on: boolean) => {
+    setMvpUIState(on)
+    try { localStorage.setItem('nodea_mvp_ui_v1', on ? '1' : '0') } catch {}
   }, [])
   const [nodeSummaries, setNodeSummaries]   = useState<Record<string, { title: string; summary: string }>>({})
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentItem[]>([])
@@ -2962,7 +2977,7 @@ export default function App() {
     activeConvIsImported, activeConvSource, signOut,
     userEmail, userName, setUserName, isAdmin, isPro,
     nodeColors, setNodeColor, nodeDecisions, setNodeDecision,
-    decisionTrackingEnabled, setDecisionTrackingEnabled, deleteNode,
+    decisionTrackingEnabled, setDecisionTrackingEnabled, mvpUI, setMvpUI, deleteNode,
     canMergeInto, addMergeSource, removeMergeSource, beginMerge, mergeNotice, clearMergeNotice,
     nodeSummaries, chatInputRef,
     pendingAttachments, addAttachment, removeAttachment, clearAttachments,
@@ -2995,7 +3010,7 @@ export default function App() {
       {isMobile ? (
         <MobileApp onSaveMemory={saveProjectMemory} />
       ) : (
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div data-minimal-ui={mvpUI ? undefined : ''} style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <Sidebar />
         {view === 'chat' && (
           <>

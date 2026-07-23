@@ -24,6 +24,7 @@ export default function Sidebar() {
     assignConvToProject, requestNewChatInProject,
     // ── Collaboration ──
     myUserId,
+    mvpUI,
   } = useApp()
 
   const [collapsed, setCollapsed] = useState(false)
@@ -36,13 +37,20 @@ export default function Sidebar() {
   const isResizing   = useRef(false)
   const resizeOrigin = useRef({ x: 0, w: DEFAULT_WIDTH })
 
+  // Width is stored per UI mode: Minimal opens at the mock's 232px instead of
+  // inheriting an MVP-era width that would squeeze the chat column.
+  const widthKey = mvpUI ? STORAGE_KEY : `${STORAGE_KEY}:min`
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const n = parseInt(saved, 10)
-      if (Number.isFinite(n)) setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n)))
-    }
-  }, [])
+    const saved = window.localStorage.getItem(widthKey)
+    const n = saved ? parseInt(saved, 10) : NaN
+    if (Number.isFinite(n)) { setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, n))); return }
+    // Minimal (2a): the mock is drawn at 1280px (sidebar 232 = 18.1% of the
+    // window). Hold that ratio so the layout scales instead of stranding the
+    // chat column in dead space on a wide screen.
+    setPanelWidth(mvpUI
+      ? DEFAULT_WIDTH
+      : Math.round(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, window.innerWidth * 0.181))))
+  }, [widthKey, mvpUI])
 
   const [resizing, setResizing] = useState(false)
 
@@ -68,7 +76,7 @@ export default function Sidebar() {
       document.body.style.userSelect = ''
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      try { window.localStorage.setItem(STORAGE_KEY, String(finalWidth)) } catch {}
+      try { window.localStorage.setItem(widthKey, String(finalWidth)) } catch {}
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -135,6 +143,7 @@ export default function Sidebar() {
   return (
     <div
       data-sidebar-root
+      className="mui-hrp"
       style={{
         width: collapsed ? 54 : panelWidth,
         flexShrink: 0,
@@ -177,18 +186,25 @@ export default function Sidebar() {
         }}
       >
         <span style={{ whiteSpace: 'nowrap', minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {!collapsed && <span style={{ fontSize: 18, fontFamily: 'var(--font-bricolage), sans-serif', fontWeight: 500, color: 'var(--accent)', letterSpacing: '-0.025em' }}>Nodea</span>}
-          {!collapsed && isAdmin && (
+          {!collapsed && <span style={mvpUI
+            ? { fontSize: 18, fontFamily: 'var(--font-bricolage), sans-serif', fontWeight: 500, color: 'var(--accent)', letterSpacing: '-0.025em' }
+            // Minimal (2a): the in-app wordmark is demoted to plain dark text so
+            // violet reads as a single accent. Marketing nav/footer/login keep the
+            // canonical Bricolage violet wordmark — this is the app chrome only.
+            : { fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }
+          }>Nodea</span>}
+          {/* Badges are MVP-only — the 2a mock header is just the wordmark. */}
+          {mvpUI && !collapsed && isAdmin && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 4, padding: '1px 5px', opacity: 0.7 }}>
               ADMIN
             </span>
           )}
-          {!collapsed && isPro && (
+          {mvpUI && !collapsed && isPro && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '1px 5px', opacity: 0.85 }}>
               PRO
             </span>
           )}
-          {!collapsed && !isPro && (
+          {mvpUI && !collapsed && !isPro && (
             <button
               onClick={() => { track('upgrade_clicked', { source: 'sidebar' }); window.location.href = '/upgrade' }}
               style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '2px 8px', opacity: 0.85, background: 'transparent', cursor: 'pointer', lineHeight: 1 }}
@@ -201,6 +217,9 @@ export default function Sidebar() {
         <button
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          // Minimal (2a): revealed on sidebar hover. Always visible when
+          // collapsed — it's the only way back.
+          className={collapsed ? undefined : 'mui-hr'}
           style={{
             width: 26, height: 26,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -238,26 +257,37 @@ export default function Sidebar() {
             }
           }}
           title={insideProject && activeProj ? `New chat in ${activeProj.name}` : 'New Conversation'}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 7, width: '100%',
-            padding: collapsed ? '8px 0' : '7px 10px',
-            background: 'var(--accent-bg)',
-            border: '1px solid var(--user-bubble-border)',
-            borderRadius: 8,
-            fontSize: 15, fontWeight: 500, color: 'var(--accent-text)',
-            cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap',
-          }}
+          style={mvpUI
+            ? {
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 7, width: '100%',
+                padding: collapsed ? '8px 0' : '7px 10px',
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--user-bubble-border)',
+                borderRadius: 8,
+                fontSize: 15, fontWeight: 500, color: 'var(--accent-text)',
+                cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap',
+              }
+            // Minimal (2a): quiet violet text link — "+ New chat" — no pill fill.
+            : {
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 8, width: '100%',
+                padding: collapsed ? '8px 0' : '6px 6px',
+                background: 'transparent', border: 'none', borderRadius: 6,
+                fontSize: 13, fontWeight: 500, color: 'var(--accent)',
+                cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap',
+              }
+          }
         >
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <svg width={mvpUI ? 13 : 11} height={mvpUI ? 13 : 11} viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth={mvpUI ? 1.8 : 1.6} strokeLinecap="round" />
           </svg>
           {!collapsed && (
             insideProject && activeProj ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
                 New chat in&nbsp;<strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeProj.name}</strong>
               </span>
-            ) : 'New Conversation'
+            ) : (mvpUI ? 'New Conversation' : 'New chat')
           )}
         </button>
       </div>
@@ -273,6 +303,7 @@ export default function Sidebar() {
                   <button
                     onClick={openNewProjectModal}
                     title="New project"
+                    className="mui-hr"
                     style={{
                       width: 20, height: 20,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -303,39 +334,55 @@ export default function Sidebar() {
                 />
               ))}
 
-              <button
-                onClick={openProjectsLanding}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9, width: '100%',
-                  padding: '7px 14px',
-                  background: view === 'projects' ? 'var(--accent-bg)' : 'transparent',
-                  border: 'none',
-                  borderLeft: view === 'projects' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
-                  cursor: 'pointer',
-                  fontSize: 15,
-                  color: view === 'projects' ? 'var(--accent-text)' : 'var(--text-muted)',
-                  textAlign: 'left',
-                }}
-                onMouseEnter={(e) => { if (view !== 'projects') (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)' }}
-                onMouseLeave={(e) => { if (view !== 'projects') (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-              >
-                <span style={{
-                  width: 22, height: 22, borderRadius: 7,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-                    <rect x="3" y="4" width="8" height="7" rx="1.5" />
-                    <rect x="13" y="4" width="8" height="7" rx="1.5" />
-                    <rect x="3" y="13" width="8" height="7" rx="1.5" />
-                    <rect x="13" y="13" width="8" height="7" rx="1.5" />
-                  </svg>
-                </span>
-                See all projects
-                <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 500 }}>
-                  {chatProjects.length}
-                </span>
-              </button>
+              {mvpUI ? (
+                <button
+                  onClick={openProjectsLanding}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                    padding: '7px 14px',
+                    background: view === 'projects' ? 'var(--accent-bg)' : 'transparent',
+                    border: 'none',
+                    borderLeft: view === 'projects' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                    color: view === 'projects' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => { if (view !== 'projects') (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)' }}
+                  onMouseLeave={(e) => { if (view !== 'projects') (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                >
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 7,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                      <rect x="3" y="4" width="8" height="7" rx="1.5" />
+                      <rect x="13" y="4" width="8" height="7" rx="1.5" />
+                      <rect x="3" y="13" width="8" height="7" rx="1.5" />
+                      <rect x="13" y="13" width="8" height="7" rx="1.5" />
+                    </svg>
+                  </span>
+                  See all projects
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 500 }}>
+                    {chatProjects.length}
+                  </span>
+                </button>
+              ) : (
+                /* Minimal (2a): quiet "All projects · N" text row. */
+                <button
+                  onClick={openProjectsLanding}
+                  style={{
+                    display: 'block', width: '100%', padding: '6px 16px',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    fontSize: 12, color: 'var(--text-muted)', textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+                >
+                  All projects · {chatProjects.length}
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -521,7 +568,7 @@ export default function Sidebar() {
             gap: 9, width: '100%',
             padding: collapsed ? '10px 0' : '10px 14px',
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--text-secondary)', fontSize: 15,
+            color: 'var(--text-secondary)', fontSize: mvpUI ? 15 : 13,
             overflow: 'hidden', whiteSpace: 'nowrap',
             transition: 'background 0.1s',
           }}
@@ -536,6 +583,7 @@ export default function Sidebar() {
         </button>
 
         <div
+          className="mui-rowp"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
             gap: 9, padding: collapsed ? '10px 0 14px' : '8px 14px 14px',
@@ -544,10 +592,10 @@ export default function Sidebar() {
         >
           <div
             style={{
-              width: 28, height: 28, borderRadius: '50%',
+              width: mvpUI ? 28 : 24, height: mvpUI ? 28 : 24, borderRadius: '50%',
               background: 'var(--accent)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 600, flexShrink: 0,
+              fontSize: mvpUI ? 12 : 11, fontWeight: 600, flexShrink: 0,
             }}
           >
             {initial}
@@ -555,7 +603,7 @@ export default function Sidebar() {
 
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: mvpUI ? 15 : 13, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {userName || 'User'}
               </div>
             </div>
@@ -565,6 +613,8 @@ export default function Sidebar() {
             <button
               onClick={signOut}
               title="Sign out"
+              // Minimal (2a): revealed on footer-row hover.
+              className="mui-row"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, flexShrink: 0 }}
             >
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -617,6 +667,7 @@ function PinnedProject({
   onClick, onContext, onDragOver, onDragLeave, onDrop,
 }: PinnedProjectProps) {
   const [hover, setHover] = useState(false)
+  const { mvpUI } = useApp()
   const c = colorById(project.color)
   return (
     <div
@@ -630,34 +681,50 @@ function PinnedProject({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 9, width: '100%', margin: '1px 0',
-        padding: '7px 14px',
-        background: dropActive ? c.soft : (active ? 'var(--accent-bg)' : (hover ? 'var(--bg-subtle)' : 'transparent')),
-        borderLeft: active ? '2.5px solid var(--accent)' : '2.5px solid transparent',
-        outline: dropActive ? `1.5px dashed ${c.hex}` : 'none',
-        outlineOffset: -3,
-        cursor: 'pointer', userSelect: 'none',
-        transition: 'background 0.1s',
-      }}
+      style={mvpUI
+        ? {
+            display: 'flex', alignItems: 'center', gap: 9, width: '100%', margin: '1px 0',
+            padding: '7px 14px',
+            background: dropActive ? c.soft : (active ? 'var(--accent-bg)' : (hover ? 'var(--bg-subtle)' : 'transparent')),
+            borderLeft: active ? '2.5px solid var(--accent)' : '2.5px solid transparent',
+            outline: dropActive ? `1.5px dashed ${c.hex}` : 'none',
+            outlineOffset: -3,
+            cursor: 'pointer', userSelect: 'none',
+            transition: 'background 0.1s',
+          }
+        // Minimal (2a): quiet row — colored 6px dot, 13px name, count right.
+        : {
+            display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+            padding: '6px 16px',
+            background: dropActive ? c.soft : (active || hover ? 'var(--bg-subtle)' : 'transparent'),
+            outline: dropActive ? `1.5px dashed ${c.hex}` : 'none',
+            outlineOffset: -3,
+            cursor: 'pointer', userSelect: 'none',
+            transition: 'background 0.1s',
+          }
+      }
     >
-      <span style={{
-        width: 22, height: 22, borderRadius: 7,
-        background: c.soft,
-        flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <ProjectIcon name={project.icon} size={13} color={c.hex} />
-      </span>
+      {mvpUI ? (
+        <span style={{
+          width: 22, height: 22, borderRadius: 7,
+          background: c.soft,
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <ProjectIcon name={project.icon} size={13} color={c.hex} />
+        </span>
+      ) : (
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.hex, flexShrink: 0 }} />
+      )}
       <span style={{
         flex: 1, minWidth: 0,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        fontSize: 15, fontWeight: active ? 600 : 500,
-        color: active ? 'var(--accent-text)' : 'var(--text-primary)',
+        fontSize: mvpUI ? 15 : 13, fontWeight: mvpUI ? (active ? 600 : 500) : (active ? 500 : 400),
+        color: mvpUI ? (active ? 'var(--accent-text)' : 'var(--text-primary)') : (active ? 'var(--text-primary)' : 'var(--text-secondary)'),
       }}>
         {project.name}
       </span>
-      <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, fontWeight: 500 }}>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, fontWeight: mvpUI ? 500 : 400 }}>
         {project.chat_count}
       </span>
     </div>
@@ -720,6 +787,7 @@ function ConvRow(props: ConvRowProps) {
     onClick, onDoubleClick, onCommitEdit, onCancelEdit,
     onContext, projects, collapsed,
   } = props
+  const { mvpUI } = useApp()
 
   const project = conv.chat_project_id
     ? projects.find((p) => p.id === conv.chat_project_id) ?? null
@@ -765,6 +833,7 @@ function ConvRow(props: ConvRowProps) {
           role="button"
           tabIndex={0}
           draggable
+          className="mui-conv-row"
           onClick={onClick}
           onDoubleClick={() => !collapsed && onDoubleClick()}
           onContextMenu={(e) => { e.preventDefault(); onContext(e.clientX, e.clientY) }}
@@ -779,21 +848,40 @@ function ConvRow(props: ConvRowProps) {
             }
           }}
           title={collapsed ? conv.name : undefined}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 9, width: '100%',
-            padding: collapsed ? '10px 0' : '8px 14px',
-            background: isActive ? 'var(--accent-bg)' : 'transparent',
-            borderLeft: !collapsed ? (isActive ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
-            cursor: 'pointer', textAlign: 'left',
-            color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
-            fontSize: 15, fontWeight: isActive ? 500 : 400,
-            overflow: 'hidden',
-            transition: 'background 0.1s, color 0.1s',
-            paddingRight: (!collapsed && isHovered) ? '6px' : (!collapsed ? '14px' : '0'),
-            boxSizing: 'border-box',
-            userSelect: 'none',
-          }}
+          style={mvpUI
+            ? {
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 9, width: '100%',
+                padding: collapsed ? '10px 0' : '8px 14px',
+                background: isActive ? 'var(--accent-bg)' : 'transparent',
+                borderLeft: !collapsed ? (isActive ? '2.5px solid var(--accent)' : '2.5px solid transparent') : 'none',
+                cursor: 'pointer', textAlign: 'left',
+                color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
+                fontSize: 15, fontWeight: isActive ? 500 : 400,
+                overflow: 'hidden',
+                transition: 'background 0.1s, color 0.1s',
+                paddingRight: (!collapsed && isHovered) ? '6px' : (!collapsed ? '14px' : '0'),
+                boxSizing: 'border-box',
+                userSelect: 'none',
+              }
+            // Minimal (2a): active row is a neutral gray pill (radius 6, inset
+            // 6px) with dark text — no violet fill, no left border.
+            : {
+                display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 8,
+                margin: collapsed ? 0 : '0 6px',
+                padding: collapsed ? '10px 0' : '6px 10px',
+                background: isActive ? 'var(--bg-subtle)' : 'transparent',
+                borderRadius: collapsed ? 0 : 6,
+                cursor: 'pointer', textAlign: 'left',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: isActive ? 500 : 400,
+                overflow: 'hidden',
+                transition: 'background 0.1s, color 0.1s',
+                boxSizing: 'border-box',
+                userSelect: 'none',
+              }
+          }
           onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-subtle)' }}
           onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = isActive ? 'var(--accent-bg)' : 'transparent' }}
         >

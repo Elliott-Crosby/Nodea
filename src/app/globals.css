@@ -216,3 +216,68 @@ html, body {
   font-family: 'JetBrains Mono', Consolas, monospace;
   color: var(--text-muted);
 }
+
+/* ── Nodea Minimal (2a) UI ──────────────────────────────────────────
+   Active when the app root carries data-minimal-ui (the default). The
+   Settings → "MVP UI" toggle removes the attribute, restoring the old
+   skin — so every rule here must be scoped under [data-minimal-ui].
+
+   Hover-reveal utilities mirror the design mock's data-hr/data-hrp
+   (panel-level) and data-row/data-rowp (row-level) patterns:
+   controls stay invisible until the containing panel/row is hovered. */
+
+[data-minimal-ui] {
+  /* Exact 2a palette. The mock is neutral everywhere — violet exists ONLY
+     as the single accent (New chat, Branch, send, active tree path). All
+     violet-tinted surfaces (user bubble, active rows, node glows, edges)
+     demote to the mock's grays. */
+  --bg-subtle:          #EFF0F3;   /* mock hover / active-row / user-bubble gray */
+  --bg-muted:           #E4E6EA;   /* mock internal borders */
+  --accent-bg:          #EFF0F3;   /* was violet #f0ebff */
+  --accent-text:        #7C3AED;   /* raw violet, not the darker #6d28d9 */
+  --user-bubble-bg:     #EFF0F3;   /* was violet #ede9fe */
+  --user-bubble-border: transparent;  /* mock bubble has no border */
+  --sidebar-bg:         #F8F9FA;   /* same as base — mock has one flat surface */
+  --topbar-bg:          #F8F9FA;
+  --tree-bg:            #F2F3F5;
+  --node-border:        #D8DADE;
+  --node-active-bg:     #ffffff;   /* active card = white + violet border, no tint */
+  --edge-color:         #CDD1D8;   /* inactive edges gray; active path keeps accent */
+  --blockquote-border:  #CDD1D8;
+}
+[data-theme="dark"] [data-minimal-ui] {
+  /* Same "neutral, not violet" principle mapped onto the dark scale. */
+  --bg-subtle:          #1e2025;
+  --bg-muted:           #282b32;
+  --accent-bg:          #23262c;
+  --accent-text:        #8b5cf6;
+  --user-bubble-bg:     #23262c;
+  --user-bubble-border: transparent;
+  --sidebar-bg:         #16181c;
+  --topbar-bg:          #16181c;
+  --tree-bg:            #17191e;
+  --node-border:        #2e3138;
+  --node-active-bg:     #1e2025;
+  --edge-color:         #3d4149;
+  --blockquote-border:  #3d4149;
+}
+
+[data-minimal-ui] .mui-hr,
+[data-minimal-ui] .mui-row {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+[data-minimal-ui] .mui-hrp:hover .mui-hr,
+[data-minimal-ui] .mui-hrp:focus-within .mui-hr,
+[data-minimal-ui] .mui-rowp:hover .mui-row,
+[data-minimal-ui] .mui-rowp:focus-within .mui-row {
+  opacity: 1;
+}
+
+/* Sidebar rows tighten from 15px to the mock's 13px. !important because
+   the rows are styled inline. */
+[data-minimal-ui] .mui-conv-row {
+  font-size: 13px !important;
+}
+
+
