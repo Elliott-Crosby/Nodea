@@ -172,7 +172,9 @@ const DIGITAL_SHIPPING = {
   },
   shippingDestination: {
     '@type': 'DefinedRegion',
-    geoMidpoint: { '@type': 'GeoCoordinates', latitude: 0, longitude: 0 },
+    // Google requires addressCountry on shippingDestination; a bare
+    // geoMidpoint is rejected. Matches DIGITAL_RETURN_POLICY's country.
+    addressCountry: 'US',
   },
   deliveryTime: {
     '@type': 'ShippingDeliveryTime',
