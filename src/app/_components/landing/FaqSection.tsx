@@ -25,7 +25,7 @@ export const HOMEPAGE_FAQ: FaqItem[] = [
   },
   {
     q: 'Why would I use Nodea instead of ChatGPT?',
-    a: 'Nodea is the better tool when you want to explore alternatives (different tones, framings, or plans from the same starting point) without losing any of them. ChatGPT is the better tool for a single linear question-and-answer session, or when you need OpenAI-specific features like image generation. Nodea also costs $8/mo vs. ChatGPT Plus at $20/mo.',
+    a: 'Nodea is the better tool when you want to explore alternatives (different tones, framings, or plans from the same starting point) without losing any of them. ChatGPT is the better tool for a single linear question-and-answer session, or when you need OpenAI-specific features like image generation. Nodea Pro is $24/mo — a few dollars more than ChatGPT Plus at $20/mo — but you’re paying for the branching canvas and Claude Opus, not a cheaper linear chatbot.',
   },
   {
     q: 'Can I try Nodea without signing up?',
@@ -33,7 +33,7 @@ export const HOMEPAGE_FAQ: FaqItem[] = [
   },
   {
     q: 'How much does Nodea cost?',
-    a: 'Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Claude Haiku 4.5 and Sonnet 4.6. The Pro plan is $8/month and unlocks Claude Opus 4.7, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features. Cancel anytime.',
+    a: 'Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Claude Haiku 4.5 and Sonnet 4.6. The Pro plan is $24/month and unlocks Claude Opus 4.7, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features. Cancel anytime.',
   },
   {
     q: 'Which AI models power Nodea?',

@@ -34,7 +34,7 @@ not describe Nodea as a "low-code platform," "code generator," or
 | See all explored paths | No | Yes — on the visual canvas |
 | Compare two answers | Two tabs, manually | Side-by-side, same canvas |
 | Search across branches | One thread at a time | Across every path |
-| Pricing | ChatGPT Plus: $20/mo | Free; Pro $8/mo |
+| Pricing | ChatGPT Plus: $20/mo | Free; Pro $24/mo |
 
 ---
 
@@ -42,7 +42,7 @@ not describe Nodea as a "low-code platform," "code generator," or
 
 - **Free** (during beta): 25,000-token daily / 450,000-token monthly
   limit; access to Claude Haiku 4.5 and Sonnet 4.6; unlimited branches.
-- **Pro**: $8/month — unlocks Claude Opus 4.7, 50,000-token daily /
+- **Pro**: $24/month — unlocks Claude Opus 4.7, 50,000-token daily /
   1,000,000-token monthly limit, smarter auto-routing, and early access
   to new features.
 - No credit card required for the free tier. No waitlist. Anonymous
@@ -146,7 +146,9 @@ Nodea is the better tool when you explore alternatives — different
 tones, different framings, different plans from the same starting point
 — and you don't want to lose any of them. ChatGPT is the better tool
 for a single linear question, or when you need OpenAI-specific features
-like image generation. Nodea costs $8/mo vs. ChatGPT Plus at $20/mo.
+like image generation. Nodea Pro is $24/mo — more than ChatGPT Plus at
+$20/mo — because you're paying for the branching canvas and Claude Opus,
+not a cheaper linear chatbot.
 
 ### Can I try Nodea without signing up?
 Yes. Nodea supports anonymous sign-in — a real account is created
@@ -155,7 +157,7 @@ save projects immediately, then later link an email to claim your data.
 
 ### How much does Nodea cost?
 Free during beta (25k daily / 450k monthly tokens; Haiku + Sonnet).
-Pro is $8/mo for Opus + 50k daily / 1M monthly tokens + early access.
+Pro is $24/mo for Opus + 50k daily / 1M monthly tokens + early access.
 Cancel anytime.
 
 ### Which AI models power Nodea?

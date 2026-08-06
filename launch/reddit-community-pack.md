@@ -56,7 +56,7 @@ A few honest details:
 - It runs on Anthropic's Claude only (Haiku 4.5, Sonnet 4.6, Opus 4.7), with automatic model routing by complexity so simple turns don't burn a big model.
 - Conversations live in Supabase with per-user isolation; you can group them into projects.
 - There's a Chrome extension ("Nodea Tree for Claude") that imports your existing claude.ai chats as a branching tree.
-- Free during beta — no credit card. Free tier is ~25k tokens/day. Pro is $8/mo when billing turns on.
+- Free during beta — no credit card. Free tier is ~25k tokens/day. Pro is $24/mo when billing turns on.
 
 Stuff that's NOT built yet, so I'm not going to pretend it is: bring-your-own-API-keys, plugins, full export tooling, and a project-wide "connected canvas". Those are roadmap.
 

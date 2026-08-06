@@ -41,7 +41,7 @@ export default function Bluf() {
             </li>
             <li>
               <span className="ln-bluf-k">Pricing</span>
-              <span className="ln-bluf-v">Free in beta · Pro $8/mo</span>
+              <span className="ln-bluf-v">Free in beta · Pro $24/mo</span>
             </li>
             <li>
               <span className="ln-bluf-k">Sign-up</span>

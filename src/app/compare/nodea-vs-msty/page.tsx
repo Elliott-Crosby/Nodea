@@ -36,7 +36,7 @@ export default function NodeaVsMsty() {
         { feature: 'Auto model routing',    competitor: 'Manual selection',                 nodea: 'Auto by complexity',          nodeaWins: true },
         { feature: 'Bring-your-own keys',   competitor: 'Yes (for cloud models)',           nodea: 'No, managed keys only' },
         { feature: 'Free tier',             competitor: 'Free desktop app',                 nodea: 'Free 25k/day · 450k/mo, ours' },
-        { feature: 'Price',                 competitor: 'Free; paid plans from ~$149/yr',   nodea: '$8/mo subscription' },
+        { feature: 'Price',                 competitor: 'Free; paid plans from ~$149/yr',   nodea: '$24/mo subscription' },
       ]}
       whenCompetitor={{
         heading: 'When Msty is the better choice',
@@ -76,7 +76,7 @@ export default function NodeaVsMsty() {
         },
         {
           q: "How does pricing compare?",
-          a: "Both have a free option. Msty’s free desktop app can run local models with no per-token fee if you supply the compute, and paid plans start around $149/year. Nodea is free during beta and $8/mo after, with managed Claude tokens included so there are no separate API bills.",
+          a: "Both have a free option. Msty’s free desktop app can run local models with no per-token fee if you supply the compute, and paid plans start around $149/year. Nodea is free during beta and $24/mo after, with managed Claude tokens included so there are no separate API bills and nothing to run locally.",
         },
         {
           q: "Can I export my conversations from Nodea?",

@@ -34,7 +34,7 @@ export default function NodeaVsTypingMind() {
         { feature: 'Auto model routing',    competitor: 'Manual selection',            nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'No (local storage)',          nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
         { feature: 'Free tier',             competitor: 'Free app, pay your own API',  nodea: 'Free 25k/day · 450k/mo, ours' },
-        { feature: 'Price',                 competitor: '$39 one-time + API costs',    nodea: '$8/mo subscription' },
+        { feature: 'Price',                 competitor: '$39 one-time + API costs',    nodea: '$24/mo subscription' },
         { feature: 'Plugin system',         competitor: 'Yes',                         nodea: 'Not yet' },
       ]}
       whenCompetitor={{
@@ -71,7 +71,7 @@ export default function NodeaVsTypingMind() {
         },
         {
           q: "Is Nodea more expensive in the long run?",
-          a: "It depends on usage. TypingMind is a $39 one-time purchase, but you pay Anthropic / OpenAI per-token on top. Nodea is $8/mo all-in. For light users, TypingMind plus BYOK is cheaper. For mid-to-heavy users, Nodea’s flat fee usually wins.",
+          a: "It depends on usage. TypingMind is a $39 one-time purchase, but you pay Anthropic / OpenAI per-token on top. Nodea is $24/mo all-in, with managed Claude tokens and no separate API bill. For light users, TypingMind plus BYOK is cheaper. If you’d rather not manage API keys or per-token costs — and you want the branching canvas — Nodea’s flat fee is the simpler deal.",
         },
         {
           q: "Can I export my conversations from Nodea?",

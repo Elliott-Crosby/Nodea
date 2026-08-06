@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is Nodea a free ChatGPT alternative?',
-    a: 'Nodea is free during beta with a 25,000 daily / 450,000 monthly token budget and access to Claude Haiku 4.5 and Sonnet 4.6. No credit card required. The Pro plan is $8/month (versus ChatGPT Plus at $20/month) and unlocks Claude Opus plus a 50,000 daily / 1,000,000 monthly budget.',
+    a: 'Nodea is free during beta with a 25,000 daily / 450,000 monthly token budget and access to Claude Haiku 4.5 and Sonnet 4.6. No credit card required. The Pro plan is $24/month — a few dollars more than ChatGPT Plus at $20/month — and unlocks Claude Opus plus a 50,000 daily / 1,000,000 monthly budget on a branching canvas.',
   },
   {
     q: 'What makes Nodea different from ChatGPT?',
@@ -87,7 +87,7 @@ const DIFFS = [
   {
     feature: 'Paid tier',
     chatgpt: '$20/mo',
-    nodea: '$8/mo, free during beta',
+    nodea: '$24/mo, free during beta',
   },
 ]
 
@@ -191,7 +191,7 @@ export default function ChatGPTAlternative() {
                 </li>
                 <li>
                   <span className="ln-bluf-k">Pricing</span>
-                  <span className="ln-bluf-v">Free in beta · Pro $8/mo (vs $20/mo)</span>
+                  <span className="ln-bluf-v">Free in beta · Pro $24/mo</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Sign-up</span>
