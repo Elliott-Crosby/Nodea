@@ -51,10 +51,17 @@ export async function POST(req: Request) {
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
 
     if (userId && customerId) {
-      await db.from('user_profiles').upsert(
-        { user_id: userId, plan: 'pro', stripe_customer_id: customerId },
-        { onConflict: 'user_id' },
-      )
+      // early_bird is a one-way latch: set it when the checkout used the
+      // early-bird price, but never write false over an existing true (a
+      // returning early bird re-subscribing must not lose the lock).
+      const row: Record<string, unknown> = {
+        user_id: userId,
+        plan: 'pro',
+        stripe_customer_id: customerId,
+      }
+      if (session.metadata?.earlyBird === 'true') row.early_bird = true
+
+      await db.from('user_profiles').upsert(row, { onConflict: 'user_id' })
     }
   }
 
@@ -62,6 +69,8 @@ export async function POST(req: Request) {
     const sub = event.data.object as Stripe.Subscription
     const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
 
+    // Only the plan is revoked. early_bird deliberately survives cancellation —
+    // an expired card must not cost someone their locked-in rate.
     await db.from('user_profiles')
       .update({ plan: 'free' })
       .eq('stripe_customer_id', customerId)

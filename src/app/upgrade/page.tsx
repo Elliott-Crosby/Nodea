@@ -6,7 +6,13 @@ import Nav from '@/app/_components/landing/Nav'
 import Footer from '@/app/_components/landing/Footer'
 import '@/app/_components/landing/landing.css'
 import { createClient } from '@/lib/supabase'
-import { EARLY_BIRD_SEATS, STANDARD_PRICE, EARLY_BIRD_DISCOUNT_PCT, type EarlyBirdStatus } from '@/lib/earlyBird'
+import {
+  EARLY_BIRD_SEATS,
+  EARLY_BIRD_PRICE,
+  STANDARD_PRICE,
+  EARLY_BIRD_DISCOUNT_PCT,
+  type EarlyBirdStatus,
+} from '@/lib/earlyBird'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
@@ -69,15 +75,10 @@ function pad(n: number) {
  * so this never advertises scarcity that isn't real. Renders nothing while
  * loading, after sell-out, or past the deadline.
  */
-function EarlyBirdUrgency() {
-  const [status, setStatus] = useState<EarlyBirdStatus | null>(null)
+function EarlyBirdUrgency({ status }: { status: EarlyBirdStatus | null }) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    fetch('/api/early-bird')
-      .then(r => (r.ok ? r.json() : null))
-      .then(setStatus)
-      .catch(() => {})
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -136,6 +137,22 @@ export default function UpgradePage() {
   const [authState, setAuthState] = useState<AuthState>('loading')
   const [upgrading, setUpgrading] = useState(false)
   const [managing, setManaging]   = useState(false)
+  // Pro granted by admin/comp has no Stripe customer, so there is no portal to
+  // open — show the plan as active rather than a button that can't work.
+  const [hasBilling, setHasBilling]   = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
+
+  // Single source for the urgency strip and every price on this page, so the
+  // headline figure always matches what /api/stripe/checkout will charge.
+  const [status, setStatus] = useState<EarlyBirdStatus | null>(null)
+  useEffect(() => {
+    fetch('/api/early-bird')
+      .then(r => (r.ok ? r.json() : null))
+      .then(setStatus)
+      .catch(() => {})
+  }, [])
+  const price = status?.price ?? EARLY_BIRD_PRICE
+  const discounted = price < STANDARD_PRICE
 
   useEffect(() => {
     void (async () => {
@@ -144,19 +161,31 @@ export default function UpgradePage() {
       if (!user) { setAuthState('anonymous'); return }
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('plan, is_admin')
+        .select('plan, is_admin, stripe_customer_id')
         .eq('user_id', user.id)
         .maybeSingle()
+      setHasBilling(!!profile?.stripe_customer_id)
       setAuthState(profile?.plan === 'pro' || profile?.is_admin === true ? 'pro' : 'free')
     })()
   }, [])
 
   async function handleUpgrade() {
     setUpgrading(true)
+    setPortalError(null)
     try {
-      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
+      const res  = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (data?.url) {
+        window.location.href = data.url
+        return
+      }
+      setPortalError(
+        data?.error === 'already_pro'
+          ? "You're already on Pro — reload this page to see your plan."
+          : 'Could not start checkout. Please try again, or email nodea.ai@gmail.com.',
+      )
+    } catch {
+      setPortalError('Could not reach checkout. Check your connection and try again.')
     } finally {
       setUpgrading(false)
     }
@@ -164,10 +193,21 @@ export default function UpgradePage() {
 
   async function handleManage() {
     setManaging(true)
+    setPortalError(null)
     try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
+      const res  = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (data?.url) {
+        window.location.href = data.url
+        return
+      }
+      setPortalError(
+        data?.error === 'no_subscription'
+          ? "This account doesn't have a Stripe subscription, so there's no billing to manage."
+          : 'Could not open the billing portal. Please try again, or email nodea.ai@gmail.com.',
+      )
+    } catch {
+      setPortalError('Could not reach the billing portal. Check your connection and try again.')
     } finally {
       setManaging(false)
     }
@@ -302,37 +342,43 @@ export default function UpgradePage() {
                 padding: '28px 28px 24px',
               }}
             >
-              {/* Badge */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '4px 10px',
-                  borderRadius: 99,
-                  background: 'rgba(251,191,36,0.12)',
-                  border: '1px solid rgba(251,191,36,0.3)',
-                  color: '#fbbf24',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.1em',
-                  marginBottom: 14,
-                }}
-              >
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-                  <path d="M4 0l.88 2.7H7.6L5.34 4.38l.82 2.7L4 5.55 1.84 7.09l.82-2.7L.4 2.7H3.12L4 0Z" />
-                </svg>
-                EARLY BIRD
-              </div>
+              {/* Badge — only while the offer is actually live */}
+              {discounted && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 10px',
+                    borderRadius: 99,
+                    background: 'rgba(251,191,36,0.12)',
+                    border: '1px solid rgba(251,191,36,0.3)',
+                    color: '#fbbf24',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    marginBottom: 14,
+                  }}
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                    <path d="M4 0l.88 2.7H7.6L5.34 4.38l.82 2.7L4 5.55 1.84 7.09l.82-2.7L.4 2.7H3.12L4 0Z" />
+                  </svg>
+                  EARLY BIRD
+                </div>
+              )}
 
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>PRO</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
-                <span style={{ fontSize: 42, fontWeight: 800, fontFamily: 'var(--font-bricolage)', color: '#fff', letterSpacing: '-2px', lineHeight: 1 }}>$8</span>
+                <span style={{ fontSize: 42, fontWeight: 800, fontFamily: 'var(--font-bricolage)', color: '#fff', letterSpacing: '-2px', lineHeight: 1 }}>${price}</span>
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mo</span>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>${STANDARD_PRICE}</span>
+                {discounted && (
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through', marginLeft: 6 }}>${STANDARD_PRICE}</span>
+                )}
               </div>
-              <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{EARLY_BIRD_DISCOUNT_PCT}% off, rate locked forever</p>
-              <EarlyBirdUrgency />
+              {discounted && (
+                <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{EARLY_BIRD_DISCOUNT_PCT}% off, rate locked forever</p>
+              )}
+              <EarlyBirdUrgency status={status} />
             </div>
 
             <div style={{ padding: '20px 28px 24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -350,24 +396,44 @@ export default function UpgradePage() {
 
               <div style={{ marginTop: 'auto' }}>
                 {authState === 'pro' ? (
-                  <button
-                    onClick={handleManage}
-                    disabled={managing}
-                    style={{
-                      width: '100%',
-                      padding: '13px 20px',
-                      borderRadius: 10,
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: managing ? 'not-allowed' : 'pointer',
-                      opacity: managing ? 0.6 : 1,
-                    }}
-                  >
-                    {managing ? 'Loading…' : 'Manage billing'}
-                  </button>
+                  hasBilling ? (
+                    <>
+                      <button
+                        onClick={handleManage}
+                        disabled={managing}
+                        style={{
+                          width: '100%',
+                          padding: '13px 20px',
+                          borderRadius: 10,
+                          background: 'var(--bg-subtle)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: managing ? 'not-allowed' : 'pointer',
+                          opacity: managing ? 0.6 : 1,
+                        }}
+                      >
+                        {managing ? 'Loading…' : 'Manage billing'}
+                      </button>
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        padding: '13px 20px',
+                        borderRadius: 10,
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-muted)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        textAlign: 'center',
+                      }}
+                    >
+                      Pro active
+                    </div>
+                  )
                 ) : authState === 'anonymous' ? (
                   <Link
                     href="/login?next=/upgrade"
@@ -387,7 +453,7 @@ export default function UpgradePage() {
                       boxShadow: '0 4px 20px rgba(92,33,182,0.4)',
                     }}
                   >
-                    Get Pro · $8/mo
+                    Get Pro · ${price}/mo
                   </Link>
                 ) : (
                   <button
@@ -408,8 +474,28 @@ export default function UpgradePage() {
                       boxShadow: '0 4px 20px rgba(92,33,182,0.4)',
                     }}
                   >
-                    {upgrading ? 'Redirecting…' : 'Upgrade Now · $8/mo'}
+                    {upgrading ? 'Redirecting…' : `Upgrade Now · $${price}/mo`}
                   </button>
+                )}
+                {/* Shared by both the checkout and the billing-portal calls —
+                    neither may fail silently. */}
+                {portalError && (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 10,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(239,68,68,0.12)',
+                      border: '1px solid rgba(239,68,68,0.32)',
+                      color: '#ef4444',
+                      fontSize: 12,
+                      lineHeight: 1.45,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {portalError}
+                  </div>
                 )}
                 <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', marginTop: 10, marginBottom: 0 }}>
                   Cancel anytime. No long-term commitments.
