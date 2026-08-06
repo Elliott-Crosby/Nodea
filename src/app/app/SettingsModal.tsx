@@ -7,6 +7,7 @@ import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 import { downloadConversationMarkdown } from '@/lib/conversation-export'
 import { STANDARD_PRICE } from '@/lib/earlyBird'
+import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY, USE_CASES_OTHER_MAX } from '@/lib/useCases'
 
 type Section = 'appearance' | 'account' | 'usage' | 'memory'
 
@@ -21,7 +22,7 @@ const MEMORY_MAX_LENGTH  = 300
 const MEMORY_MAX_ENTRIES = 30
 
 export default function SettingsModal() {
-  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection, decisionTrackingEnabled, setDecisionTrackingEnabled, mvpUI, setMvpUI } = useApp()
+  const { setIsSettingsOpen, userEmail, userName, setUserName, messages, convName, isPro, settingsInitialSection, setSettingsInitialSection, decisionTrackingEnabled, setDecisionTrackingEnabled, mvpUI, setMvpUI, useCases, useCasesOther, saveUseCases } = useApp()
   const { theme, setTheme } = useTheme()
   const [section, setSection] = useState<Section>((settingsInitialSection as Section) ?? 'appearance')
 
@@ -36,6 +37,39 @@ export default function SettingsModal() {
   const [newPw, setNewPw] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
+  // Use-case survey editor state (Settings is the "change it later" surface)
+  const [ucSelected, setUcSelected] = useState<string[]>(useCases ?? [])
+  const [ucOther, setUcOther] = useState(useCasesOther ?? '')
+  const [ucSaving, setUcSaving] = useState(false)
+  const [ucMsg, setUcMsg] = useState<'ok' | 'err' | null>(null)
+  const ucHasOther = ucSelected.includes(USE_CASE_OTHER_KEY)
+
+  function toggleUseCase(key: string) {
+    setUcMsg(null)
+    setUcSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]))
+  }
+
+  async function handleSaveUseCases() {
+    if (ucSaving) return
+    setUcSaving(true)
+    setUcMsg(null)
+    const ok = await saveUseCases(ucSelected, ucHasOther ? ucOther : null)
+    track('use_case_survey_saved', { source: 'settings', count: ucSelected.length })
+    setUcMsg(ok ? 'ok' : 'err')
+    setUcSaving(false)
+  }
+
+  const ucChip = (on: boolean): React.CSSProperties => ({
+    padding: '6px 12px',
+    borderRadius: 99,
+    border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+    background: on ? 'var(--accent)' : 'var(--bg-subtle)',
+    color: on ? '#fff' : 'var(--text-primary)',
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: 'pointer',
+  })
 
   function handleExportMarkdown() {
     track('export_markdown', { message_count: messages.length })
@@ -357,6 +391,59 @@ export default function SettingsModal() {
                   {saving ? 'Saving…' : 'Save Changes'}
                 </button>
               </form>
+
+              <Divider />
+
+              {/* ── Use-case survey (change-it-later surface) ── */}
+              <div style={{ marginTop: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  What do you use Nodea for?
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 12px' }}>
+                  Pick everything that fits — it helps us decide what to build next.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: ucHasOther ? 10 : 14 }}>
+                  {USE_CASE_OPTIONS.map((o) => (
+                    <button key={o.key} type="button" style={ucChip(ucSelected.includes(o.key))} onClick={() => toggleUseCase(o.key)}>
+                      {o.label}
+                    </button>
+                  ))}
+                  <button type="button" style={ucChip(ucHasOther)} onClick={() => toggleUseCase(USE_CASE_OTHER_KEY)}>
+                    Other
+                  </button>
+                </div>
+                {ucHasOther && (
+                  <input
+                    value={ucOther}
+                    onChange={(e) => { setUcMsg(null); setUcOther(e.target.value) }}
+                    maxLength={USE_CASES_OTHER_MAX}
+                    placeholder="Tell us in a few words…"
+                    style={{ ...inputStyle, marginBottom: 14 }}
+                  />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={handleSaveUseCases}
+                    disabled={ucSaving}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: 8,
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                      cursor: ucSaving ? 'not-allowed' : 'pointer',
+                      opacity: ucSaving ? 0.6 : 1,
+                    }}
+                  >
+                    {ucSaving ? 'Saving…' : 'Save answers'}
+                  </button>
+                  {ucMsg === 'ok' && <span style={{ fontSize: 12, color: '#15803d' }}>Saved.</span>}
+                  {ucMsg === 'err' && <span style={{ fontSize: 12, color: '#b91c1c' }}>Couldn&rsquo;t save — try again.</span>}
+                </div>
+              </div>
             </div>
           )}
         </div>
