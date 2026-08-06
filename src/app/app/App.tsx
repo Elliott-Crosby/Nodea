@@ -14,6 +14,8 @@ import TreePanel from './TreePanel'
 import SearchModal from './SearchModal'
 import SettingsModal from './SettingsModal'
 import UpgradeModal from './UpgradeModal'
+import UseCaseSurveyModal from './UseCaseSurveyModal'
+import { USE_CASES_OTHER_MAX, USE_CASE_SURVEY_DISMISSED_KEY } from '@/lib/useCases'
 import ProjectsLanding from './ProjectsLanding'
 import ProjectPage from './ProjectPage'
 import ProjectModal from './ProjectModal'
@@ -439,6 +441,14 @@ export interface AppContextType {
   setIsSettingsOpen: (b: boolean) => void
   isUpgradeOpen: boolean
   setIsUpgradeOpen: (b: boolean) => void
+  // ── Use-case survey ──
+  /** Stored survey answer keys, or null when the user has never answered. */
+  useCases: string[] | null
+  useCasesOther: string | null
+  /** Persist a survey answer to the profile (update, falling back to insert). */
+  saveUseCases: (cases: string[], other: string | null) => Promise<boolean>
+  isSurveyOpen: boolean
+  setIsSurveyOpen: (b: boolean) => void
   isChatCollapsed: boolean
   setIsChatCollapsed: (b: boolean) => void
   handleSend: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
@@ -634,6 +644,10 @@ export default function App() {
   const [isSearchOpen,  setIsSearchOpen]    = useState(false)
   const [isSettingsOpen,setIsSettingsOpen]  = useState(false)
   const [isUpgradeOpen, setIsUpgradeOpen]  = useState(false)
+  // ── Use-case survey state ──
+  const [isSurveyOpen,  setIsSurveyOpen]   = useState(false)
+  const [useCases,      setUseCases]       = useState<string[] | null>(null)
+  const [useCasesOther, setUseCasesOther]  = useState<string | null>(null)
   const [isChatCollapsed, setIsChatCollapsed] = useState(false)
   const [settingsInitialSection, setSettingsInitialSection] = useState<string | null>(null)
   const [userEmail,     setUserEmail]       = useState('')
@@ -1515,6 +1529,26 @@ export default function App() {
         // could be a forged/legacy row.
         setIsPro(dbAdmin || (profile?.plan === 'pro' && !!profile?.stripe_customer_id))
       }
+
+      // Use-case survey state — a separate, non-fatal read so a missing
+      // column (migration not applied yet) can never break the plan/admin
+      // path above. NULL use_cases = never answered → prompt once, unless
+      // the user skipped the popup before (localStorage flag).
+      try {
+        const { data: uc, error: ucErr } = await supabase
+          .from('user_profiles')
+          .select('use_cases, use_cases_other')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (!ucErr) {
+          const answer = Array.isArray(uc?.use_cases) ? (uc.use_cases as string[]) : null
+          setUseCases(answer)
+          setUseCasesOther(typeof uc?.use_cases_other === 'string' ? uc.use_cases_other : null)
+          if (answer === null && localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) !== '1') {
+            setIsSurveyOpen(true)
+          }
+        }
+      } catch { /* the survey is never worth breaking app init over */ }
 
       // A parked invite (the user opened /join while signed out) is accepted
       // BEFORE the lists load, so the joined space is already in them.
@@ -2965,12 +2999,45 @@ export default function App() {
     return [...chatProjects, ...sharedChatProjects.filter((p) => !ownIds.has(p.id))]
   }, [chatProjects, sharedChatProjects])
 
+  // Persist a use-case survey answer. Update first (the row exists for
+  // anyone who's touched billing or been provisioned server-side); fall back
+  // to insert for fresh accounts with no profile row yet — the locked-down
+  // insert policy accepts a defaults-only row carrying just these columns.
+  async function saveUseCases(cases: string[], other: string | null): Promise<boolean> {
+    const uid = myUserIdRef.current
+    if (!uid) return false
+    const otherTrimmed = other && other.trim().length > 0
+      ? other.trim().slice(0, USE_CASES_OTHER_MAX)
+      : null
+    const payload = {
+      use_cases: cases,
+      use_cases_other: otherTrimmed,
+      use_cases_updated_at: new Date().toISOString(),
+    }
+    const { data: updated, error: updErr } = await supabase
+      .from('user_profiles')
+      .update(payload)
+      .eq('user_id', uid)
+      .select('user_id')
+    if (updErr) return false
+    if (!updated || updated.length === 0) {
+      const { error: insErr } = await supabase
+        .from('user_profiles')
+        .insert({ user_id: uid, ...payload })
+      if (insErr) return false
+    }
+    setUseCases(cases)
+    setUseCasesOther(otherTrimmed)
+    return true
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   const ctx: AppContextType = {
     conversations, activeConvId, convName, allDbNodes, messages, selectedNodeId,
     input, setInput, isLoading, inFlightConvIds,
     isSearchOpen, setIsSearchOpen, isSettingsOpen, setIsSettingsOpen,
     isUpgradeOpen, setIsUpgradeOpen,
+    useCases, useCasesOther, saveUseCases, isSurveyOpen, setIsSurveyOpen,
     isChatCollapsed, setIsChatCollapsed,
     handleSend, handleNodeClick, editUserMessage, promptVersionInfo, switchConversation, createConversation,
     renameConversation, deleteConversation,
@@ -3062,6 +3129,8 @@ export default function App() {
       {isSearchOpen  && <SearchModal />}
       {isSettingsOpen && <SettingsModal />}
       {isUpgradeOpen && <UpgradeModal />}
+      {/* One-time use-case survey — suppressed while other modals are up */}
+      {isSurveyOpen && !isSettingsOpen && !isUpgradeOpen && <UseCaseSurveyModal />}
 
       {/* Share modal (collaboration) */}
       {shareTarget && (
