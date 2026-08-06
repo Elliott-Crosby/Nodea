@@ -1,7 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from './App'
+import {
+  EARLY_BIRD_PRICE,
+  STANDARD_PRICE,
+  EARLY_BIRD_DISCOUNT_PCT,
+  type EarlyBirdStatus,
+} from '@/lib/earlyBird'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
@@ -21,13 +27,39 @@ function CheckIcon() {
 export default function UpgradeModal() {
   const { setIsUpgradeOpen } = useApp()
   const [upgrading, setUpgrading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+
+  // Price comes from the same server-side status that drives checkout, so the
+  // button can never promise a rate the checkout won't honor. Until it loads we
+  // show the early-bird price optimistically — it is the lower of the two, and
+  // the offer is live far more often than not.
+  const [status, setStatus] = useState<EarlyBirdStatus | null>(null)
+  useEffect(() => {
+    fetch('/api/early-bird')
+      .then(r => (r.ok ? r.json() : null))
+      .then(setStatus)
+      .catch(() => {})
+  }, [])
+  const price = status?.price ?? EARLY_BIRD_PRICE
+  const discounted = price < STANDARD_PRICE
 
   async function handleUpgrade() {
     setUpgrading(true)
+    setCheckoutError(null)
     try {
-      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
+      const res  = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (data?.url) {
+        window.location.href = data.url
+        return
+      }
+      setCheckoutError(
+        data?.error === 'already_pro'
+          ? "You're already on Pro. Reload the app to see your plan."
+          : 'Could not start checkout. Please try again, or email nodea.ai@gmail.com.',
+      )
+    } catch {
+      setCheckoutError('Could not reach checkout. Check your connection and try again.')
     } finally {
       setUpgrading(false)
     }
@@ -156,35 +188,37 @@ export default function UpgradeModal() {
                   letterSpacing: '-3px',
                 }}
               >
-                $8
+                ${price}
               </span>
               <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 17, fontWeight: 500 }}>
                 /mo
               </span>
             </div>
 
-            <div style={{ paddingBottom: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span
-                style={{
-                  color: 'rgba(255,255,255,0.28)',
-                  fontSize: 14,
-                  textDecoration: 'line-through',
-                  textDecorationColor: 'rgba(255,255,255,0.25)',
-                }}
-              >
-                $15/mo
-              </span>
-              <span
-                style={{
-                  color: '#fbbf24',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                47% off, price rising soon
-              </span>
-            </div>
+            {discounted && (
+              <div style={{ paddingBottom: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span
+                  style={{
+                    color: 'rgba(255,255,255,0.28)',
+                    fontSize: 14,
+                    textDecoration: 'line-through',
+                    textDecorationColor: 'rgba(255,255,255,0.25)',
+                  }}
+                >
+                  ${STANDARD_PRICE}/mo
+                </span>
+                <span
+                  style={{
+                    color: '#fbbf24',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {EARLY_BIRD_DISCOUNT_PCT}% off, price rising soon
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -258,8 +292,14 @@ export default function UpgradeModal() {
               btn.style.boxShadow = upgrading ? 'none' : '0 4px 20px rgba(92,33,182,0.4)'
             }}
           >
-            {upgrading ? 'Redirecting…' : 'Upgrade Now · $8/mo'}
+            {upgrading ? 'Redirecting…' : `Upgrade Now · $${price}/mo`}
           </button>
+
+          {checkoutError && (
+            <div role="alert" style={{ marginTop: 10, fontSize: 12, color: '#f87171', textAlign: 'center', lineHeight: 1.4 }}>
+              {checkoutError}
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
             <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>

@@ -379,6 +379,10 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
   const [loading, setLoading]       = useState(true)
   const [upgrading, setUpgrading]   = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState(false)
+  // Pro can come from an admin/comped grant, which has no Stripe customer and
+  // therefore no billing portal to open. Only offer "Manage" when one exists.
+  const [hasBilling, setHasBilling]   = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
 
   const DAILY_LIMIT   = isPro ? 50_000    : 25_000
   const MONTHLY_LIMIT = isPro ? 1_000_000 : 450_000
@@ -402,6 +406,17 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
       }
     })()
 
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      setHasBilling(!!profile?.stripe_customer_id)
+    })()
+
     const channel = supabase
       .channel('usage-live')
       .on(
@@ -421,10 +436,21 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
 
   async function handleManage() {
     setUpgrading(true)
+    setPortalError(null)
     try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
+      const res  = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (data?.url) {
+        window.location.href = data.url
+        return
+      }
+      setPortalError(
+        data?.error === 'no_subscription'
+          ? "This account doesn't have a Stripe subscription, so there's no billing to manage."
+          : 'Could not open the billing portal. Please try again, or email nodea.ai@gmail.com.',
+      )
+    } catch {
+      setPortalError('Could not reach the billing portal. Check your connection and try again.')
     } finally {
       setUpgrading(false)
     }
@@ -480,17 +506,26 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
           <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pro plan</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Manage billing or view invoices</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                {hasBilling ? 'Manage billing or view invoices' : 'Complimentary — no billing account attached'}
+              </div>
             </div>
-            <button
-              onClick={handleManage}
-              disabled={upgrading}
-              style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
-            >
-              {upgrading ? 'Loading…' : 'Manage'}
-            </button>
+            {hasBilling && (
+              <button
+                onClick={handleManage}
+                disabled={upgrading}
+                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 500, cursor: upgrading ? 'not-allowed' : 'pointer', opacity: upgrading ? 0.6 : 1 }}
+              >
+                {upgrading ? 'Loading…' : 'Manage'}
+              </button>
+            )}
           </div>
-          {!cancelConfirm ? (
+          {portalError && (
+            <div role="alert" style={{ margin: '0 14px 10px', padding: '7px 10px', borderRadius: 7, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.32)', color: '#ef4444', fontSize: 11, lineHeight: 1.45 }}>
+              {portalError}
+            </div>
+          )}
+          {!hasBilling ? null : !cancelConfirm ? (
             <div style={{ borderTop: '1px solid var(--border)', padding: '8px 14px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setCancelConfirm(true)}

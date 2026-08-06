@@ -23,4 +23,14 @@ export interface EarlyBirdStatus {
   deadline: string
   /** True while the offer should be advertised and honored. */
   active: boolean
+  /**
+   * Monthly price in dollars a NEW subscriber would be charged right now.
+   * Every price shown next to an upgrade button should come from here so the
+   * displayed figure can never drift from what checkout actually charges.
+   *
+   * Note: users with a durable rate lock (user_profiles.early_bird) are always
+   * charged EARLY_BIRD_PRICE regardless of this value — see /api/stripe/checkout.
+   * They may briefly see the standard price quoted; they are never charged it.
+   */
+  price: number
 }
