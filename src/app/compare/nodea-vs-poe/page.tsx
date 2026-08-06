@@ -35,7 +35,7 @@ export default function NodeaVsPoe() {
         { feature: 'Auto model routing',    competitor: 'Pick a bot per chat',           nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'Account required',              nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
         { feature: 'Free tier',             competitor: 'Free plan (limited points)',    nodea: 'Free 25k/day · 450k/mo' },
-        { feature: 'Pricing model',         competitor: 'Points-based subscriptions',    nodea: '$8/mo flat (free in beta)' },
+        { feature: 'Pricing model',         competitor: 'Points-based subscriptions',    nodea: '$24/mo flat (free in beta)' },
       ]}
       whenCompetitor={{
         heading: 'When Poe is the better choice',
@@ -71,7 +71,7 @@ export default function NodeaVsPoe() {
         },
         {
           q: "How does pricing compare?",
-          a: "Poe uses points-based subscription tiers, where heavier models consume points faster, flexible across many models. Nodea is a single $8/mo flat plan (free during beta, no credit card) with a daily Claude token budget. If you want many providers, Poe’s model fits; if you want predictable Claude usage, Nodea’s does.",
+          a: "Poe uses points-based subscription tiers, where heavier models consume points faster, flexible across many models. Nodea is a single $24/mo flat plan (free during beta, no credit card) with a daily Claude token budget. If you want many providers, Poe’s model fits; if you want predictable Claude usage on a branching canvas, Nodea’s does.",
         },
         {
           q: "Can I export my conversations from Nodea?",

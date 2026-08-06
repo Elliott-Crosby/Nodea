@@ -6,6 +6,7 @@ import { useTheme } from '@/lib/theme'
 import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 import { downloadConversationMarkdown } from '@/lib/conversation-export'
+import { STANDARD_PRICE } from '@/lib/earlyBird'
 
 type Section = 'appearance' | 'account' | 'usage' | 'memory'
 
@@ -798,7 +799,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
               Unlock Memory with Pro
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>
-              $8/mo, locked at the early-bird rate
+              ${STANDARD_PRICE}/mo — unlocks Memory, Claude Opus, and more
             </div>
           </div>
           <button

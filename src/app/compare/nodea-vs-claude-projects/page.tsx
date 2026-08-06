@@ -33,7 +33,7 @@ export default function NodeaVsClaudeProjects() {
         { feature: 'Visual canvas',       competitor: 'No',                      nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Models available',    competitor: 'Sonnet, Opus (Pro plans)', nodea: 'Haiku, Sonnet, Opus (Opus = Pro)' },
         { feature: 'Free tier',           competitor: 'Limited messages/day',    nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
-        { feature: 'Price',               competitor: '$20/mo Pro, $25/mo Teams', nodea: '$8/mo Pro',                  nodeaWins: true },
+        { feature: 'Price',               competitor: '$20/mo Pro, $25/mo Teams', nodea: '$24/mo Pro' },
         { feature: 'Anonymous sign-in',   competitor: 'No',                      nodea: 'Yes',                        nodeaWins: true },
         { feature: 'Auto model routing',  competitor: 'Manual',                  nodea: 'Automatic by complexity',    nodeaWins: true },
       ]}
@@ -53,7 +53,7 @@ export default function NodeaVsClaudeProjects() {
           "You think visually and want to see your conversation as a map, not a scroll.",
           "You want to fork from any message, not just regenerate the last reply.",
           "You want anonymous sign-in and a free tier that’s actually usable.",
-          "You’d rather pay $8/mo than $20/mo.",
+          "You want a branching canvas, visual map, and auto model routing on top of the same Claude models — and Pro at $24/mo is worth it for that workflow.",
         ],
       }}
       faq={[
@@ -70,8 +70,8 @@ export default function NodeaVsClaudeProjects() {
           a: "You can attach images, PDFs, and text files to individual messages in Nodea. We don’t yet have Claude-Projects-style global file context that persists across every conversation; it’s on the roadmap.",
         },
         {
-          q: "Is Nodea cheaper than Claude.ai?",
-          a: "Yes. Nodea Pro is $8/mo (rate-locked for early adopters) vs Claude.ai Pro at $20/mo. Both unlock Claude Opus.",
+          q: "How does Nodea’s price compare to Claude.ai?",
+          a: "Nodea Pro is $24/mo vs Claude.ai Pro at $20/mo — about $4 more. Both unlock Claude Opus, so you’re not paying for a better model; you’re paying for a different interface: a branching canvas with a visual tree, fork-from-any-node, auto model routing, and your data in your own Postgres. If you just want Claude in a linear thread, Claude.ai is cheaper. If branching changes how you work, the difference is small.",
         },
         {
           q: "Can I use both?",

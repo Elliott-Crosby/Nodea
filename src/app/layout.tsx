@@ -207,7 +207,7 @@ const SOFTWARE_JSONLD = {
     {
       '@type': 'Offer',
       name: 'Pro',
-      price: '8',
+      price: '24',
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}/upgrade`,

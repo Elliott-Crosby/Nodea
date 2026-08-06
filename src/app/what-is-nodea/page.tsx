@@ -42,7 +42,7 @@ const FAQ = [
   },
   {
     q: 'Is Nodea free?',
-    a: 'Yes. Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Haiku and Sonnet. The $8/month Pro plan unlocks Claude Opus, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features.',
+    a: 'Yes. Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Haiku and Sonnet. The $24/month Pro plan unlocks Claude Opus, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features.',
   },
   {
     q: 'Is Nodea open source?',
@@ -151,7 +151,7 @@ export default function WhatIsNodea() {
               <ul className="wn-tldr-list">
                 <li><strong>What it is:</strong> a tree-shaped chat interface for Claude.</li>
                 <li><strong>Who it&rsquo;s for:</strong> people who think by exploring alternatives: writers, researchers, founders, engineers.</li>
-                <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $8/mo for Claude Opus and a doubled daily + 1M monthly token budget.</li>
+                <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $24/mo for Claude Opus and a doubled daily + 1M monthly token budget.</li>
                 <li><strong>What powers it:</strong> Claude Haiku 4.5, Sonnet 4.6, and Opus 4.7, auto-routed by prompt complexity.</li>
                 <li><strong>What you keep:</strong> every message and every branch you explore stays on the canvas &mdash; searchable and revisitable, never overwritten.</li>
               </ul>

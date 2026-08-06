@@ -50,7 +50,7 @@ const FAQ = [
   },
   {
     q: 'Is the AI chat canvas free?',
-    a: 'Yes. Nodea is free during beta with roughly 25,000 daily and 450,000 monthly tokens, and no credit card. The $8/month Pro plan unlocks Claude Opus and a larger token budget.',
+    a: 'Yes. Nodea is free during beta with roughly 25,000 daily and 450,000 monthly tokens, and no credit card. The $24/month Pro plan unlocks Claude Opus and a larger token budget.',
   },
   {
     q: 'Can I import my existing Claude chats onto the canvas?',

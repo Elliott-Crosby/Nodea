@@ -46,7 +46,7 @@ Instead of one long thread where exploring a tangent destroys your place, you fo
 - Anthropic Claude only — Haiku 4.5, Sonnet 4.6, Opus 4.7, auto-routed by complexity
 - A Chrome extension imports your existing Claude.ai chats as a branching tree
 
-Free during beta — managed keys, no credit card. Pro is $8/mo.
+Free during beta — managed keys, no credit card. Pro is $24/mo.
 
 On the roadmap (not shipped yet): bring-your-own API keys, plugins, full export, and a project-wide connected canvas.
 ```
@@ -69,7 +69,7 @@ So Nodea is a branching AI chat canvas. Every reply becomes a node you can fork 
 A few honest specifics:
 - It's Claude only — Haiku 4.5, Sonnet 4.6, and Opus 4.7 — auto-routed by complexity. Same models you'd use anyway; the difference is the canvas, not the model.
 - There's a Chrome extension, "Nodea Tree for Claude," that reads your existing Claude.ai conversation's hidden branch tree and lets you import it into Nodea as a real tree.
-- It's free during beta on managed keys (no credit card). Pro is $8/mo.
+- It's free during beta on managed keys (no credit card). Pro is $24/mo.
 - Roadmap, not shipped yet: bring-your-own API keys, plugins, full export, and a project-wide connected canvas. I'd rather tell you what's coming than pretend it's here.
 
 If you've ever lost a great branch of a conversation to the scroll, I'd genuinely love your read on this. I'm here all day — tell me what's confusing, what's missing, and what would make it a daily tool for you.

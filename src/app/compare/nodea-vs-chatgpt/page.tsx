@@ -33,7 +33,7 @@ export default function NodeaVsChatGPT() {
         { feature: 'Auto model routing',     competitor: 'Manual model picker',       nodea: 'Auto by prompt complexity', nodeaWins: true },
         { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'No email needed', nodeaWins: true },
         { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
-        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$8/mo (Opus + 50k/day · 1M/mo)', nodeaWins: true },
+        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$24/mo (Opus + 50k/day · 1M/mo)' },
         { feature: 'Open source',            competitor: 'No',                        nodea: 'Yes, MIT, source on GitHub', nodeaWins: true },
         { feature: 'Data isolation',         competitor: 'OpenAI cloud',              nodea: 'Supabase Postgres with RLS' },
       ]}
@@ -53,7 +53,7 @@ export default function NodeaVsChatGPT() {
           "You prefer Claude’s writing and reasoning quality (Sonnet and Opus are widely considered best-in-class for nuanced text).",
           "You want a visual map of your thinking, not a buried scroll history.",
           "You want anonymous sign-in to try without committing an email address.",
-          "You’d rather pay $8/mo than $20/mo for equivalent or better daily token budgets.",
+          "You want a branching canvas and Claude Opus enough that Pro at $24/mo is worth a few dollars over a linear chatbot.",
         ],
       }}
       faq={[
@@ -70,8 +70,8 @@ export default function NodeaVsChatGPT() {
           a: "It depends on the task. Claude (especially Sonnet 4.6 and Opus 4.7) is widely regarded as best-in-class for nuanced writing, long-context reasoning, and code generation. GPT-4o is stronger at image generation and certain multimodal tasks. The honest answer is to try both on your real work.",
         },
         {
-          q: "Why is Nodea cheaper than ChatGPT?",
-          a: "Nodea is in early beta and using aggressive launch pricing ($8/mo vs ChatGPT Plus at $20/mo). Pro users get rate-locked at $8 forever as a thanks for trying us early.",
+          q: "Is Nodea worth more than ChatGPT Plus?",
+          a: "Nodea Pro is $24/mo — a few dollars more than ChatGPT Plus at $20/mo. You’re not paying for a cheaper chatbot; you’re paying for a different one: a branching canvas where every reply is a node you can fork from, running on Claude Opus with a 50k daily / 1M monthly token budget and your data in your own Postgres. If you only ever need one linear thread, Plus is the better deal. If you think in branches, Nodea earns the difference.",
         },
         {
           q: "Can I use ChatGPT and Nodea together?",
