@@ -34,7 +34,7 @@ export default function NodeaVsPoe() {
         { feature: 'Breadth of bots',       competitor: 'Hundreds, plus custom bots',    nodea: 'Focused on Claude chat' },
         { feature: 'Auto model routing',    competitor: 'Pick a bot per chat',           nodea: 'Auto by complexity',         nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'Account required',              nodea: 'Yes (Supabase anon auth)',   nodeaWins: true },
-        { feature: 'Free tier',             competitor: 'Free plan (limited points)',    nodea: 'Free 25k/day · 450k/mo' },
+        { feature: 'Free tier',             competitor: 'Free plan (limited points)',    nodea: 'Free 50k/day · 500k/mo' },
         { feature: 'Pricing model',         competitor: 'Points-based subscriptions',    nodea: '$24/mo flat (free in beta)' },
       ]}
       whenCompetitor={{
@@ -63,7 +63,7 @@ export default function NodeaVsPoe() {
         },
         {
           q: "Does Nodea support multiple model providers like Poe?",
-          a: "No. Nodea is Claude-only by design (Haiku 4.5, Sonnet 4.6, Opus) with automatic routing by complexity. Poe’s strength is breadth: hundreds of bots and models from many providers, plus image and video tools, in one app.",
+          a: "No. Nodea is Claude-only by design (Sonnet 5, with Opus on Pro) with automatic routing by complexity. Poe’s strength is breadth: hundreds of bots and models from many providers, plus image and video tools, in one app.",
         },
         {
           q: "Which is better for exploring lots of alternatives at once?",

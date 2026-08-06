@@ -35,7 +35,7 @@ export default function NodeaVsLibreChat() {
         { feature: 'Model providers',       competitor: 'OpenAI, Anthropic, Gemini, local', nodea: 'Anthropic Claude' },
         { feature: 'Bring-your-own keys',   competitor: 'Yes, required',                 nodea: 'No, managed keys only' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',              nodea: 'Auto by complexity',         nodeaWins: true },
-        { feature: 'Cost model',            competitor: 'Free app + your infra & API',   nodea: 'Free 25k/day · 450k/mo; Pro $24/mo' },
+        { feature: 'Cost model',            competitor: 'Free app + your infra & API',   nodea: 'Free 50k/day · 500k/mo; Pro $24/mo' },
         { feature: 'Open source',           competitor: 'Yes (MIT)',                     nodea: 'Yes (MIT), hosted for you' },
       ]}
       whenCompetitor={{
@@ -69,11 +69,11 @@ export default function NodeaVsLibreChat() {
         },
         {
           q: "Is LibreChat free?",
-          a: "The app is free and open-source (MIT). You still pay for your own hosting infrastructure and per-token model API costs. Nodea has a free tier with managed keys (about 25k tokens/day, 450k/month) and a $24/mo Pro plan, with no infrastructure to run.",
+          a: "The app is free and open-source (MIT). You still pay for your own hosting infrastructure and per-token model API costs. Nodea has a free tier with managed keys (50k tokens/day, 500k/month on Claude Sonnet 5) and a $24/mo Pro plan, with no infrastructure to run.",
         },
         {
           q: "Can I use models other than Claude in Nodea?",
-          a: "No. Nodea is Claude-only by design (Haiku 4.5, Sonnet 4.6, Opus) with automatic routing. LibreChat is multi-provider and supports OpenAI, Anthropic, Gemini, Mistral, and local models in one app.",
+          a: "No. Nodea is Claude-only by design (Sonnet 5, with Opus on Pro) with automatic routing. LibreChat is multi-provider and supports OpenAI, Anthropic, Gemini, Mistral, and local models in one app.",
         },
         {
           q: "Can I export my conversations from Nodea?",

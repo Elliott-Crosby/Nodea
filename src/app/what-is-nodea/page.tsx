@@ -38,11 +38,11 @@ const FAQ = [
   },
   {
     q: 'Which AI models does Nodea use?',
-    a: 'Nodea routes to Anthropic Claude models: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced tasks, and Opus 4.7 for the heaviest reasoning. The model is selected automatically based on prompt complexity and your plan.',
+    a: 'Nodea routes to Anthropic Claude models: Sonnet 5 powers every conversation, and Pro sends the heaviest reasoning to Opus. The model is selected automatically based on prompt complexity and your plan.',
   },
   {
     q: 'Is Nodea free?',
-    a: 'Yes. Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Haiku and Sonnet. The $24/month Pro plan unlocks Claude Opus, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features.',
+    a: 'Yes. Nodea is free during beta with 50,000 daily / 500,000 monthly tokens on Claude Sonnet 5. The $24/month Pro plan unlocks Claude Opus, a 300,000 daily / 3,000,000 monthly token budget, and early access to new features.',
   },
   {
     q: 'Is Nodea open source?',
@@ -61,7 +61,7 @@ const STACK = [
   { layer: 'Database',        tech: 'Supabase Postgres',                              note: 'Row-level security, two tables: projects (conversations) and nodes (messages)' },
   { layer: 'Auth',            tech: 'Supabase Auth',                                  note: 'Email/password plus anonymous sign-in for friction-free trials' },
   { layer: 'AI streaming',    tech: 'Vercel AI SDK v6 (`ai` + `@ai-sdk/anthropic`)',  note: 'Token-by-token streaming, server-side rate limiting' },
-  { layer: 'Models',          tech: 'Anthropic Claude: Haiku 4.5, Sonnet 4.6, Opus 4.7', note: 'Auto-routing by prompt complexity and plan tier' },
+  { layer: 'Models',          tech: 'Anthropic Claude: Sonnet 5, Opus on Pro', note: 'Auto-routing by prompt complexity and plan tier' },
   { layer: 'Billing',         tech: 'Stripe Checkout + Customer Portal',              note: 'Webhook-driven plan updates, no manual reconciliation' },
   { layer: 'Canvas',          tech: 'XYFlow (React Flow)',                            note: 'Free pan + zoom over an arbitrary-size tree' },
   { layer: 'Deployment',      tech: 'Vercel',                                         note: 'Edge functions for streaming, Speed Insights, Web Analytics' },
@@ -151,8 +151,8 @@ export default function WhatIsNodea() {
               <ul className="wn-tldr-list">
                 <li><strong>What it is:</strong> a tree-shaped chat interface for Claude.</li>
                 <li><strong>Who it&rsquo;s for:</strong> people who think by exploring alternatives: writers, researchers, founders, engineers.</li>
-                <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $24/mo for Claude Opus and a doubled daily + 1M monthly token budget.</li>
-                <li><strong>What powers it:</strong> Claude Haiku 4.5, Sonnet 4.6, and Opus 4.7, auto-routed by prompt complexity.</li>
+                <li><strong>How it&rsquo;s priced:</strong> free in beta. Pro is $24/mo for Claude Opus and a 6&times; token budget (300k daily / 3M monthly).</li>
+                <li><strong>What powers it:</strong> Claude Sonnet 5 for every chat, with Opus on Pro, auto-routed by prompt complexity.</li>
                 <li><strong>What you keep:</strong> every message and every branch you explore stays on the canvas &mdash; searchable and revisitable, never overwritten.</li>
               </ul>
             </div>

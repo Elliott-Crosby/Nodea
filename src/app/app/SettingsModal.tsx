@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase'
 import { downloadConversationMarkdown } from '@/lib/conversation-export'
 import { STANDARD_PRICE } from '@/lib/earlyBird'
 import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY, USE_CASES_OTHER_MAX } from '@/lib/useCases'
+import { FREE_DAILY_LIMIT, FREE_MONTHLY_LIMIT, PRO_DAILY_LIMIT, PRO_MONTHLY_LIMIT } from '@/lib/token-limits'
+import MemoryImportModal from './MemoryImportModal'
 
 type Section = 'appearance' | 'account' | 'usage' | 'memory'
 
@@ -320,6 +322,8 @@ export default function SettingsModal() {
               <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Account</h2>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 24 }}>Manage your profile and credentials.</p>
 
+              <EmailPrefs />
+
               <form onSubmit={handleSaveAccount}>
                 <SettingRow label="Display Name" description="Shown in the sidebar">
                   <input
@@ -472,8 +476,8 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
   const [hasBilling, setHasBilling]   = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
 
-  const DAILY_LIMIT   = isPro ? 50_000    : 25_000
-  const MONTHLY_LIMIT = isPro ? 1_000_000 : 450_000
+  const DAILY_LIMIT   = isPro ? PRO_DAILY_LIMIT   : FREE_DAILY_LIMIT
+  const MONTHLY_LIMIT = isPro ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
 
   useEffect(() => {
     const supabase = createClient()
@@ -650,7 +654,7 @@ function UsageTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void 
         <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-bg)', border: '1px solid var(--user-bubble-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Upgrade to Pro</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>50k daily · 1M monthly tokens</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>300k daily · 3M monthly tokens</div>
           </div>
           <button
             onClick={onUpgrade}
@@ -726,12 +730,13 @@ function UsageBar({
 // ── Memory tab ────────────────────────────────────────────────────────────────
 
 function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void }) {
-  const [memories, setMemories]   = useState<MemoryRow[]>([])
-  const [loading,  setLoading]    = useState(true)
-  const [editing,  setEditing]    = useState<{ id: string; content: string } | null>(null)
-  const [newText,  setNewText]    = useState('')
-  const [adding,   setAdding]     = useState(false)
-  const [error,    setError]      = useState<string | null>(null)
+  const [memories,   setMemories]   = useState<MemoryRow[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [editing,    setEditing]    = useState<{ id: string; content: string } | null>(null)
+  const [newText,    setNewText]    = useState('')
+  const [adding,     setAdding]     = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   async function reload() {
     const res = await fetch('/api/memory')
@@ -814,103 +819,6 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
     )
   }
 
-  // Free user with no memories — explanation + upgrade. Free users with
-  // leftover memories from a prior Pro period still see the table so they can
-  // delete or read them.
-  if (!isPro && memories.length === 0) {
-    return (
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Memory</h2>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#a855f7', border: '1px solid #a855f7', borderRadius: 4, padding: '2px 7px' }}>
-            PRO
-          </span>
-        </div>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 18 }}>
-          Memory lets Claude carry stable facts about you across every conversation, so you don&apos;t have to re-explain yourself in every chat.
-        </p>
-
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em', marginBottom: 10 }}>
-          How it works
-        </div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 18px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {[
-            { t: 'Saved automatically',  d: 'As you chat, stable facts about you get distilled into short memories.' },
-            { t: 'Used everywhere',      d: 'Future conversations start with Claude already knowing the basics.' },
-            { t: 'Fully in your control', d: 'Every memory is visible here. Edit, delete, or add your own anytime.' },
-          ].map((row) => (
-            <li key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <div
-                style={{
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'var(--accent-bg)', color: 'var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, marginTop: 1,
-                }}
-              >
-                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                  <path d="M1.5 5.2l2.2 2.3L8.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{row.t}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45, marginTop: 1 }}>{row.d}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em', marginBottom: 8 }}>
-          Examples
-        </div>
-        <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-subtle)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 22, fontStyle: 'italic' }}>
-          &ldquo;User prefers concise answers without bullet lists.&rdquo;<br />
-          &ldquo;User is building Nodea, a branching AI chat canvas.&rdquo;<br />
-          &ldquo;User works primarily in TypeScript and Next.js.&rdquo;
-        </div>
-
-        <div
-          style={{
-            padding: '16px 18px',
-            borderRadius: 12,
-            background: 'linear-gradient(140deg, #0c0520 0%, #1a0b46 50%, #2a1870 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
-            boxShadow: '0 4px 20px rgba(92,33,182,0.18)',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
-              Unlock Memory with Pro
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>
-              ${STANDARD_PRICE}/mo — unlocks Memory, Claude Opus, and more
-            </div>
-          </div>
-          <button
-            onClick={onUpgrade}
-            style={{
-              flexShrink: 0,
-              padding: '9px 18px',
-              borderRadius: 8,
-              border: 'none',
-              background: '#fff',
-              color: '#1a0b46',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Purchase Pro
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -921,11 +829,29 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
           </span>
         )}
       </div>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
         Facts Claude carries across every conversation. {isPro
           ? 'Saved automatically as you chat. Edit or delete anything you don\'t want kept.'
-          : 'Memory adds are paused on Free, but you can still view or delete what\'s here.'}
+          : 'Add memories manually or import them from Claude / ChatGPT — automatic saving as you chat is a Pro feature.'}
       </p>
+
+      <button
+        type="button"
+        onClick={() => setImportOpen(true)}
+        style={{
+          marginBottom: 16, padding: '7px 12px', borderRadius: 8,
+          border: '1px solid var(--border)', background: 'var(--bg-subtle)',
+          color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ⤓ Import from Claude / ChatGPT
+      </button>
+      {importOpen && (
+        <MemoryImportModal
+          onClose={() => setImportOpen(false)}
+          onDone={() => { setImportOpen(false); void reload() }}
+        />
+      )}
 
       {error && (
         <div
@@ -956,7 +882,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
             marginBottom: 18,
           }}
         >
-          Nothing saved yet. Memories appear here as Claude picks them up, or add one manually below.
+          Nothing saved yet. Import your memory from Claude or ChatGPT above, or add one manually below.
         </div>
       ) : (
         <div
@@ -1027,19 +953,17 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      {isPro && (
-                        <button
-                          title="Edit"
-                          onClick={() => setEditing({ id: m.id, content: m.content })}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, lineHeight: 0 }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                            <path d="M10.5 1.5l2 2-8 8-2.5.5.5-2.5 8-8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                      )}
+                      <button
+                        title="Edit"
+                        onClick={() => setEditing({ id: m.id, content: m.content })}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, lineHeight: 0 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                          <path d="M10.5 1.5l2 2-8 8-2.5.5.5-2.5 8-8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                        </svg>
+                      </button>
                       <button
                         title="Delete"
                         onClick={() => handleDelete(m.id)}
@@ -1060,8 +984,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
         </div>
       )}
 
-      {isPro && (
-        <form onSubmit={handleAdd}>
+      <form onSubmit={handleAdd}>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Add a memory</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
             <textarea
@@ -1108,8 +1031,92 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
             <span>{newText.length}/{MEMORY_MAX_LENGTH}</span>
             <span>{memories.length}/{MEMORY_MAX_ENTRIES} memories</span>
           </div>
-        </form>
+      </form>
+
+      {!isPro && (
+        <div
+          style={{
+            marginTop: 18, padding: '14px 16px', borderRadius: 12,
+            background: 'linear-gradient(140deg, #0c0520 0%, #1a0b46 50%, #2a1870 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            boxShadow: '0 4px 20px rgba(92,33,182,0.18)',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
+              Automatic memory is Pro
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>
+              ${STANDARD_PRICE}/mo — Nodea saves memories as you chat, plus Claude Opus and 6× tokens
+            </div>
+          </div>
+          <button
+            onClick={onUpgrade}
+            style={{
+              flexShrink: 0, padding: '9px 18px', borderRadius: 8, border: 'none',
+              background: '#fff', color: '#1a0b46', fontSize: 12, fontWeight: 700,
+              cursor: 'pointer', letterSpacing: '-0.01em',
+            }}
+          >
+            Purchase Pro
+          </button>
+        </div>
       )}
+    </div>
+  )
+}
+
+// ── Email preferences ─────────────────────────────────────────────────────────
+// Marketing consent toggle. Reads/writes through /api/consent so the record
+// (and its timestamp) stays server-authored; transactional email (receipts,
+// password resets) is unaffected by this setting.
+
+function EmailPrefs() {
+  const [optIn, setOptIn] = useState<boolean | null>(null)
+  const [busy,  setBusy]  = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/consent')
+      .then(r => (r.ok ? r.json() : null))
+      .then(s => { if (!cancelled && s) setOptIn(!!s.marketingOptIn) })
+      .catch(() => { /* leave null → toggle hidden */ })
+    return () => { cancelled = true }
+  }, [])
+
+  if (optIn === null) return null
+
+  async function toggle() {
+    if (busy || optIn === null) return
+    const next = !optIn
+    setBusy(true)
+    setOptIn(next) // optimistic
+    try {
+      const r = await fetch('/api/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketingOptIn: next }),
+      })
+      if (!r.ok) setOptIn(!next)
+    } catch {
+      setOptIn(!next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <SettingRow
+        label="Product emails"
+        description="Occasional updates and tips. Account emails (receipts, password resets) always arrive."
+      >
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={optIn} onChange={toggle} disabled={busy} />
+          <span>{optIn ? 'Subscribed' : 'Unsubscribed'}</span>
+        </label>
+      </SettingRow>
+      <Divider />
     </div>
   )
 }

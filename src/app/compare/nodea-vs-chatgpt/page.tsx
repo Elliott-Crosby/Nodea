@@ -29,11 +29,11 @@ export default function NodeaVsChatGPT() {
         { feature: 'Conversation shape',     competitor: 'Linear thread',             nodea: 'Tree (branching canvas)', nodeaWins: true },
         { feature: 'Fork any reply',         competitor: 'Only via edit (hidden)',    nodea: 'Click any node, branch',  nodeaWins: true },
         { feature: 'Visual map of chats',    competitor: 'Sidebar list',              nodea: 'Pan-and-zoom tree canvas', nodeaWins: true },
-        { feature: 'Underlying model',       competitor: 'GPT-4o / GPT-5',            nodea: 'Claude Haiku 4.5 / Sonnet 4.6 / Opus 4.7' },
+        { feature: 'Underlying model',       competitor: 'GPT-4o / GPT-5',            nodea: 'Claude Sonnet 5 / Opus on Pro' },
         { feature: 'Auto model routing',     competitor: 'Manual model picker',       nodea: 'Auto by prompt complexity', nodeaWins: true },
         { feature: 'Anonymous sign-in',      competitor: 'Email required',            nodea: 'No email needed', nodeaWins: true },
-        { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
-        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$24/mo (Opus + 50k/day · 1M/mo)' },
+        { feature: 'Free tier',              competitor: 'GPT-4o limits, then GPT-3.5', nodea: '50k/day · 500k/mo on Sonnet 5' },
+        { feature: 'Paid tier',              competitor: '$20/mo',                    nodea: '$24/mo (Opus + 300k/day · 3M/mo)' },
         { feature: 'Open source',            competitor: 'No',                        nodea: 'Yes, MIT, source on GitHub', nodeaWins: true },
         { feature: 'Data isolation',         competitor: 'OpenAI cloud',              nodea: 'Supabase Postgres with RLS' },
       ]}
@@ -67,11 +67,11 @@ export default function NodeaVsChatGPT() {
         },
         {
           q: "Is Claude better than GPT?",
-          a: "It depends on the task. Claude (especially Sonnet 4.6 and Opus 4.7) is widely regarded as best-in-class for nuanced writing, long-context reasoning, and code generation. GPT-4o is stronger at image generation and certain multimodal tasks. The honest answer is to try both on your real work.",
+          a: "It depends on the task. Claude (especially Sonnet 5 and Opus) is widely regarded as best-in-class for nuanced writing, long-context reasoning, and code generation. GPT-4o is stronger at image generation and certain multimodal tasks. The honest answer is to try both on your real work.",
         },
         {
           q: "Is Nodea worth more than ChatGPT Plus?",
-          a: "Nodea Pro is $24/mo — a few dollars more than ChatGPT Plus at $20/mo. You’re not paying for a cheaper chatbot; you’re paying for a different one: a branching canvas where every reply is a node you can fork from, running on Claude Opus with a 50k daily / 1M monthly token budget and your data in your own Postgres. If you only ever need one linear thread, Plus is the better deal. If you think in branches, Nodea earns the difference.",
+          a: "Nodea Pro is $24/mo — a few dollars more than ChatGPT Plus at $20/mo. You’re not paying for a cheaper chatbot; you’re paying for a different one: a branching canvas where every reply is a node you can fork from, running on Claude Opus with a 300k daily / 3M monthly token budget and your data in your own Postgres. If you only ever need one linear thread, Plus is the better deal. If you think in branches, Nodea earns the difference.",
         },
         {
           q: "Can I use ChatGPT and Nodea together?",

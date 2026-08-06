@@ -737,6 +737,242 @@ CREATE POLICY "service_insert_event" ON public.events FOR INSERT WITH CHECK (tru
   )
 }
 
+// ── Users section (contact list + controls) ────────────────────────────────────
+interface AdminUserRow {
+  id: string
+  email: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  plan: string
+  is_admin: boolean
+  early_bird: boolean
+  has_stripe: boolean
+  marketing_opt_in: boolean
+  terms_accepted: boolean
+  custom_daily_tokens: number | null
+  custom_monthly_tokens: number | null
+  use_cases: string[] | null
+  memory_imported: boolean
+  total_tokens: number
+  monthly_tokens: number
+}
+
+function fmtShortDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
+}
+
+function UsersSection() {
+  const [users,   setUsers]   = useState<AdminUserRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState<string | null>(null)
+  const [query,   setQuery]   = useState('')
+  const [busyId,  setBusyId]  = useState<string | null>(null)
+  const [capsFor, setCapsFor] = useState<AdminUserRow | null>(null)
+  const [capDaily,   setCapDaily]   = useState('')
+  const [capMonthly, setCapMonthly] = useState('')
+
+  async function reload() {
+    try {
+      const r = await fetch('/api/admin/users')
+      const d = await r.json()
+      if (d.error) setError(String(d.error))
+      else setUsers(d.users ?? [])
+    } catch {
+      setError('Network error loading users.')
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { void reload() }, [])
+
+  async function act(body: Record<string, unknown>, userId: string) {
+    setBusyId(userId)
+    try {
+      const r = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) alert(d.message ?? d.error ?? 'Action failed')
+      await reload()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function exportCsv() {
+    const header = 'email,created_at,last_sign_in_at,plan,early_bird,marketing_opt_in,terms_accepted,total_tokens,monthly_tokens,use_cases'
+    const lines = users.map(u => [
+      u.email ?? '', u.created_at, u.last_sign_in_at ?? '', u.plan,
+      u.early_bird, u.marketing_opt_in, u.terms_accepted,
+      u.total_tokens, u.monthly_tokens, (u.use_cases ?? []).join('|'),
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    const blob = new Blob([header + '\n' + lines.join('\n')], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `nodea-users-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  function openCaps(u: AdminUserRow) {
+    setCapsFor(u)
+    setCapDaily(u.custom_daily_tokens?.toString() ?? '')
+    setCapMonthly(u.custom_monthly_tokens?.toString() ?? '')
+  }
+
+  async function saveCaps() {
+    if (!capsFor) return
+    const parse = (s: string) => {
+      const t = s.trim()
+      if (!t) return null
+      const n = parseInt(t.replace(/[,_]/g, ''), 10)
+      return Number.isFinite(n) && n > 0 ? n : null
+    }
+    await act({ action: 'set_caps', userId: capsFor.id, daily: parse(capDaily), monthly: parse(capMonthly) }, capsFor.id)
+    setCapsFor(null)
+  }
+
+  const q = query.trim().toLowerCase()
+  const filtered = q ? users.filter(u => (u.email ?? '').toLowerCase().includes(q)) : users
+
+  const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }
+  const td: React.CSSProperties = { padding: '8px 10px', fontSize: 12, color: 'var(--text-primary)', borderTop: '1px solid var(--border)', whiteSpace: 'nowrap' }
+  const chip = (text: string, color: string): React.ReactNode => (
+    <span style={{ fontSize: 10, fontWeight: 700, color, border: `1px solid ${color}`, borderRadius: 4, padding: '1px 6px', marginLeft: 6 }}>{text}</span>
+  )
+  const btn: React.CSSProperties = { padding: '3px 9px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <SectionLabel>User directory</SectionLabel>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search email…"
+            style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--ai-card-bg)', color: 'var(--text-primary)', fontSize: 12, outline: 'none' }}
+          />
+          <button onClick={exportCsv} style={btn}>Export CSV</button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '28px 22px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          Loading users…
+        </div>
+      ) : error ? (
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 22px', color: 'var(--text-muted)', fontSize: 13 }}>{error}</div>
+      ) : (
+        <div style={{ background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={th}>Email</th>
+                <th style={th}>Joined</th>
+                <th style={th}>Last seen</th>
+                <th style={th}>Plan</th>
+                <th style={th}>Tokens (mo / all)</th>
+                <th style={th}>Caps</th>
+                <th style={th}>Mktg</th>
+                <th style={th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id}>
+                  <td style={td}>
+                    {u.email ?? <span style={{ color: 'var(--text-muted)' }}>(anonymous)</span>}
+                    {u.is_admin && chip('ADMIN', '#f59e0b')}
+                    {u.early_bird && chip('$8', '#22c55e')}
+                    {u.has_stripe && chip('STRIPE', '#a855f7')}
+                  </td>
+                  <td style={td}>{fmtShortDate(u.created_at)}</td>
+                  <td style={td}>{fmtShortDate(u.last_sign_in_at)}</td>
+                  <td style={td}>{u.plan}</td>
+                  <td style={td}>{fmt(u.monthly_tokens)} / {fmt(u.total_tokens)}</td>
+                  <td style={td}>
+                    {u.custom_daily_tokens || u.custom_monthly_tokens
+                      ? `${u.custom_daily_tokens ? fmt(u.custom_daily_tokens) : 'plan'}/d · ${u.custom_monthly_tokens ? fmt(u.custom_monthly_tokens) : 'plan'}/mo`
+                      : <span style={{ color: 'var(--text-muted)' }}>plan default</span>}
+                  </td>
+                  <td style={td}>{u.marketing_opt_in ? '✓' : '—'}</td>
+                  <td style={{ ...td }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {u.plan === 'pro' ? (
+                        <button
+                          style={{ ...btn, opacity: u.has_stripe ? 0.45 : 1, cursor: u.has_stripe ? 'not-allowed' : 'pointer' }}
+                          title={u.has_stripe ? 'Paying customer — manage in Stripe' : 'Demote to free'}
+                          disabled={busyId === u.id || u.has_stripe}
+                          onClick={() => { if (confirm(`Demote ${u.email} to free?`)) void act({ action: 'set_plan', userId: u.id, plan: 'free' }, u.id) }}
+                        >
+                          Demote
+                        </button>
+                      ) : (
+                        <button
+                          style={btn}
+                          disabled={busyId === u.id}
+                          title="Promote to Pro (comped — no Stripe charge)"
+                          onClick={() => { if (confirm(`Promote ${u.email} to Pro (comped)?`)) void act({ action: 'set_plan', userId: u.id, plan: 'pro' }, u.id) }}
+                        >
+                          Promote
+                        </button>
+                      )}
+                      <button style={btn} disabled={busyId === u.id} onClick={() => openCaps(u)}>Caps</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div style={{ padding: '18px 22px', fontSize: 12, color: 'var(--text-muted)' }}>No users match.</div>
+          )}
+        </div>
+      )}
+
+      {capsFor && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setCapsFor(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: 'min(380px, 100%)', background: 'var(--ai-card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 22px', color: 'var(--text-primary)' }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Token caps — {capsFor.email}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+              Overrides the plan default ({capsFor.plan}). Leave blank for plan default.
+            </div>
+            <label style={{ display: 'block', fontSize: 12, marginBottom: 10 }}>
+              Daily tokens
+              <input value={capDaily} onChange={e => setCapDaily(e.target.value)} placeholder="plan default" style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
+            </label>
+            <label style={{ display: 'block', fontSize: 12, marginBottom: 16 }}>
+              Monthly tokens
+              <input value={capMonthly} onChange={e => setCapMonthly(e.target.value)} placeholder="plan default" style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
+            </label>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={btn} onClick={() => setCapsFor(null)}>Cancel</button>
+              <button
+                style={{ ...btn, background: 'var(--accent)', color: '#fff', border: 'none' }}
+                onClick={() => void saveCaps()}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 export function AdminDashboard(props: DashboardData) {
   const {
@@ -774,6 +1010,9 @@ export function AdminDashboard(props: DashboardData) {
           <StatCard label="New today"     value={usersToday} />
           <StatCard label="New this week" value={usersThisWeek} />
         </div>
+
+        {/* User directory — contact list, plan controls, per-user caps */}
+        <UsersSection />
 
         {/* Content — conversations (legacy `projects` table) vs Projects (chat_projects) */}
         <SectionLabel>Content</SectionLabel>

@@ -145,11 +145,11 @@ export async function POST(req: Request) {
   const lastUserMessage = [...validMessages].reverse().find(m => m.role === 'user')?.content ?? ''
   const modelId = selectChatModel(isPro, lastUserMessage)
 
-  // Cross-chat memory is a Pro feature. Loaded inline so it's available
-  // immediately — fast (one indexed query) and small (<= 30 short rows).
-  const memoryBlock = isPro
-    ? formatMemoryBlock(await loadUserMemories(user.id, supabase))
-    : ''
+  // Cross-chat memory is injected for everyone: free users can seed it via
+  // the memory import (and manual entries), so their memories must actually
+  // work or the import is a bait-and-switch. What stays Pro is AUTOMATIC
+  // extraction — Nodea learning new memories from conversations.
+  const memoryBlock = formatMemoryBlock(await loadUserMemories(user.id, supabase))
   // Project memory: persistent context the user set on the project this
   // conversation is filed under. Pro-gated, same as cross-chat memory.
   const projectMemoryBlock = isPro && conversationId

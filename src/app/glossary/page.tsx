@@ -105,7 +105,7 @@ const TERMS: Term[] = [
     id: 'model-routing',
     name: 'Model routing',
     short: 'Automatically choosing which underlying AI model to call for a given prompt, based on complexity and plan tier.',
-    long: 'Model routing trades off cost, latency, and capability per request. In Nodea, simple short prompts go to Claude Haiku 4.5 (fast, cheap); reasoning-heavy or longer prompts upgrade to Sonnet 4.6; and Pro users’ hardest prompts go to Opus 4.7. The routing rule looks at message length and a regex of reasoning verbs like "analyze," "compare," and "design."',
+    long: 'Model routing trades off cost, latency, and capability per request. In Nodea, every conversation runs on Claude Sonnet 5, and Pro users’ reasoning-heavy prompts upgrade to Opus. The routing rule looks at message length and a regex of reasoning verbs like "analyze," "compare," and "design."',
   },
   {
     id: 'anonymous-signin',

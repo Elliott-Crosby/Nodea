@@ -1,5 +1,30 @@
 import Stripe from 'stripe'
 import { createServiceSupabaseClient } from '@/lib/supabase-server'
+import { notifyAdmin } from '@/lib/email'
+
+// Best-effort customer email lookup for notifications. Never throws — a
+// notification must not fail the webhook.
+async function customerEmail(stripe: Stripe, customer: string | Stripe.Customer | Stripe.DeletedCustomer | null): Promise<string> {
+  try {
+    if (!customer) return '(unknown)'
+    if (typeof customer !== 'string') {
+      return ('email' in customer && customer.email) ? customer.email : '(unknown)'
+    }
+    const c = await stripe.customers.retrieve(customer)
+    return ('email' in c && c.email) ? c.email : '(unknown)'
+  } catch {
+    return '(unknown)'
+  }
+}
+
+function cancellationLines(details: Stripe.Subscription.CancellationDetails | null | undefined): string[] {
+  if (!details) return []
+  return [
+    details.reason   ? `Reason: ${details.reason}` : null,
+    details.feedback ? `Feedback: ${details.feedback}` : null,
+    details.comment  ? `Comment: "${details.comment}"` : null,
+  ].filter((l): l is string => !!l)
+}
 
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -63,6 +88,36 @@ export async function POST(req: Request) {
 
       await db.from('user_profiles').upsert(row, { onConflict: 'user_id' })
     }
+
+    await notifyAdmin('💰 New Nodea Pro subscription', [
+      `Customer: ${session.customer_details?.email ?? '(unknown)'}`,
+      `Amount: $${((session.amount_total ?? 0) / 100).toFixed(2)}/mo`,
+      session.metadata?.earlyBird === 'true' ? 'Price: early-bird ($8 rate lock)' : 'Price: standard',
+      `Stripe customer: ${customerId ?? '(none)'}`,
+    ])
+  }
+
+  // A cancellation scheduled from the billing portal fires subscription.updated
+  // with cancel_at newly set — this is the "paid then quit 20 minutes later"
+  // moment, and cancellation_details carries the user's stated reason. Without
+  // this handler the founder only learns at period end, when deleted fires.
+  if (event.type === 'customer.subscription.updated') {
+    const sub  = event.data.object as Stripe.Subscription
+    const prev = event.data.previous_attributes as Partial<Stripe.Subscription> | undefined
+    const cancelJustScheduled =
+      (sub.cancel_at || sub.cancel_at_period_end) &&
+      prev && ('cancel_at' in prev || 'cancel_at_period_end' in prev) &&
+      !prev.cancel_at && !prev.cancel_at_period_end
+
+    if (cancelJustScheduled) {
+      const email = await customerEmail(stripe, sub.customer)
+      await notifyAdmin('⚠️ Pro subscription set to cancel', [
+        `Customer: ${email}`,
+        sub.cancel_at ? `Access ends: ${new Date(sub.cancel_at * 1000).toDateString()}` : null,
+        ...cancellationLines(sub.cancellation_details),
+        'They keep Pro until the period ends — a good moment for a personal note.',
+      ])
+    }
   }
 
   if (event.type === 'customer.subscription.deleted') {
@@ -74,6 +129,13 @@ export async function POST(req: Request) {
     await db.from('user_profiles')
       .update({ plan: 'free' })
       .eq('stripe_customer_id', customerId)
+
+    const email = await customerEmail(stripe, sub.customer)
+    await notifyAdmin('📉 Pro subscription ended', [
+      `Customer: ${email}`,
+      ...cancellationLines(sub.cancellation_details),
+      'Their plan is now free (early-bird rate lock preserved if they had it).',
+    ])
   }
 
   return new Response('ok', { status: 200 })

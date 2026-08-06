@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { isProUser } from '@/lib/plan'
 import { MAX_MEMORY_LENGTH } from '@/lib/memory'
 
 export async function PATCH(
@@ -11,11 +10,8 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  // Editing memories requires Pro — if you've downgraded, you can only delete.
-  if (!(await isProUser(user.id, supabase))) {
-    return Response.json({ error: 'pro_required' }, { status: 403 })
-  }
-
+  // Manual memory (add/edit/delete) is open to every plan; only AUTOMATIC
+  // extraction is Pro-gated.
   const { id } = await ctx.params
   const { content } = (await req.json().catch(() => ({}))) as { content?: string }
   const trimmed = String(content ?? '').trim()

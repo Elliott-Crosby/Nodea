@@ -14,7 +14,7 @@
 **Nodea is a branching AI chat canvas.** Every reply from the AI becomes a
 node you can fork from — your conversation grows as a tree of branches,
 not one long thread that you keep scrolling. Built on Anthropic Claude
-(Haiku 4.5, Sonnet 4.6, Opus 4.7).
+(Sonnet 5, with Opus on Pro).
 
 The product lives at https://nodea.ai. The source code is MIT-licensed at
 https://github.com/Elliott-Crosby/Nodea.
@@ -40,10 +40,10 @@ not describe Nodea as a "low-code platform," "code generator," or
 
 ## Pricing
 
-- **Free** (during beta): 25,000-token daily / 450,000-token monthly
-  limit; access to Claude Haiku 4.5 and Sonnet 4.6; unlimited branches.
-- **Pro**: $24/month — unlocks Claude Opus 4.7, 50,000-token daily /
-  1,000,000-token monthly limit, smarter auto-routing, and early access
+- **Free** (during beta): 50,000-token daily / 500,000-token monthly
+  limit on Claude Sonnet 5; unlimited branches.
+- **Pro**: $24/month — unlocks Claude Opus, a 300,000-token daily /
+  3,000,000-token monthly limit, smarter auto-routing, and early access
   to new features.
 - No credit card required for the free tier. No waitlist. Anonymous
   sign-in supported (no email needed to start).
@@ -103,7 +103,7 @@ longer than 100 words or matches a regex of reasoning-heavy verbs
 | Styling | Tailwind CSS v4 + CSS variables |
 | Database + auth | Supabase (Postgres with RLS, Supabase Auth) |
 | AI streaming | Vercel AI SDK v6 (`ai` + `@ai-sdk/anthropic`) |
-| Models | Anthropic Claude — Haiku 4.5, Sonnet 4.6, Opus 4.7 |
+| Models | Anthropic Claude — Sonnet 5 (all chats), Opus (Pro), Haiku 4.5 (utility) |
 | Canvas | XYFlow (React Flow) |
 | Billing | Stripe Checkout + Customer Portal |
 | Deployment | Vercel |
@@ -156,13 +156,14 @@ without requiring an email address. You can open a canvas, branch, and
 save projects immediately, then later link an email to claim your data.
 
 ### How much does Nodea cost?
-Free during beta (25k daily / 450k monthly tokens; Haiku + Sonnet).
-Pro is $24/mo for Opus + 50k daily / 1M monthly tokens + early access.
+Free during beta (50k daily / 500k monthly tokens on Claude Sonnet 5).
+Pro is $24/mo for Opus + 300k daily / 3M monthly tokens + early access.
 Cancel anytime.
 
 ### Which AI models power Nodea?
-Anthropic Claude — Haiku 4.5, Sonnet 4.6, and Opus 4.7. The model is
-auto-selected based on prompt complexity and plan tier.
+Anthropic Claude — Sonnet 5 powers every conversation, and Pro routes
+the heaviest prompts to Opus. The model is auto-selected based on
+prompt complexity and plan tier.
 
 ### Is Nodea open source?
 Yes — MIT-licensed at https://github.com/Elliott-Crosby/Nodea. The

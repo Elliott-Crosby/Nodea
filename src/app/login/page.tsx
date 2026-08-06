@@ -7,6 +7,7 @@ import { track } from '@vercel/analytics'
 import { Sun, Moon, Mail, Lock, AlertTriangle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import { TERMS_VERSION } from '@/lib/consent'
 import AmbientTree from './AmbientTree'
 import './login.css'
 
@@ -40,10 +41,12 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [remember, setRemember] = useState(true)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({})
+  const [touched, setTouched] = useState<{ email?: boolean; password?: boolean; terms?: boolean }>({})
 
   useEffect(() => {
     if (initialMode === 'signup') track('signup_started')
@@ -75,6 +78,14 @@ function LoginForm() {
       setTouched(t => ({ ...t, password: true }))
       return
     }
+    // Clickwrap: account creation requires an explicit, unticked-by-default
+    // agreement. The choice (and its timestamp) rides in auth metadata so it
+    // survives the email-confirmation gap; /api/consent persists it durably
+    // on first app visit.
+    if (mode === 'signup' && !agreeTerms) {
+      setTouched(t => ({ ...t, terms: true }))
+      return
+    }
 
     setLoading(true)
     try {
@@ -82,7 +93,14 @@ function LoginForm() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+            data: {
+              terms_accepted_at: new Date().toISOString(),
+              terms_version: TERMS_VERSION,
+              marketing_opt_in: marketingOptIn,
+            },
+          },
         })
         if (error) throw error
         track('signup_completed')
@@ -320,20 +338,45 @@ function LoginForm() {
               </label>
             )}
 
+            {/* Consent — signup only. Terms is required (clickwrap, not the
+                old implied-consent line); marketing is optional and unticked. */}
+            {mode === 'signup' && (
+              <>
+                <label className="au-checkbox-row">
+                  <input
+                    type="checkbox"
+                    className="au-checkbox"
+                    checked={agreeTerms}
+                    onChange={e => { setAgreeTerms(e.target.checked); if (e.target.checked) setTouched(t => ({ ...t, terms: false })) }}
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <Link href="/terms" className="au-field-link" target="_blank">Terms of Service</Link> and{' '}
+                    <Link href="/privacy" className="au-field-link" target="_blank">Privacy Policy</Link>
+                  </span>
+                </label>
+                {touched.terms && !agreeTerms && (
+                  <span className="au-field-hint au-field-hint-error" role="alert">
+                    Please agree to the Terms to create an account
+                  </span>
+                )}
+                <label className="au-checkbox-row">
+                  <input
+                    type="checkbox"
+                    className="au-checkbox"
+                    checked={marketingOptIn}
+                    onChange={e => setMarketingOptIn(e.target.checked)}
+                  />
+                  <span>Email me occasional product updates &amp; tips (optional)</span>
+                </label>
+              </>
+            )}
+
             {/* Submit */}
             <button type="submit" className="au-submit" disabled={loading || !!success}>
               {loading && <span className="au-spinner" aria-hidden="true" />}
               {submitLabel}
             </button>
-
-            {/* Implicit consent — signup only */}
-            {mode === 'signup' && (
-              <p className="au-consent">
-                By creating an account you agree to the{' '}
-                <Link href="/terms" className="au-field-link">Terms</Link> and{' '}
-                <Link href="/privacy" className="au-field-link">Privacy Policy</Link>.
-              </p>
-            )}
           </form>
 
           {/* Bottom prompt */}

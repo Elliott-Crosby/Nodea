@@ -17,14 +17,15 @@ export default function ExtensionPromo() {
           </Link>
 
           <div className="ln-extpromo-text">
-            <span className="ln-kicker">Free Chrome extension</span>
+            <span className="ln-kicker">Free Chrome extension &middot; Claude, ChatGPT &amp; Gemini</span>
             <h2 className="ln-h2">
-              See your Claude chats <em>as a tree.</em>
+              See your AI chats <em>as a tree.</em>
             </h2>
             <p className="ln-lede">
-              Every edit and regenerate in Claude.ai hides a branch. Nodea Tree for
-              Claude draws that hidden tree right beside your chat &mdash; then imports
-              the whole thing into Nodea, where you can fork, merge, and keep working.
+              Every edit and regenerate hides a branch. Nodea Tree draws that hidden
+              tree right beside your chat on claude.ai and chatgpt.com &mdash; and lets
+              you branch without leaving the page. One click imports the whole tree
+              into Nodea, where you can fork, compare, and keep working.
             </p>
             <div className="ln-extpromo-ctas">
               <a
@@ -40,8 +41,8 @@ export default function ExtensionPromo() {
               </Link>
             </div>
             <p className="ln-extpromo-fine">
-              Works on claude.ai · reads your own conversation through your login · not
-              affiliated with Anthropic.
+              Works on claude.ai, chatgpt.com &amp; gemini.google.com · reads your own
+              conversations through your login · not affiliated with Anthropic, OpenAI, or Google.
             </p>
           </div>
         </div>

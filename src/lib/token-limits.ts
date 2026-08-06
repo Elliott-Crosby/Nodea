@@ -1,11 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const FREE_DAILY_LIMIT    = 25_000
-const PRO_DAILY_LIMIT     = 50_000
-const FREE_MONTHLY_LIMIT  = 450_000
-const PRO_MONTHLY_LIMIT   = 1_000_000
-const GRACE_BUFFER        = 500
-export const MAX_INPUT_TOKENS = 4_000
+// Cap philosophy (resized 2026-08-06 with real cost math): tokens are cheap at
+// our scale — the caps exist to stop abuse, not to ration honest use. Both
+// paying customers ever canceled within minutes, one citing the old 50k/day
+// Pro cap verbatim. Worst-case cost at these ceilings (Sonnet 5 blended
+// ~$6.6/MTok, 70/30 in/out): free ≈ $3.30/user/mo, Pro ≈ $20-24/user/mo —
+// and typical usage runs 1-10% of cap. Exported so UI copy can't drift.
+export const FREE_DAILY_LIMIT    = 50_000
+export const PRO_DAILY_LIMIT     = 300_000
+export const FREE_MONTHLY_LIMIT  = 500_000
+export const PRO_MONTHLY_LIMIT   = 3_000_000
+const GRACE_BUFFER = 500
+// Per-message input estimate cap. 4k rejected any real pasted document — a
+// power-user paste is exactly the moment Nodea should shine. The daily cap is
+// the actual cost governor (context re-send counts against it), so this can
+// be generous.
+export const MAX_INPUT_TOKENS = 16_000
 
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4)
@@ -116,8 +126,23 @@ export async function checkTokenLimits(
 ): Promise<LimitCheck> {
   if (admin) return { allowed: true }
 
-  const DAILY_LIMIT   = isPro ? PRO_DAILY_LIMIT   : FREE_DAILY_LIMIT
-  const MONTHLY_LIMIT = isPro ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
+  // Admin-set per-user overrides (user_profiles.custom_*_tokens, written only
+  // via /api/admin/users). NULL or any read failure = plan default — a broken
+  // profile read must never block chat.
+  let customDaily: number | null = null
+  let customMonthly: number | null = null
+  try {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('custom_daily_tokens, custom_monthly_tokens')
+      .eq('user_id', userId)
+      .maybeSingle()
+    customDaily   = data?.custom_daily_tokens ?? null
+    customMonthly = data?.custom_monthly_tokens ?? null
+  } catch { /* fall through to plan defaults */ }
+
+  const DAILY_LIMIT   = customDaily   ?? (isPro ? PRO_DAILY_LIMIT   : FREE_DAILY_LIMIT)
+  const MONTHLY_LIMIT = customMonthly ?? (isPro ? PRO_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT)
 
   if (estimatedInputTokens > MAX_INPUT_TOKENS) {
     return {
