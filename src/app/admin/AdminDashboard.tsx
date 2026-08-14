@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
+import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY } from '@/lib/useCases'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface DayCount { day: string; count: number }
@@ -752,6 +753,7 @@ interface AdminUserRow {
   custom_daily_tokens: number | null
   custom_monthly_tokens: number | null
   use_cases: string[] | null
+  use_cases_other: string | null
   memory_imported: boolean
   total_tokens: number
   monthly_tokens: number
@@ -771,6 +773,7 @@ function UsersSection() {
   const [capsFor, setCapsFor] = useState<AdminUserRow | null>(null)
   const [capDaily,   setCapDaily]   = useState('')
   const [capMonthly, setCapMonthly] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function reload() {
     try {
@@ -803,11 +806,11 @@ function UsersSection() {
   }
 
   function exportCsv() {
-    const header = 'email,created_at,last_sign_in_at,plan,early_bird,marketing_opt_in,terms_accepted,total_tokens,monthly_tokens,use_cases'
+    const header = 'email,created_at,last_sign_in_at,plan,early_bird,marketing_opt_in,terms_accepted,total_tokens,monthly_tokens,use_cases,use_cases_other'
     const lines = users.map(u => [
       u.email ?? '', u.created_at, u.last_sign_in_at ?? '', u.plan,
       u.early_bird, u.marketing_opt_in, u.terms_accepted,
-      u.total_tokens, u.monthly_tokens, (u.use_cases ?? []).join('|'),
+      u.total_tokens, u.monthly_tokens, (u.use_cases ?? []).join('|'), u.use_cases_other ?? '',
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
     const blob = new Blob([header + '\n' + lines.join('\n')], { type: 'text/csv' })
     const a = document.createElement('a')
@@ -883,12 +886,18 @@ function UsersSection() {
             </thead>
             <tbody>
               {filtered.map(u => (
-                <tr key={u.id}>
+                <Fragment key={u.id}>
+                <tr
+                  onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
+                  title="Click for survey answer"
+                  style={{ cursor: 'pointer', background: expandedId === u.id ? 'var(--bg-subtle)' : undefined }}
+                >
                   <td style={td}>
                     {u.email ?? <span style={{ color: 'var(--text-muted)' }}>(anonymous)</span>}
                     {u.is_admin && chip('ADMIN', '#f59e0b')}
                     {u.early_bird && chip('$8', '#22c55e')}
                     {u.has_stripe && chip('STRIPE', '#a855f7')}
+                    {(u.use_cases?.length ?? 0) > 0 && chip('SURVEY', '#38bdf8')}
                   </td>
                   <td style={td}>{fmtShortDate(u.created_at)}</td>
                   <td style={td}>{fmtShortDate(u.last_sign_in_at)}</td>
@@ -900,7 +909,7 @@ function UsersSection() {
                       : <span style={{ color: 'var(--text-muted)' }}>plan default</span>}
                   </td>
                   <td style={td}>{u.marketing_opt_in ? '✓' : '—'}</td>
-                  <td style={{ ...td }}>
+                  <td style={{ ...td }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {u.plan === 'pro' ? (
                         <button
@@ -925,6 +934,31 @@ function UsersSection() {
                     </div>
                   </td>
                 </tr>
+                {expandedId === u.id && (
+                  <tr>
+                    <td colSpan={8} style={{ ...td, whiteSpace: 'normal', background: 'var(--bg-subtle)', fontSize: 12.5 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 10.5, letterSpacing: '0.05em', marginRight: 10 }}>
+                        Uses Nodea for
+                      </span>
+                      {u.use_cases?.length ? (
+                        <>
+                          {u.use_cases
+                            .filter(k => k !== USE_CASE_OTHER_KEY)
+                            .map(k => USE_CASE_OPTIONS.find(o => o.key === k)?.label ?? k)
+                            .join(' · ')}
+                          {u.use_cases.includes(USE_CASE_OTHER_KEY) && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {u.use_cases.length > 1 ? ' · ' : ''}Other: {u.use_cases_other?.trim() || '(no detail given)'}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>No survey answer yet</span>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -974,12 +1008,24 @@ function UsersSection() {
 }
 
 // ── Main dashboard ─────────────────────────────────────────────────────────────
+type AdminTab = 'overview' | 'users'
+
 export function AdminDashboard(props: DashboardData) {
   const {
     totalUsers, usersToday, usersThisWeek, totalConversations, totalProjects,
     totalTokensAllTime, totalTokensToday, totalTokensMonth,
     usersByDay, conversationsByDay, projectsByDay, planBreakdown, topUsers,
   } = props
+
+  const [tab, setTab] = useState<AdminTab>('overview')
+
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
+    border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
+    background: active ? 'var(--accent)' : 'transparent',
+    color: active ? '#fff' : 'var(--text-secondary)',
+    fontSize: 13, fontWeight: 600,
+  })
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', padding: '32px 40px', fontFamily: 'inherit' }}>
@@ -1003,16 +1049,28 @@ export function AdminDashboard(props: DashboardData) {
           </a>
         </div>
 
+        {/* Tabs — overview metrics vs the user directory (contact list) */}
+        <div role="tablist" aria-label="Analytics sections" style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+          <button role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')} style={tabBtn(tab === 'overview')}>
+            Overview
+          </button>
+          <button role="tab" aria-selected={tab === 'users'} onClick={() => setTab('users')} style={tabBtn(tab === 'users')}>
+            Users
+          </button>
+        </div>
+
+        {tab === 'users' ? (
+          /* User directory — contact list, plan controls, per-user caps */
+          <UsersSection />
+        ) : (
+        <>
         {/* Users */}
         <SectionLabel>Users</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
           <StatCard label="Total signups" value={totalUsers} />
           <StatCard label="New today"     value={usersToday} />
           <StatCard label="New this week" value={usersThisWeek} />
         </div>
-
-        {/* User directory — contact list, plan controls, per-user caps */}
-        <UsersSection />
 
         {/* Content — conversations (legacy `projects` table) vs Projects (chat_projects) */}
         <SectionLabel>Content</SectionLabel>
@@ -1050,6 +1108,8 @@ export function AdminDashboard(props: DashboardData) {
 
         {/* Traffic */}
         <TrafficSection />
+        </>
+        )}
 
       </div>
     </div>

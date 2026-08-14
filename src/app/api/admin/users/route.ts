@@ -51,7 +51,7 @@ export async function GET() {
 
   const [authUsers, profilesRes, usageRes] = await Promise.all([
     listAllAuthUsers(),
-    service.from('user_profiles').select('user_id, plan, is_admin, early_bird, stripe_customer_id, marketing_opt_in, terms_accepted_at, custom_daily_tokens, custom_monthly_tokens, use_cases, memory_imported_at'),
+    service.from('user_profiles').select('user_id, plan, is_admin, early_bird, stripe_customer_id, marketing_opt_in, terms_accepted_at, custom_daily_tokens, custom_monthly_tokens, use_cases, use_cases_other, memory_imported_at'),
     service.from('user_token_usage').select('user_id, daily_tokens, monthly_tokens, total_tokens'),
   ])
 
@@ -76,6 +76,7 @@ export async function GET() {
         custom_daily_tokens: (p?.custom_daily_tokens as number | null) ?? null,
         custom_monthly_tokens: (p?.custom_monthly_tokens as number | null) ?? null,
         use_cases: (p?.use_cases as string[] | null) ?? null,
+        use_cases_other: (p?.use_cases_other as string | null) ?? null,
         memory_imported: !!p?.memory_imported_at,
         total_tokens: (t?.total_tokens as number) ?? 0,
         monthly_tokens: (t?.monthly_tokens as number) ?? 0,

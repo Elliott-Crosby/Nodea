@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import MemoryImportModal from './MemoryImportModal'
+import { WHATS_NEW_DISMISSED_KEY } from './WhatsNewNotice'
 
 // First-load memory-import prompt: shows once the use-case survey is answered,
 // keeps re-asking every 7 days ("Maybe later") until the user either imports
@@ -18,6 +19,9 @@ export default function MemoryImportPrompt() {
 
   useEffect(() => {
     try {
+      // The what's-new popup gets the first load to itself; this prompt
+      // resumes on the next load after it's dismissed.
+      if (localStorage.getItem(WHATS_NEW_DISMISSED_KEY) !== '1') return
       const until = Number(localStorage.getItem(SNOOZE_KEY) ?? '0')
       if (until > Date.now()) return
     } catch { /* storage unavailable → just ask */ }

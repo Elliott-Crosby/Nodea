@@ -16,6 +16,7 @@ import SettingsModal from './SettingsModal'
 import UpgradeModal from './UpgradeModal'
 import UseCaseSurveyModal from './UseCaseSurveyModal'
 import { USE_CASES_OTHER_MAX, USE_CASE_SURVEY_DISMISSED_KEY } from '@/lib/useCases'
+import { WHATS_NEW_DISMISSED_KEY } from './WhatsNewNotice'
 import ProjectsLanding from './ProjectsLanding'
 import ProjectPage from './ProjectPage'
 import ProjectModal from './ProjectModal'
@@ -1544,7 +1545,13 @@ export default function App() {
           const answer = Array.isArray(uc?.use_cases) ? (uc.use_cases as string[]) : null
           setUseCases(answer)
           setUseCasesOther(typeof uc?.use_cases_other === 'string' ? uc.use_cases_other : null)
-          if (answer === null && localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) !== '1') {
+          // The what's-new popup gets the first load to itself; the survey
+          // resumes on the next load after it's dismissed.
+          if (
+            answer === null &&
+            localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) !== '1' &&
+            localStorage.getItem(WHATS_NEW_DISMISSED_KEY) === '1'
+          ) {
             setIsSurveyOpen(true)
           }
         }
