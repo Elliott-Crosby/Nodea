@@ -1,5 +1,4 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { isProUser } from '@/lib/plan'
 import { MAX_MEMORY_ENTRIES, MAX_MEMORY_LENGTH } from '@/lib/memory'
 
 export async function GET() {
@@ -25,10 +24,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  if (!(await isProUser(user.id, supabase))) {
-    return Response.json({ error: 'pro_required' }, { status: 403 })
-  }
-
+  // Manual memory is open to every plan (imported/manual entries must work or
+  // the memory import is bait). AUTOMATIC extraction stays Pro — see
+  // /api/memory/extract.
   const { content } = (await req.json().catch(() => ({}))) as { content?: string }
   const trimmed = String(content ?? '').trim()
   if (!trimmed) {

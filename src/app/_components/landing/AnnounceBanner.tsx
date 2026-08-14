@@ -8,7 +8,7 @@ import { CHROME_STORE_URL } from '@/lib/links'
 // Slim top-of-page announcement for the Chrome Web Store launch. Dismissible and
 // remembered in localStorage so it doesn't nag on every visit. Renders nothing on
 // the server / first paint to avoid a hydration flash, then appears on mount.
-const DISMISS_KEY = 'nodea-announce-ext-v1'
+const DISMISS_KEY = 'nodea-announce-ext-v2'
 
 export default function AnnounceBanner() {
   const [show, setShow] = useState(false)
@@ -28,8 +28,8 @@ export default function AnnounceBanner() {
       <Link href="/extension" className="ln-announce-msg">
         <span className="ln-announce-tag">New</span>
         <span className="ln-announce-text">
-          <strong>Nodea Tree for Claude</strong>{' '}
-          is live &mdash; see your Claude chats as a branching tree.
+          <strong>Nodea Tree</strong>{' '}
+          now maps Claude, ChatGPT &amp; Gemini &mdash; see any chat as a branching tree.
         </span>
       </Link>
       <a

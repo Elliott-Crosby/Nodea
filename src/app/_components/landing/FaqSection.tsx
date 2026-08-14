@@ -33,11 +33,11 @@ export const HOMEPAGE_FAQ: FaqItem[] = [
   },
   {
     q: 'How much does Nodea cost?',
-    a: 'Nodea is free during beta with 25,000 daily / 450,000 monthly tokens and access to Claude Haiku 4.5 and Sonnet 4.6. The Pro plan is $24/month and unlocks Claude Opus 4.7, a 50,000 daily / 1,000,000 monthly token budget, and early access to new features. Cancel anytime.',
+    a: 'Nodea is free during beta with 50,000 daily / 500,000 monthly tokens on Claude Sonnet 5. The Pro plan is $24/month and unlocks Claude Opus, a 300,000 daily / 3,000,000 monthly token budget, and early access to new features. Cancel anytime.',
   },
   {
     q: 'Which AI models power Nodea?',
-    a: 'Nodea runs on Anthropic Claude: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced reasoning, and Opus 4.7 for the heaviest tasks. The model is selected automatically based on prompt complexity and your plan tier; Pro users skip Haiku entirely.',
+    a: 'Nodea runs on Anthropic Claude: Sonnet 5 powers every conversation, and Pro routes the heaviest tasks to Opus. The model is selected automatically based on prompt complexity and your plan tier.',
   },
   {
     q: 'Is Nodea open source?',

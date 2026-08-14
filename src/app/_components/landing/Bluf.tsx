@@ -22,7 +22,7 @@ export default function Bluf() {
               <strong>Nodea is a branching AI chat canvas.</strong> Every reply
               becomes a node you can fork from. Your conversation grows as a
               tree of branches, not one long thread. Built on Anthropic Claude
-              (Haiku 4.5, Sonnet 4.6, Opus 4.7).
+              (Sonnet 5, with Opus on Pro).
             </p>
             <p className="ln-bluf-sub">
               Don&rsquo;t like an answer? Branch and ask again. The original
@@ -37,7 +37,7 @@ export default function Bluf() {
             </li>
             <li>
               <span className="ln-bluf-k">Models</span>
-              <span className="ln-bluf-v">Claude Haiku 4.5 · Sonnet 4.6 · Opus 4.7</span>
+              <span className="ln-bluf-v">Claude Sonnet 5 · Opus on Pro</span>
             </li>
             <li>
               <span className="ln-bluf-k">Pricing</span>

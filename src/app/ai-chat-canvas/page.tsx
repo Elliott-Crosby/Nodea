@@ -38,7 +38,7 @@ const FAQ = [
   },
   {
     q: 'Which AI models power the Nodea canvas?',
-    a: 'Nodea runs on Anthropic Claude only: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced work, and Opus for the heaviest reasoning. The model is routed automatically based on the complexity of your prompt and your plan.',
+    a: 'Nodea runs on Anthropic Claude only: Sonnet 5 powers every conversation, and Pro routes the heaviest reasoning to Opus automatically. No model dropdown to manage.',
   },
   {
     q: 'Can I compare AI responses side-by-side on the canvas?',
@@ -50,7 +50,7 @@ const FAQ = [
   },
   {
     q: 'Is the AI chat canvas free?',
-    a: 'Yes. Nodea is free during beta with roughly 25,000 daily and 450,000 monthly tokens, and no credit card. The $24/month Pro plan unlocks Claude Opus and a larger token budget.',
+    a: 'Yes. Nodea is free during beta with 50,000 daily and 500,000 monthly tokens on Claude Sonnet 5, and no credit card. The $24/month Pro plan unlocks Claude Opus and a 300,000 daily / 3,000,000 monthly budget.',
   },
   {
     q: 'Can I import my existing Claude chats onto the canvas?',
@@ -228,9 +228,9 @@ export default function AiChatCanvas() {
 
             <h3 className="cc-h3">Built on Claude, routed automatically</h3>
             <p>
-              The canvas runs on Anthropic Claude only: Haiku 4.5 for fast
-              replies, Sonnet 4.6 for balanced work, and Opus for the heaviest
-              reasoning. Nodea routes to the right model automatically based on
+              The canvas runs on Anthropic Claude only: Sonnet 5 powers every
+              conversation, and Pro routes the heaviest reasoning to Opus.
+              Nodea picks the right model automatically based on
               the complexity of your prompt and your plan, so you can stay focused
               on the branch you&rsquo;re exploring rather than fiddling with a model
               picker.

@@ -35,7 +35,7 @@ export default function NodeaVsPerplexity() {
         { feature: 'Models',                competitor: 'GPT, Claude, Gemini and more',     nodea: 'Anthropic Claude' },
         { feature: 'Auto model routing',    competitor: 'Manual / auto modes',              nodea: 'Auto by complexity',          nodeaWins: true },
         { feature: 'Anonymous sign-in',     competitor: 'No (account or app)',              nodea: 'Yes (Supabase anon auth)',    nodeaWins: true },
-        { feature: 'Free tier',             competitor: 'Free with limits',                 nodea: 'Free 25k/day · 450k/mo' },
+        { feature: 'Free tier',             competitor: 'Free with limits',                 nodea: 'Free 50k/day · 500k/mo' },
         { feature: 'Paid price',            competitor: '$20/mo (Pro)',                     nodea: '$24/mo subscription' },
       ]}
       whenCompetitor={{
@@ -80,7 +80,7 @@ export default function NodeaVsPerplexity() {
         },
         {
           q: "How does pricing compare?",
-          a: "Perplexity Pro is about $20/mo; Nodea Pro is $24/mo, and free during beta with no credit card (roughly 25k tokens/day and 450k/mo on the free tier). They’re built for different jobs — Perplexity is a web-search answer engine, Nodea is a branching canvas for exploring Claude — so choose on workflow, not the few dollars between them.",
+          a: "Perplexity Pro is about $20/mo; Nodea Pro is $24/mo, and free during beta with no credit card (50k tokens/day and 500k/mo on the free tier, on Claude Sonnet 5). They’re built for different jobs — Perplexity is a web-search answer engine, Nodea is a branching canvas for exploring Claude — so choose on workflow, not the few dollars between them.",
         },
       ]}
     />

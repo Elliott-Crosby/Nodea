@@ -16,20 +16,20 @@ import {
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
-  { title: '2× daily tokens', desc: '50k daily tokens vs 25k on free' },
-  { title: '1M monthly tokens', desc: '2.2× the free monthly budget (450k)' },
-  { title: 'Cross-chat memory', desc: 'Claude remembers what matters about you across every conversation' },
+  { title: '6× daily tokens', desc: '300k daily tokens vs 50k on free' },
+  { title: '3M monthly tokens', desc: '6× the free monthly budget (500k)' },
+  { title: 'Automatic memory', desc: 'Nodea learns what matters about you as you chat — no manual notes needed' },
   { title: 'Smarter model routing', desc: 'Right model selected for every message' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
 
 const COMPARE = [
-  { label: 'Daily tokens',        free: '25k',  pro: '50k'  },
-  { label: 'Monthly tokens',      free: '450k', pro: '1M'   },
-  { label: 'Claude Haiku',        free: true,   pro: true   },
-  { label: 'Claude Sonnet',       free: true,   pro: true   },
+  { label: 'Daily tokens',        free: '50k',  pro: '300k' },
+  { label: 'Monthly tokens',      free: '500k', pro: '3M'   },
+  { label: 'Claude Sonnet 5',     free: true,   pro: true   },
   { label: 'Claude Opus',         free: false,  pro: true   },
-  { label: 'Cross-chat memory',   free: false,  pro: true   },
+  { label: 'Memory (import & manual)', free: true, pro: true },
+  { label: 'Automatic memory',    free: false,  pro: true   },
   { label: 'Early access',        free: false,  pro: true   },
 ]
 
@@ -280,7 +280,7 @@ export default function UpgradePage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 24 }}>
-              {['25k daily · 450k monthly tokens', 'Claude Haiku & Sonnet', 'Unlimited branches'].map(f => (
+              {['50k daily · 500k monthly tokens', 'Claude Sonnet 5', 'Unlimited branches'].map(f => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <CheckIcon on={true} />
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{f}</span>

@@ -35,7 +35,7 @@ export default function NodeaVsMsty() {
         { feature: 'Offline / local models', competitor: 'Yes',                            nodea: 'No (cloud Claude)' },
         { feature: 'Auto model routing',    competitor: 'Manual selection',                 nodea: 'Auto by complexity',          nodeaWins: true },
         { feature: 'Bring-your-own keys',   competitor: 'Yes (for cloud models)',           nodea: 'No, managed keys only' },
-        { feature: 'Free tier',             competitor: 'Free desktop app',                 nodea: 'Free 25k/day · 450k/mo, ours' },
+        { feature: 'Free tier',             competitor: 'Free desktop app',                 nodea: 'Free 50k/day · 500k/mo, ours' },
         { feature: 'Price',                 competitor: 'Free; paid plans from ~$149/yr',   nodea: '$24/mo subscription' },
       ]}
       whenCompetitor={{
@@ -72,7 +72,7 @@ export default function NodeaVsMsty() {
         },
         {
           q: "Which models can I use in each?",
-          a: "Nodea is Anthropic Claude only (Haiku 4.5, Sonnet 4.6, and Opus) with automatic routing by complexity. Msty supports local models via Ollama plus cloud providers like OpenAI and Claude, selected manually.",
+          a: "Nodea is Anthropic Claude only (Sonnet 5, with Opus on Pro) with automatic routing by complexity. Msty supports local models via Ollama plus cloud providers like OpenAI and Claude, selected manually.",
         },
         {
           q: "How does pricing compare?",

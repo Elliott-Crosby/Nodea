@@ -32,7 +32,7 @@ export default function NodeaVsClaudeProjects() {
         { feature: 'File uploads',        competitor: 'PDFs, docs, images',      nodea: 'Images, PDFs, text files in chat' },
         { feature: 'Visual canvas',       competitor: 'No',                      nodea: 'Pan-and-zoom tree',          nodeaWins: true },
         { feature: 'Models available',    competitor: 'Sonnet, Opus (Pro plans)', nodea: 'Haiku, Sonnet, Opus (Opus = Pro)' },
-        { feature: 'Free tier',           competitor: 'Limited messages/day',    nodea: '25k/day · 450k/mo, Haiku + Sonnet' },
+        { feature: 'Free tier',           competitor: 'Limited messages/day',    nodea: '50k/day · 500k/mo on Sonnet 5' },
         { feature: 'Price',               competitor: '$20/mo Pro, $25/mo Teams', nodea: '$24/mo Pro' },
         { feature: 'Anonymous sign-in',   competitor: 'No',                      nodea: 'Yes',                        nodeaWins: true },
         { feature: 'Auto model routing',  competitor: 'Manual',                  nodea: 'Automatic by complexity',    nodeaWins: true },

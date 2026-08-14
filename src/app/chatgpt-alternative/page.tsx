@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is Nodea a free ChatGPT alternative?',
-    a: 'Nodea is free during beta with a 25,000 daily / 450,000 monthly token budget and access to Claude Haiku 4.5 and Sonnet 4.6. No credit card required. The Pro plan is $24/month — a few dollars more than ChatGPT Plus at $20/month — and unlocks Claude Opus plus a 50,000 daily / 1,000,000 monthly budget on a branching canvas.',
+    a: 'Nodea is free during beta with a 50,000 daily / 500,000 monthly token budget on Claude Sonnet 5. No credit card required. The Pro plan is $24/month — a few dollars more than ChatGPT Plus at $20/month — and unlocks Claude Opus plus a 300,000 daily / 3,000,000 monthly budget on a branching canvas.',
   },
   {
     q: 'What makes Nodea different from ChatGPT?',
@@ -37,7 +37,7 @@ const FAQ = [
   },
   {
     q: 'Which AI models does this ChatGPT alternative use?',
-    a: 'Nodea runs exclusively on Anthropic Claude: Haiku 4.5 for fast replies, Sonnet 4.6 for balanced reasoning, and Opus for the heaviest tasks. The model is selected automatically based on prompt complexity and your plan, so you do not have to pick one manually.',
+    a: 'Nodea runs exclusively on Anthropic Claude: Sonnet 5 powers every conversation, and Pro routes the heaviest tasks to Opus. The model is selected automatically based on prompt complexity and your plan, so you do not have to pick one manually.',
   },
   {
     q: 'Can I switch to Nodea without losing my Claude history?',
@@ -72,7 +72,7 @@ const DIFFS = [
   {
     feature: 'Underlying model',
     chatgpt: 'OpenAI GPT',
-    nodea: 'Anthropic Claude: Haiku 4.5, Sonnet 4.6, Opus',
+    nodea: 'Anthropic Claude: Sonnet 5, Opus on Pro',
   },
   {
     feature: 'Model selection',
@@ -174,7 +174,7 @@ export default function ChatGPTAlternative() {
                   compare them side-by-side.
                 </p>
                 <p className="ln-bluf-sub">
-                  It runs on Anthropic Claude (Haiku 4.5, Sonnet 4.6, Opus) with
+                  It runs on Anthropic Claude (Sonnet 5, with Opus on Pro) with
                   automatic model routing, so you stay focused on thinking, not
                   picking a model.
                 </p>
@@ -187,7 +187,7 @@ export default function ChatGPTAlternative() {
                 </li>
                 <li>
                   <span className="ln-bluf-k">Models</span>
-                  <span className="ln-bluf-v">Claude Haiku 4.5 · Sonnet 4.6 · Opus</span>
+                  <span className="ln-bluf-v">Claude Sonnet 5 · Opus on Pro</span>
                 </li>
                 <li>
                   <span className="ln-bluf-k">Pricing</span>
@@ -245,9 +245,9 @@ export default function ChatGPTAlternative() {
                 <span className="ln-bcard-num">03</span>
                 <h3>You get Claude, routed automatically</h3>
                 <p>
-                  Nodea runs on Anthropic Claude: Haiku 4.5, Sonnet 4.6, and Opus.
-                  It picks the right model by prompt complexity, so you do not
-                  manage a model dropdown.
+                  Nodea runs on Anthropic Claude: Sonnet 5 for every chat, with
+                  Opus on Pro. It picks the right model by prompt complexity, so
+                  you do not manage a model dropdown.
                 </p>
               </div>
               <div className="ln-bcard wide">
