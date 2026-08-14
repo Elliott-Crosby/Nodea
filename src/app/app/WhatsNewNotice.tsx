@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { track } from '@vercel/analytics'
-import { X } from 'lucide-react'
 import { FREE_DAILY_LIMIT, PRO_DAILY_LIMIT } from '@/lib/token-limits'
 
 // One-time "what's new" popup for the 2026-08 release: Sonnet 5 as the
@@ -11,9 +10,29 @@ import { FREE_DAILY_LIMIT, PRO_DAILY_LIMIT } from '@/lib/token-limits'
 // wait for the next load), so two overlays never stack. Dismissed state lives
 // in localStorage under a release-specific key; a future release ships a new
 // key (and its own copy) rather than reusing this one.
+//
+// Layout deliberately mirrors UseCaseSurveyModal, the sibling first-load
+// popup: same overlay, card width, radius, padding, type scale, and a single
+// right-aligned primary button. Keep them in step when either one changes.
 export const WHATS_NEW_DISMISSED_KEY = 'nodea_whatsnew_20260813'
 
 const fmt = (n: number) => `${Math.round(n / 1000)}k`
+
+// Every item reads the same way: bold label, colon, one plain sentence.
+const ITEMS: { label: string; body: string }[] = [
+  {
+    label: 'Sonnet 5 on every chat',
+    body: "Claude's newest model is now the default for all conversations, free plan included.",
+  },
+  {
+    label: 'Much higher limits',
+    body: `${fmt(FREE_DAILY_LIMIT)} tokens a day on free, ${fmt(PRO_DAILY_LIMIT)} a day on Pro.`,
+  },
+  {
+    label: 'Memory import',
+    body: 'Bring what Claude or ChatGPT already knows about you into Nodea, from Settings → Memory.',
+  },
+]
 
 export default function WhatsNewNotice() {
   const [show, setShow] = useState(false)
@@ -51,95 +70,91 @@ export default function WhatsNewNotice() {
         role="dialog"
         aria-modal="true"
         aria-label="What's new in Nodea"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
-          width: 420,
-          maxWidth: 'calc(100vw - 32px)',
-          background: 'var(--bg-elevated, var(--bg-subtle))',
+          width: 'min(460px, calc(100vw - 32px))',
+          borderRadius: 16,
+          background: 'var(--modal-bg)',
           border: '1px solid var(--border)',
-          borderRadius: 14,
-          boxShadow: '0 16px 48px rgba(0,0,0,0.28)',
-          padding: '20px 22px',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
+          padding: '26px 26px 22px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <span
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: '#fff',
-              background: 'var(--accent)',
-              borderRadius: 99,
-              padding: '2px 8px',
-            }}
-          >
-            New
-          </span>
-          <span style={{ fontSize: 15.5, fontWeight: 600, color: 'var(--text-primary)' }}>
-            Nodea just got a big upgrade
-          </span>
-          <button
-            type="button"
-            aria-label="Dismiss what's new"
-            onClick={dismiss}
-            style={{
-              marginLeft: 'auto',
-              background: 'none',
-              border: 'none',
-              padding: 2,
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-            }}
-          >
-            <X size={16} />
-          </button>
+        <div
+          style={{
+            display: 'inline-block',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: '#fff',
+            background: 'var(--accent)',
+            borderRadius: 99,
+            padding: '3px 9px',
+            marginBottom: 12,
+          }}
+        >
+          New
         </div>
+
+        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+          Nodea just got a big upgrade
+        </div>
+        {/* --text-muted is only ~2.4:1 on the dark card, so readable copy uses
+            --text-secondary (see the same note in MemoryImportModal). */}
+        <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '5px 0 18px', lineHeight: 1.5 }}>
+          Three changes landed today. Nothing to set up, they are already on.
+        </p>
+
         <ul
           style={{
+            listStyle: 'none',
             margin: 0,
-            paddingLeft: 18,
+            padding: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 9,
-            fontSize: 13.5,
-            lineHeight: 1.5,
-            color: 'var(--text-secondary)',
+            gap: 12,
           }}
         >
-          <li>
-            <strong style={{ color: 'var(--text-primary)' }}>Claude Sonnet 5</strong> now powers
-            every chat, free plan included.
-          </li>
-          <li>
-            <strong style={{ color: 'var(--text-primary)' }}>Much higher limits:</strong>{' '}
-            {fmt(FREE_DAILY_LIMIT)} tokens/day free, {fmt(PRO_DAILY_LIMIT)}/day on Pro.
-          </li>
-          <li>
-            <strong style={{ color: 'var(--text-primary)' }}>Memory import:</strong> bring your
-            saved memories over from Claude or ChatGPT in Settings&nbsp;&rarr;&nbsp;Memory.
-          </li>
+          {ITEMS.map((item) => (
+            <li key={item.label} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  flexShrink: 0,
+                  transform: 'translateY(-2px)',
+                }}
+              />
+              <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+                <strong style={{ fontWeight: 650, color: 'var(--text-primary)' }}>{item.label}:</strong>{' '}
+                {item.body}
+              </span>
+            </li>
+          ))}
         </ul>
-        <button
-          type="button"
-          onClick={dismiss}
-          style={{
-            marginTop: 16,
-            width: '100%',
-            padding: '9px 0',
-            borderRadius: 9,
-            border: 'none',
-            background: 'var(--accent)',
-            color: '#fff',
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          Got it
-        </button>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={dismiss}
+            style={{
+              padding: '9px 22px',
+              borderRadius: 9,
+              border: 'none',
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Got it
+          </button>
+        </div>
       </div>
     </div>
   )
