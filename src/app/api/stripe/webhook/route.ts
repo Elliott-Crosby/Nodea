@@ -76,23 +76,29 @@ export async function POST(req: Request) {
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
 
     if (userId && customerId) {
-      // early_bird is a one-way latch: set it when the checkout used the
-      // early-bird price, but never write false over an existing true (a
-      // returning early bird re-subscribing must not lose the lock).
+      // Rate locks are one-way latches: set them when the checkout used a
+      // promotional price, but never write emptiness over an existing lock (a
+      // returning locked user re-subscribing must not lose it). lockPriceId
+      // carries the exact Stripe price the buyer keeps forever; early_bird
+      // stays as the legacy boolean form of the founding $8 lock.
       const row: Record<string, unknown> = {
         user_id: userId,
         plan: 'pro',
         stripe_customer_id: customerId,
       }
       if (session.metadata?.earlyBird === 'true') row.early_bird = true
+      if (session.metadata?.lockPriceId) row.locked_price_id = session.metadata.lockPriceId
 
       await db.from('user_profiles').upsert(row, { onConflict: 'user_id' })
     }
 
+    const amount = `$${((session.amount_total ?? 0) / 100).toFixed(2)}/mo`
     await notifyAdmin('💰 New Nodea Pro subscription', [
       `Customer: ${session.customer_details?.email ?? '(unknown)'}`,
-      `Amount: $${((session.amount_total ?? 0) / 100).toFixed(2)}/mo`,
-      session.metadata?.earlyBird === 'true' ? 'Price: early-bird ($8 rate lock)' : 'Price: standard',
+      `Amount: ${amount}`,
+      session.metadata?.lockPriceId || session.metadata?.earlyBird === 'true'
+        ? `Price: promotional (${amount} rate lock, ${session.metadata?.lockPriceId || 'legacy early-bird'})`
+        : 'Price: standard',
       `Stripe customer: ${customerId ?? '(none)'}`,
     ])
   }

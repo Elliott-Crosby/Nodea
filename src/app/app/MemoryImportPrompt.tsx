@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import MemoryImportModal from './MemoryImportModal'
 import { WHATS_NEW_DISMISSED_KEY } from './WhatsNewNotice'
+import { lastChanceShowsToday } from '@/lib/lastChance'
 
 // First-load memory-import prompt: shows once the use-case survey is answered,
 // keeps re-asking every 7 days ("Maybe later") until the user either imports
@@ -18,6 +19,9 @@ export default function MemoryImportPrompt() {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
+    // The last-chance campaign popup owns any load it shows on; this prompt
+    // resumes once it's been dismissed for the day (or the campaign ends).
+    if (lastChanceShowsToday()) return
     try {
       // The what's-new popup gets the first load to itself; this prompt
       // resumes on the next load after it's dismissed.

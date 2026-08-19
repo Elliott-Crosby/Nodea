@@ -17,6 +17,7 @@ import UpgradeModal from './UpgradeModal'
 import UseCaseSurveyModal from './UseCaseSurveyModal'
 import { USE_CASES_OTHER_MAX, USE_CASE_SURVEY_DISMISSED_KEY } from '@/lib/useCases'
 import { WHATS_NEW_DISMISSED_KEY } from './WhatsNewNotice'
+import { lastChanceShowsToday } from '@/lib/lastChance'
 import ProjectsLanding from './ProjectsLanding'
 import ProjectPage from './ProjectPage'
 import ProjectModal from './ProjectModal'
@@ -574,7 +575,12 @@ function formatRateLimitMessage(
       ? `You've reached your monthly usage limit. Your limit resets on ${d}.`
       : `You've reached your monthly usage limit. Your limit resets on ${d}. Upgrade for more.`
   }
-  return 'Your message is too long. Please shorten it and try again.'
+  // input_too_large: the server caps the estimated size of the WHOLE thread
+  // sent with the request (see MAX_INPUT_TOKENS in token-limits.ts), not the
+  // new message. Long imported conversations hit this before the user types
+  // anything, so "shorten your message" would be false and unactionable.
+  // Branching from an earlier reply genuinely shortens the path that gets sent.
+  return 'This conversation is too long to continue in one thread. Branch from an earlier reply to keep going, or start a new chat.'
 }
 
 // ─── Tree layout (leaf-counting, Reingold-Tilford style) ─────────────────────
@@ -1545,10 +1551,12 @@ export default function App() {
           const answer = Array.isArray(uc?.use_cases) ? (uc.use_cases as string[]) : null
           setUseCases(answer)
           setUseCasesOther(typeof uc?.use_cases_other === 'string' ? uc.use_cases_other : null)
-          // The what's-new popup gets the first load to itself; the survey
-          // resumes on the next load after it's dismissed.
+          // The what's-new popup gets the first load to itself, and the
+          // last-chance campaign popup owns any load it shows on; the survey
+          // resumes on the next load after both are out of the way.
           if (
             answer === null &&
+            !lastChanceShowsToday() &&
             localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) !== '1' &&
             localStorage.getItem(WHATS_NEW_DISMISSED_KEY) === '1'
           ) {

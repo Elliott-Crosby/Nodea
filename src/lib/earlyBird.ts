@@ -24,6 +24,12 @@ export interface EarlyBirdStatus {
   /** True while the offer should be advertised and honored. */
   active: boolean
   /**
+   * Which offer the price/deadline describe. 'early_bird' = the founding-seat
+   * offer (seat-capped), 'last_chance' = the Aug 2026 $12 campaign (time-boxed
+   * only), 'standard' = no offer running. Older cached responses may omit it.
+   */
+  offer?: 'early_bird' | 'last_chance' | 'standard'
+  /**
    * Monthly price in dollars a NEW subscriber would be charged right now.
    * Every price shown next to an upgrade button should come from here so the
    * displayed figure can never drift from what checkout actually charges.

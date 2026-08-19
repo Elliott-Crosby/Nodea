@@ -8,17 +8,16 @@ import '@/app/_components/landing/landing.css'
 import { createClient } from '@/lib/supabase'
 import {
   EARLY_BIRD_SEATS,
-  EARLY_BIRD_PRICE,
   STANDARD_PRICE,
-  EARLY_BIRD_DISCOUNT_PCT,
   type EarlyBirdStatus,
 } from '@/lib/earlyBird'
+import { LAST_CHANCE_PRICE, lastChanceActive } from '@/lib/lastChance'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
   { title: '6× daily tokens', desc: '300k daily tokens vs 50k on free' },
   { title: '3M monthly tokens', desc: '6× the free monthly budget (500k)' },
-  { title: 'Automatic memory', desc: 'Nodea learns what matters about you as you chat — no manual notes needed' },
+  { title: 'Automatic memory', desc: 'Nodea learns what matters about you as you chat, no manual notes needed' },
   { title: 'Smarter model routing', desc: 'Right model selected for every message' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
@@ -69,13 +68,14 @@ function pad(n: number) {
 }
 
 /**
- * Live founding-seat urgency strip. Seats-left comes from /api/early-bird
- * (real count of non-admin Pro profiles vs the cap) and the countdown runs
- * to the real offer deadline — both are enforced server-side in checkout,
- * so this never advertises scarcity that isn't real. Renders nothing while
- * loading, after sell-out, or past the deadline.
+ * Live offer urgency strip. For the founding-seat offer it shows the seats
+ * bar (real count of non-admin Pro profiles vs the cap); for the last-chance
+ * campaign — time-boxed, no seat cap — it is countdown-only. Deadline and
+ * price are the same values checkout enforces server-side, so this never
+ * advertises urgency that isn't real. Renders nothing while loading, after
+ * sell-out, or past the deadline.
  */
-function EarlyBirdUrgency({ status }: { status: EarlyBirdStatus | null }) {
+function OfferUrgency({ status }: { status: EarlyBirdStatus | null }) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -83,15 +83,17 @@ function EarlyBirdUrgency({ status }: { status: EarlyBirdStatus | null }) {
     return () => clearInterval(t)
   }, [])
 
-  if (!status?.active || status.remaining === null) return null
+  if (!status?.active) return null
+  const isSeatOffer = status.offer === 'early_bird' && status.remaining !== null
+  if (status.offer !== 'last_chance' && !isSeatOffer) return null
   const msLeft = new Date(status.deadline).getTime() - now
-  if (msLeft <= 0 || status.remaining <= 0) return null
+  if (msLeft <= 0 || (isSeatOffer && status.remaining! <= 0)) return null
 
   const days = Math.floor(msLeft / 86_400_000)
   const hours = Math.floor((msLeft % 86_400_000) / 3_600_000)
   const mins = Math.floor((msLeft % 3_600_000) / 60_000)
   const secs = Math.floor((msLeft % 60_000) / 1000)
-  const taken = EARLY_BIRD_SEATS - status.remaining
+  const taken = isSeatOffer ? EARLY_BIRD_SEATS - status.remaining! : 0
 
   return (
     <div
@@ -103,21 +105,25 @@ function EarlyBirdUrgency({ status }: { status: EarlyBirdStatus | null }) {
         border: '1px solid rgba(251,191,36,0.28)',
       }}
     >
-      <div style={{ display: 'flex', gap: 5, marginBottom: 8 }} aria-hidden="true">
-        {Array.from({ length: EARLY_BIRD_SEATS }, (_, i) => (
-          <span
-            key={i}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: 2,
-              background: i < taken ? 'rgba(255,255,255,0.18)' : '#fbbf24',
-            }}
-          />
-        ))}
-      </div>
+      {isSeatOffer && (
+        <div style={{ display: 'flex', gap: 5, marginBottom: 8 }} aria-hidden="true">
+          {Array.from({ length: EARLY_BIRD_SEATS }, (_, i) => (
+            <span
+              key={i}
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                background: i < taken ? 'rgba(255,255,255,0.18)' : '#fbbf24',
+              }}
+            />
+          ))}
+        </div>
+      )}
       <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.01em' }}>
-        Only {status.remaining} of {EARLY_BIRD_SEATS} founding seats left
+        {isSeatOffer
+          ? `Only ${status.remaining} of ${EARLY_BIRD_SEATS} founding seats left`
+          : `Last chance: lock in $${status.price}/mo for good`}
       </div>
       <div
         style={{
@@ -127,7 +133,7 @@ function EarlyBirdUrgency({ status }: { status: EarlyBirdStatus | null }) {
           fontVariantNumeric: 'tabular-nums',
         }}
       >
-        Offer ends in {days}d {pad(hours)}h {pad(mins)}m {pad(secs)}s — then Pro is ${STANDARD_PRICE}/mo
+        Offer ends in {days}d {pad(hours)}h {pad(mins)}m {pad(secs)}s, then Pro is ${STANDARD_PRICE}/mo
       </div>
     </div>
   )
@@ -151,8 +157,13 @@ export default function UpgradePage() {
       .then(setStatus)
       .catch(() => {})
   }, [])
-  const price = status?.price ?? EARLY_BIRD_PRICE
+  // Until the status loads, the client-side campaign clock is a faithful
+  // stand-in — the last-chance offer is time-boxed only (no seat cap), so
+  // active-by-clock IS active. Never fall back to a price lower than the
+  // live offer's.
+  const price = status?.price ?? (lastChanceActive() ? LAST_CHANCE_PRICE : STANDARD_PRICE)
   const discounted = price < STANDARD_PRICE
+  const discountPct = Math.round((1 - price / STANDARD_PRICE) * 100)
 
   useEffect(() => {
     void (async () => {
@@ -363,7 +374,7 @@ export default function UpgradePage() {
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
                     <path d="M4 0l.88 2.7H7.6L5.34 4.38l.82 2.7L4 5.55 1.84 7.09l.82-2.7L.4 2.7H3.12L4 0Z" />
                   </svg>
-                  EARLY BIRD
+                  {status?.offer === 'early_bird' ? 'EARLY BIRD' : 'LAST CHANCE'}
                 </div>
               )}
 
@@ -376,9 +387,9 @@ export default function UpgradePage() {
                 )}
               </div>
               {discounted && (
-                <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{EARLY_BIRD_DISCOUNT_PCT}% off, rate locked forever</p>
+                <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600, margin: '0 0 4px', letterSpacing: '0.02em' }}>{discountPct}% off, rate locked forever</p>
               )}
-              <EarlyBirdUrgency status={status} />
+              <OfferUrgency status={status} />
             </div>
 
             <div style={{ padding: '20px 28px 24px', display: 'flex', flexDirection: 'column', flex: 1 }}>

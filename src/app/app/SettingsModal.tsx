@@ -7,6 +7,7 @@ import { useApp } from './App'
 import { createClient } from '@/lib/supabase'
 import { downloadConversationMarkdown } from '@/lib/conversation-export'
 import { STANDARD_PRICE } from '@/lib/earlyBird'
+import { LAST_CHANCE_PRICE, lastChanceActive } from '@/lib/lastChance'
 import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY, USE_CASES_OTHER_MAX } from '@/lib/useCases'
 import { FREE_DAILY_LIMIT, FREE_MONTHLY_LIMIT, PRO_DAILY_LIMIT, PRO_MONTHLY_LIMIT } from '@/lib/token-limits'
 import MemoryImportModal from './MemoryImportModal'
@@ -1047,7 +1048,7 @@ function MemoryTab({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: () => void
               Automatic memory is Pro
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>
-              ${STANDARD_PRICE}/mo — Nodea saves memories as you chat, plus Claude Opus and 6× tokens
+              ${lastChanceActive() ? LAST_CHANCE_PRICE : STANDARD_PRICE}/mo: Nodea saves memories as you chat, plus Claude Opus and 6× tokens
             </div>
           </div>
           <button

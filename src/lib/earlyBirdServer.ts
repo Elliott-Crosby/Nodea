@@ -6,6 +6,11 @@ import {
   STANDARD_PRICE,
   type EarlyBirdStatus,
 } from '@/lib/earlyBird'
+import {
+  LAST_CHANCE_PRICE,
+  LAST_CHANCE_DEADLINE,
+  lastChanceActive,
+} from '@/lib/lastChance'
 
 /**
  * Live early-bird status. Seats taken = non-admin Pro profiles that carry a
@@ -20,6 +25,22 @@ import {
  */
 export async function getEarlyBirdStatus(): Promise<EarlyBirdStatus> {
   const expired = Date.now() >= new Date(EARLY_BIRD_DEADLINE).getTime()
+
+  // The founding-seat offer ended 2026-07-31. Once it is over, the status this
+  // function reports is whichever offer is CURRENTLY live — today that is the
+  // last-chance campaign ($12/mo, time-boxed, no seat cap), then standard.
+  // Same shape, so every consumer (upgrade page, in-app modal, checkout)
+  // advertises exactly what checkout will charge.
+  if (expired) {
+    const active = lastChanceActive()
+    return {
+      remaining: null,
+      deadline: LAST_CHANCE_DEADLINE,
+      active,
+      price: active ? LAST_CHANCE_PRICE : STANDARD_PRICE,
+      offer: active ? 'last_chance' : 'standard',
+    }
+  }
 
   let remaining: number | null = null
   const supabase = createServiceSupabaseClient()
@@ -42,5 +63,6 @@ export async function getEarlyBirdStatus(): Promise<EarlyBirdStatus> {
     deadline: EARLY_BIRD_DEADLINE,
     active,
     price: active ? EARLY_BIRD_PRICE : STANDARD_PRICE,
+    offer: active ? 'early_bird' : 'standard',
   }
 }

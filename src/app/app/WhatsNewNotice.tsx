@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { track } from '@vercel/analytics'
+import { createClient } from '@/lib/supabase'
 import { FREE_DAILY_LIMIT, PRO_DAILY_LIMIT } from '@/lib/token-limits'
+import { lastChanceShowsToday } from '@/lib/lastChance'
 
 // One-time "what's new" popup for the 2026-08 release: Sonnet 5 as the
 // baseline model, raised token caps, and memory import. Shows first, before
@@ -15,6 +17,10 @@ import { FREE_DAILY_LIMIT, PRO_DAILY_LIMIT } from '@/lib/token-limits'
 // popup: same overlay, card width, radius, padding, type scale, and a single
 // right-aligned primary button. Keep them in step when either one changes.
 export const WHATS_NEW_DISMISSED_KEY = 'nodea_whatsnew_20260813'
+
+// Accounts created on or after the release ship with these changes as their
+// baseline; a changelog about "what changed" is meaningless to them.
+const RELEASE_AT = '2026-08-13T00:00:00Z'
 
 const fmt = (n: number) => `${Math.round(n / 1000)}k`
 
@@ -38,9 +44,29 @@ export default function WhatsNewNotice() {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
+    // The last-chance campaign popup outranks this one while it runs (revenue
+    // beats changelog); this notice resumes on the next load after the
+    // campaign popup is dismissed for the day, or once the campaign ends.
+    if (lastChanceShowsToday()) return
     try {
-      if (localStorage.getItem(WHATS_NEW_DISMISSED_KEY) !== '1') setShow(true)
-    } catch { /* private mode: show, it just re-appears next visit */ setShow(true) }
+      if (localStorage.getItem(WHATS_NEW_DISMISSED_KEY) === '1') return
+    } catch { /* private mode: show, it just re-appears next visit */ }
+    let cancelled = false
+    void (async () => {
+      let show = true
+      try {
+        const { data: { user } } = await createClient().auth.getUser()
+        if (cancelled) return
+        if (user?.created_at && new Date(user.created_at).getTime() >= new Date(RELEASE_AT).getTime()) {
+          // Post-release account: stamp the notice as read so the survey and
+          // memory-import prompts (which wait on this key) get their turn.
+          try { localStorage.setItem(WHATS_NEW_DISMISSED_KEY, '1') } catch { /* ignore */ }
+          show = false
+        }
+      } catch { /* auth hiccup: fall through and show, same as before */ }
+      if (!cancelled && show) setShow(true)
+    })()
+    return () => { cancelled = true }
   }, [])
 
   if (!show) return null

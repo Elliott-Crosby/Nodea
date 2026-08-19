@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useApp } from './App'
-import {
-  EARLY_BIRD_PRICE,
-  STANDARD_PRICE,
-  EARLY_BIRD_DISCOUNT_PCT,
-  type EarlyBirdStatus,
-} from '@/lib/earlyBird'
+import { STANDARD_PRICE, type EarlyBirdStatus } from '@/lib/earlyBird'
+import { LAST_CHANCE_PRICE, lastChanceActive } from '@/lib/lastChance'
 
 const FEATURES = [
   { title: 'Claude Opus', desc: 'Our most capable model, reserved for Pro' },
-  { title: '2× daily, 2.2× monthly tokens', desc: '50k daily · 1M monthly vs 25k · 450k on free' },
-  { title: 'Smarter model routing', desc: 'Right model picked for every message' },
+  { title: '6× daily, 6× monthly tokens', desc: '300k daily · 3M monthly vs 50k · 500k on free' },
+  { title: 'Automatic memory', desc: 'Nodea learns what matters about you as you chat' },
   { title: 'Early access', desc: 'First to try new Nodea features' },
 ]
 
@@ -30,9 +26,9 @@ export default function UpgradeModal() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   // Price comes from the same server-side status that drives checkout, so the
-  // button can never promise a rate the checkout won't honor. Until it loads we
-  // show the early-bird price optimistically — it is the lower of the two, and
-  // the offer is live far more often than not.
+  // button can never promise a rate the checkout won't honor. Until it loads,
+  // the client-side campaign clock is a faithful stand-in — the last-chance
+  // offer is time-boxed only (no seat cap), so active-by-clock IS active.
   const [status, setStatus] = useState<EarlyBirdStatus | null>(null)
   useEffect(() => {
     fetch('/api/early-bird')
@@ -40,8 +36,9 @@ export default function UpgradeModal() {
       .then(setStatus)
       .catch(() => {})
   }, [])
-  const price = status?.price ?? EARLY_BIRD_PRICE
+  const price = status?.price ?? (lastChanceActive() ? LAST_CHANCE_PRICE : STANDARD_PRICE)
   const discounted = price < STANDARD_PRICE
+  const discountPct = Math.round((1 - price / STANDARD_PRICE) * 100)
 
   async function handleUpgrade() {
     setUpgrading(true)
@@ -127,28 +124,30 @@ export default function UpgradeModal() {
             </svg>
           </button>
 
-          {/* Early bird badge */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '4px 11px',
-              borderRadius: 99,
-              background: 'rgba(251,191,36,0.12)',
-              border: '1px solid rgba(251,191,36,0.3)',
-              color: '#fbbf24',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              marginBottom: 22,
-            }}
-          >
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-              <path d="M4 0l.88 2.7H7.6L5.34 4.38l.82 2.7L4 5.55 1.84 7.09l.82-2.7L.4 2.7H3.12L4 0Z" />
-            </svg>
-            EARLY BIRD PRICING
-          </div>
+          {/* Offer badge — only while a discount is actually live */}
+          {discounted && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 11px',
+                borderRadius: 99,
+                background: 'rgba(251,191,36,0.12)',
+                border: '1px solid rgba(251,191,36,0.3)',
+                color: '#fbbf24',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                marginBottom: 22,
+              }}
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                <path d="M4 0l.88 2.7H7.6L5.34 4.38l.82 2.7L4 5.55 1.84 7.09l.82-2.7L.4 2.7H3.12L4 0Z" />
+              </svg>
+              {status?.offer === 'early_bird' ? 'EARLY BIRD PRICING' : 'LAST CHANCE PRICING'}
+            </div>
+          )}
 
           {/* Headline */}
           <h2
@@ -215,7 +214,7 @@ export default function UpgradeModal() {
                     letterSpacing: '0.02em',
                   }}
                 >
-                  {EARLY_BIRD_DISCOUNT_PCT}% off, price rising soon
+                  {discountPct}% off, rate locked forever
                 </span>
               </div>
             )}
