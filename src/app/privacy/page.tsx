@@ -145,10 +145,13 @@ export default function PrivacyPage() {
                 <li>
                   <strong>Locally in your browser.</strong>{' '}
                   The extension stores your
-                  Nodea session tokens, your per-conversation color preferences, and
-                  any pending &ldquo;Open in Nodea&rdquo; handoff payload using{' '}
+                  Nodea session tokens, your per-conversation color preferences,
+                  Gemini conversation paths you have viewed, and any pending{' '}
+                  &ldquo;Open in Nodea&rdquo; handoff payload using{' '}
                   <code>chrome.storage.local</code>{' '}
-                  on your own device. The handoff
+                  on your own device. Gemini paths are cached locally because Gemini
+                  renders only the currently selected path; keeping previously viewed
+                  paths prevents branches from disappearing after a reload. The handoff
                   payload (the conversation tree you chose to send) is written only when
                   you click &ldquo;Open in Nodea,&rdquo; is read once to deliver it to
                   the Nodea app, and is then immediately deleted.
