@@ -25,12 +25,12 @@
 ## §A. Detailed description  (Store listing tab → Description)
 
 ```
-Claude, ChatGPT, and Gemini all quietly fork a new branch every time you edit a prompt or retry a reply — but they only show a tiny "‹ 2/3 ›" pager, if anything at all. Nodea Tree reads that hidden structure and draws it as a visual conversation map docked beside the chat: dotted-grid canvas, branch edges, zoomable node cards, and active-path highlighting.
+Claude and ChatGPT quietly fork a real branch when you edit a prompt or retry a reply, but expose it through only a tiny pager. Nodea Tree reads those hidden trees and draws them as visual maps docked beside the chat. On Gemini, which does not expose a true branch API or branchable tree, Nodea visualizes the current path and locally preserves drafts you have viewed so they survive reloads.
 
-• See every branch of a conversation at a glance — on claude.ai, chatgpt.com, and gemini.google.com.
-• Click a node to jump to (Claude) or highlight that point in the chat.
-• Branch from any node using Claude's own native controls (Claude today; ChatGPT and Gemini are visualize-only for now).
-• "Open in Nodea" rebuilds the whole tree in the Nodea app (nodea.ai), preserving every branch and tagging it with the source (Claude / ChatGPT / Gemini).
+• See the full branch tree on Claude and ChatGPT; visualize the current path on Gemini.
+• Jump to a node and create a real branch through Claude or ChatGPT's native controls.
+• Gemini is visualization/import only because true Gemini branching is not technically available to browser extensions.
+• "Open in Nodea" rebuilds the available map in the Nodea app (nodea.ai), preserving every captured path and tagging it with the source.
 
 Your data stays in your browser while you visualize. Conversation content is only sent to your own Nodea account when you explicitly click "Open in Nodea". See our privacy policy: https://nodea.ai/privacy
 
@@ -42,7 +42,7 @@ Not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, or Google. 
 ## §B. Single purpose  (Privacy practices tab)
 
 ```
-Nodea Tree visualizes the hidden branch tree of your AI chat conversations on claude.ai, chatgpt.com, and gemini.google.com. On each site it reads your open conversation — for Claude and ChatGPT from that service's own API using your existing login, and for Gemini (which exposes no API) from the page you are viewing — and draws it as a visual, color-codable conversation map docked beside the chat. On Claude you can also jump to a branch and start a new branch through Claude's own native edit/send controls. The map appears after you sign in to your Nodea account in the panel; once signed in, clicking "Open in Nodea" hands the branch tree to your own logged-in Nodea app so you can keep working with it there.
+Nodea Tree visualizes AI chat conversations on claude.ai, chatgpt.com, and gemini.google.com. It reads Claude and ChatGPT's real branch trees through their own APIs using the user's existing login, draws them as maps, and lets the user jump or branch through each site's native controls. Gemini exposes no true branch API or branchable tree, so Gemini support is visualization/import only: the extension reads the rendered path and preserves viewed drafts locally across reloads. "Open in Nodea" sends the displayed map only to the user's own logged-in Nodea account.
 ```
 
 ---
@@ -58,9 +58,9 @@ The "storage" permission uses only chrome.storage.local for four things. (1) nx_
 ```
 claude.ai/*: the content script is injected here to draw the branch map, and it makes a credentialed same-origin GET to Claude's own conversation API (GET /api/organizations and /api/organizations/{org}/chat_conversations/{id}?tree=True) to read the hidden branch tree with the user's existing cookies. The same host grant also backs the user-initiated write actions that stay on claude.ai — creating a fork by typing the user's own text into Claude's native composer/edit field. No analytics or extra data is sent to claude.ai.
 
-chatgpt.com/* and chat.openai.com/*: the content script is injected to draw the branch map and to read the user's open ChatGPT conversation via ChatGPT's own API — a credentialed same-origin GET to /backend-api/conversation/{id}, authorized with a short-lived bearer token the page itself mints at /api/auth/session. This host is read-only (no writes). chat.openai.com is listed because ChatGPT is also served there.
+chatgpt.com/* and chat.openai.com/*: the content script draws the branch map and reads the open conversation through ChatGPT's own API using the existing session. User-initiated jump/branch actions drive ChatGPT's native pager and edit/send controls; no hidden API writes are used.
 
-gemini.google.com/*: Gemini exposes no conversation API, so the content script reads the conversation from the rendered page (the visible user prompts and model responses) to build the map. Injected here only to read the open conversation and draw the map. Read-only (no writes).
+gemini.google.com/*: Gemini exposes no true branch API or branchable conversation tree, so the content script reads only the rendered path and locally preserves drafts the user has viewed. Gemini support is visualization/import only, with no branch-writing claim.
 
 nodea.ai/* and www.nodea.ai/* (listed separately because Chrome does not treat www as equivalent to the bare domain): the bridge content script is injected into the user's own Nodea app to deliver the "Open in Nodea" tree and to carry the extension's login session over to the site, both via same-origin window.postMessage only. The Nodea tab is opened with noopener, so relaying the payload from chrome.storage through the bridge is the only delivery path.
 

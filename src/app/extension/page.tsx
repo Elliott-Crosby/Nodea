@@ -7,9 +7,9 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/og'
 import { CHROME_STORE_URL } from '@/lib/links'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Nodea Tree for Claude — Import Chats as a Branching Tree' },
+  title: { absolute: 'Nodea Tree for Claude, ChatGPT & Gemini' },
   description:
-    'The Nodea browser extension imports your Claude chats as a branching tree. The full app at nodea.ai adds merging, notes, colors, search, and cross-chat memory.',
+    'Visualize Claude and ChatGPT branch trees and map your current Gemini path. Import any supported chat into Nodea.',
   alternates: { canonical: '/extension' },
   openGraph: {
     title: 'Do more with your imported chats — Nodea',
@@ -80,14 +80,14 @@ export default function ExtensionUpsell() {
         {/* ── Hero ─────────────────────────────────────── */}
         <section style={{ padding: '88px 0 56px' }}>
           <div className="ln-container" style={{ maxWidth: 760, textAlign: 'center' }}>
-            <span className="ln-kicker">Free Chrome extension for Claude</span>
+            <span className="ln-kicker">Free Chrome extension for AI chats</span>
             <h1 style={{ fontSize: 'clamp(34px, 5vw, 52px)', lineHeight: 1.08, letterSpacing: '-0.02em', margin: '14px 0 18px' }}>
-              See your Claude chats<br />as a branching tree.
+              See your AI chats<br />as visual maps.
             </h1>
             <p style={{ fontSize: 18, lineHeight: 1.55, color: 'var(--ln-text-muted, #555)', maxWidth: 580, margin: '0 auto 28px' }}>
-              Nodea Tree for Claude draws your open Claude.ai conversation&rsquo;s hidden
-              branch tree right beside the chat &mdash; then imports the whole thing into
-              Nodea as a real tree you can fork, merge, and keep working in.
+              Nodea Tree draws the real branch trees behind Claude and ChatGPT beside
+              your chat. On Gemini it maps the visible path and preserves drafts you
+              have viewed; Gemini does not expose true branching to extensions.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <a
@@ -103,8 +103,8 @@ export default function ExtensionUpsell() {
               </Link>
             </div>
             <p style={{ fontSize: 13.5, color: 'var(--ln-text-muted, #888)', margin: '14px 0 0' }}>
-              Works on claude.ai · reads your own conversation through your login · not
-              affiliated with Anthropic.
+              Works on Claude, ChatGPT, and Gemini · reads your own conversation through
+              your login · not affiliated with Anthropic, OpenAI, or Google.
             </p>
           </div>
         </section>
@@ -128,8 +128,9 @@ export default function ExtensionUpsell() {
                   The extension
                 </div>
                 <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--ln-text, #333)' }}>
-                  Grabs your Claude chat and shows it as a tree. Great for capturing
-                  and viewing, but it&rsquo;s read-only by nature.
+                  Maps Claude and ChatGPT&rsquo;s real trees and supports native branching
+                  there. Gemini is visualization/import only because true branching is
+                  not technically exposed by Gemini.
                 </p>
               </div>
               <div
