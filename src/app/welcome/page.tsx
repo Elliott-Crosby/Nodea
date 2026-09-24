@@ -7,7 +7,7 @@ import { track } from '@vercel/analytics'
 import { Sun, Moon, User, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
-import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY, USE_CASES_OTHER_MAX } from '@/lib/useCases'
+import { USE_CASE_OPTIONS, USE_CASE_OTHER_KEY, USE_CASES_OTHER_MAX, USE_CASE_SURVEY_DISMISSED_KEY } from '@/lib/useCases'
 import AmbientTree from '../login/AmbientTree'
 import '../login/login.css'
 
@@ -69,32 +69,33 @@ export default function WelcomePage() {
       if (updateErr) throw updateErr
       track('display_name_set')
 
-      // Best-effort survey save — if this write fails (e.g. migration lag)
-      // the in-app popup re-asks, so account creation is never blocked on it.
-      if (cases.length > 0) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const otherTrimmed = cases.includes(USE_CASE_OTHER_KEY) && otherText.trim().length > 0
-              ? otherText.trim().slice(0, USE_CASES_OTHER_MAX)
-              : null
-            const payload = {
-              use_cases: cases,
-              use_cases_other: otherTrimmed,
-              use_cases_updated_at: new Date().toISOString(),
-            }
-            // Update-then-insert: fresh accounts usually have no profile row
-            // yet, and the locked-down insert policy accepts a defaults-only
-            // row carrying just these columns.
-            const { data: updated } = await supabase
-              .from('user_profiles').update(payload).eq('user_id', user.id).select('user_id')
-            if (!updated || updated.length === 0) {
-              await supabase.from('user_profiles').insert({ user_id: user.id, ...payload })
-            }
-            track('use_case_survey_saved', { source: 'welcome', count: cases.length })
+      // The question was shown on this page, even when no option was picked.
+      // Store [] for a skip so the app does not ask again on later logins.
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          try { localStorage.setItem(`${USE_CASE_SURVEY_DISMISSED_KEY}:${user.id}`, '1') } catch { /* storage unavailable */ }
+          const otherTrimmed = cases.includes(USE_CASE_OTHER_KEY) && otherText.trim().length > 0
+            ? otherText.trim().slice(0, USE_CASES_OTHER_MAX)
+            : null
+          const payload = {
+            use_cases: cases,
+            use_cases_other: otherTrimmed,
+            use_cases_updated_at: new Date().toISOString(),
           }
-        } catch { /* non-blocking */ }
-      }
+          // Update-then-insert: fresh accounts usually have no profile row
+          // yet, and the locked-down insert policy accepts a defaults-only
+          // row carrying just these columns.
+          const { data: updated, error: updateError } = await supabase
+            .from('user_profiles').update(payload).eq('user_id', user.id).select('user_id')
+          let saved = !updateError && !!updated?.length
+          if (!updateError && (!updated || updated.length === 0)) {
+            const { error: insertError } = await supabase.from('user_profiles').insert({ user_id: user.id, ...payload })
+            saved = !insertError
+          }
+          if (saved && cases.length > 0) track('use_case_survey_saved', { source: 'welcome', count: cases.length })
+        }
+      } catch { /* non-blocking */ }
 
       window.location.href = '/app'
     } catch (err: unknown) {
