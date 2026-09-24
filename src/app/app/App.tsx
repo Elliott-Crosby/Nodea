@@ -1539,8 +1539,9 @@ export default function App() {
 
       // Use-case survey state — a separate, non-fatal read so a missing
       // column (migration not applied yet) can never break the plan/admin
-      // path above. NULL use_cases = never answered → prompt once, unless
-      // the user skipped the popup before (localStorage flag).
+      // path above. NULL use_cases = never asked. Claim the prompt in the
+      // profile before showing it so a dismissal, logout, or another device
+      // cannot trigger it again. [] means asked without an answer.
       try {
         const { data: uc, error: ucErr } = await supabase
           .from('user_profiles')
@@ -1551,16 +1552,35 @@ export default function App() {
           const answer = Array.isArray(uc?.use_cases) ? (uc.use_cases as string[]) : null
           setUseCases(answer)
           setUseCasesOther(typeof uc?.use_cases_other === 'string' ? uc.use_cases_other : null)
-          // The what's-new popup gets the first load to itself, and the
-          // last-chance campaign popup owns any load it shows on; the survey
-          // resumes on the next load after both are out of the way.
-          if (
-            answer === null &&
-            !lastChanceShowsToday() &&
-            localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) !== '1' &&
-            localStorage.getItem(WHATS_NEW_DISMISSED_KEY) === '1'
-          ) {
-            setIsSurveyOpen(true)
+          const legacySkipped = localStorage.getItem(USE_CASE_SURVEY_DISMISSED_KEY) === '1'
+          if (legacySkipped) {
+            localStorage.setItem(`${USE_CASE_SURVEY_DISMISSED_KEY}:${user.id}`, '1')
+            localStorage.removeItem(USE_CASE_SURVEY_DISMISSED_KEY)
+          }
+          if (answer === null) {
+            const skippedBefore = legacySkipped || localStorage.getItem(`${USE_CASE_SURVEY_DISMISSED_KEY}:${user.id}`) === '1'
+            // Other first-load popups keep priority. An old local skip is
+            // promoted to the account even when those popups are active.
+            if (skippedBefore || (!lastChanceShowsToday() && localStorage.getItem(WHATS_NEW_DISMISSED_KEY) === '1')) {
+              const payload = { use_cases: [] as string[], use_cases_updated_at: new Date().toISOString() }
+              const { data: claimed, error: claimError } = await supabase
+                .from('user_profiles')
+                .update(payload)
+                .eq('user_id', user.id)
+                .is('use_cases', null)
+                .select('user_id')
+              let didClaim = !claimError && !!claimed?.length
+              if (!claimError && !claimed?.length && !uc) {
+                const { error: insertError } = await supabase
+                  .from('user_profiles')
+                  .insert({ user_id: user.id, ...payload })
+                didClaim = !insertError
+              }
+              if (didClaim) {
+                setUseCases([])
+                if (!skippedBefore) setIsSurveyOpen(true)
+              }
+            }
           }
         }
       } catch { /* the survey is never worth breaking app init over */ }

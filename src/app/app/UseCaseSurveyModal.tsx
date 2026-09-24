@@ -7,13 +7,10 @@ import {
   USE_CASE_OPTIONS,
   USE_CASE_OTHER_KEY,
   USE_CASES_OTHER_MAX,
-  USE_CASE_SURVEY_DISMISSED_KEY,
 } from '@/lib/useCases'
 
-// One-time "What do you use Nodea for?" popup. App.tsx opens it when the
-// profile has no stored answer (use_cases === null) and the user hasn't
-// skipped before. Saving writes the profile; skipping sets a localStorage
-// flag so it never nags — Settings → Account keeps the answer editable.
+// One-time "What do you use Nodea for?" popup. App.tsx stamps the profile
+// before opening it. Settings → Account keeps the answer editable.
 export default function UseCaseSurveyModal() {
   const { setIsSurveyOpen, saveUseCases, useCases, useCasesOther } = useApp()
 
@@ -44,7 +41,6 @@ export default function UseCaseSurveyModal() {
   }
 
   function handleSkip() {
-    try { localStorage.setItem(USE_CASE_SURVEY_DISMISSED_KEY, '1') } catch { /* private mode */ }
     track('use_case_survey_skipped')
     setIsSurveyOpen(false)
   }
@@ -146,7 +142,7 @@ export default function UseCaseSurveyModal() {
               padding: '8px 4px',
             }}
           >
-            Skip for now
+            Skip
           </button>
           <button
             type="button"
