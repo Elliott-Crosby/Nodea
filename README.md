@@ -1,3 +1,11 @@
+# Nodea — hosted web app closed
+
+The Nodea web app is no longer available. The blog remains online, and the Nodea Tree Chrome extension will continue to be supported. Original source code and configuration are preserved in `retired/`, alongside the existing components and libraries in `src/`. No account data or uploads were deleted as part of the shutdown.
+
+See [SHUTDOWN.md](SHUTDOWN.md) for access controls, feedback collection, and operations. The original product documentation follows for reference.
+
+---
+
 # Nodea — Branching AI Chat Canvas
 
 > Nodea is a branching AI chat canvas. Every reply becomes a node you can fork from — your conversation grows as a tree of branches, not one long thread that you keep scrolling. Built on Anthropic Claude. Free during beta.
