@@ -14,6 +14,17 @@ export interface PostMeta {
 
 export const POSTS: PostMeta[] = [
   {
+    slug: 'nodea-web-app-shutdown',
+    title: 'The Nodea web app has closed. The extension continues.',
+    description: 'Thank you for being part of Nodea. The web app is no longer available, and Nodea Tree will continue to be supported.',
+    category: 'Field note',
+    readMinutes: 1,
+    publishedAt: '2026-11-09',
+    keywords: ['Nodea shutdown', 'Nodea Tree', 'Chrome extension'],
+    image: '/media/nodea-ai-extension-claude-scaled.png',
+    imageAlt: 'The Nodea Tree extension alongside a Claude conversation.',
+  },
+  {
     slug: 'claude-conversation-tree-extension',
     title: 'See Your Claude Conversations as a Tree (Free Chrome Extension)',
     description:

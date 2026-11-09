@@ -1,44 +1,16 @@
 import type { Metadata } from 'next'
-import Nav from '@/app/_components/landing/Nav'
-import Footer from '@/app/_components/landing/Footer'
-import { OG_IMAGES } from '@/lib/og'
-import '@/app/_components/landing/landing.css'
+import { connection } from 'next/server'
 
-export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description:
-    'The terms that govern your use of Nodea, the branching AI chat canvas at nodea.ai, and the "Nodea Tree for Claude" browser extension.',
-  alternates: { canonical: '/terms' },
-  robots: { index: true, follow: true },
-  openGraph: {
-    title: 'Terms of Service — Nodea AI',
-    description:
-      'The terms that govern your use of Nodea, the branching AI chat canvas at nodea.ai, and the "Nodea Tree for Claude" browser extension.',
-    url: 'https://nodea.ai/terms',
-    type: 'article',
-    images: OG_IMAGES,
-  },
-}
+export const metadata: Metadata = { title: 'Terms of Service | Nodea', alternates: { canonical: '/terms' } }
 
-const LAST_UPDATED = 'June 3, 2026'
-
-export default function TermsPage() {
+export default async function LegalPage() {
+  await connection()
   return (
-    <div className="ln-root">
-      <Nav />
-
-      <main>
-        <section style={{ padding: '80px 0 64px' }}>
-          <div className="ln-container" style={{ maxWidth: 760 }}>
-            <span className="ln-kicker">Legal</span>
-            <h1 style={{ fontSize: '2.4rem', margin: '0.4em 0 0.2em', letterSpacing: '-0.02em' }}>
-              Terms of Service
-            </h1>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
-              Last updated: {LAST_UPDATED}
-            </p>
-
-            <div className="ln-legal">
+    <main className="legal">
+      <a href="/">Back to Nodea</a>
+      <h1>Terms of Service</h1>
+      <p>The Nodea web app is no longer available. These terms remain here for reference and for the Nodea Tree extension.</p>
+      <div>
               <p>
                 These Terms of Service (&ldquo;Terms&rdquo;) govern your use of Nodea
                 (&ldquo;Nodea,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;), including
@@ -154,12 +126,7 @@ export default function TermsPage() {
                 Questions about these Terms?{' '}
                 <a href="mailto:nodea.ai@gmail.com">nodea.ai@gmail.com</a>.
               </p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </main>
   )
 }

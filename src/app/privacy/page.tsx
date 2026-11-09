@@ -1,44 +1,16 @@
 import type { Metadata } from 'next'
-import Nav from '@/app/_components/landing/Nav'
-import Footer from '@/app/_components/landing/Footer'
-import '@/app/_components/landing/landing.css'
-import { OG_IMAGES } from '@/lib/og'
+import { connection } from 'next/server'
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description:
-    'How Nodea and the Nodea Tree browser extension collect, use, store, and transmit your data.',
-  alternates: { canonical: '/privacy' },
-  robots: { index: true, follow: true },
-  openGraph: {
-    title: 'Privacy Policy — Nodea AI',
-    description:
-      'How Nodea and the Nodea Tree browser extension collect, use, store, and transmit your data.',
-    url: 'https://nodea.ai/privacy',
-    type: 'article',
-    images: OG_IMAGES,
-  },
-}
+export const metadata: Metadata = { title: 'Privacy Policy | Nodea', alternates: { canonical: '/privacy' } }
 
-const LAST_UPDATED = 'September 14, 2026'
-
-export default function PrivacyPage() {
+export default async function LegalPage() {
+  await connection()
   return (
-    <div className="ln-root">
-      <Nav />
-
-      <main>
-        <section style={{ padding: '80px 0 64px' }}>
-          <div className="ln-container" style={{ maxWidth: 760 }}>
-            <span className="ln-kicker">Legal</span>
-            <h1 style={{ fontSize: '2.4rem', margin: '0.4em 0 0.2em', letterSpacing: '-0.02em' }}>
-              Privacy Policy
-            </h1>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
-              Last updated: {LAST_UPDATED}
-            </p>
-
-            <div className="ln-legal">
+    <main className="legal">
+      <a href="/">Back to Nodea</a>
+      <h1>Privacy Policy</h1>
+      <p>The Nodea web app is no longer available. For account deletion or a copy of your data, email <a href="mailto:nodea.ai@gmail.com">nodea.ai@gmail.com</a>. Feedback submitted on the farewell page, including your email if provided, is stored privately in our Supabase database so we can read it and reply. We store a keyed hash of your network address to limit spam; we do not store your raw address with feedback. To request removal of your feedback, email us. The policy below describes the web app and extension before the web app closed.</p>
+      <div>
               <p>
                 This policy explains how Nodea (&ldquo;Nodea,&rdquo; &ldquo;we,&rdquo;
                 &ldquo;us&rdquo;) handles your data across both the Nodea web app at{' '}
@@ -244,12 +216,7 @@ export default function PrivacyPage() {
                 Questions about privacy or data deletion requests:{' '}
                 <a href="mailto:nodea.ai@gmail.com">nodea.ai@gmail.com</a>.
               </p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </main>
   )
 }

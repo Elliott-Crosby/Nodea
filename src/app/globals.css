@@ -1,283 +1,41 @@
 @import "tailwindcss";
 
-/* ── Light theme (default) ─────────────────────────────────────── */
-:root {
-  --bg-base:            #f8f9fa;
-  --bg-subtle:          #eef0f2;
-  --bg-muted:           #e4e6eb;
-  --border:             #d8dade;
-  --border-strong:      #b8bcc4;
-  --text-primary:       #1a1d23;
-  --text-secondary:     #5c6370;
-  --text-muted:         #9199a6;
-  --accent:             #7c3aed;
-  --accent-hover:       #6d28d9;
-  --accent-bg:          #f0ebff;
-  --accent-text:        #6d28d9;
-  --user-bubble-bg:     #ede9fe;
-  --user-bubble-border: #c4b5fd;
-  --ai-card-bg:         #ffffff;
-  --ai-card-border:     #e2e5ea;
-  --input-bg:           #ffffff;
-  --sidebar-bg:         #f0f1f3;
-  --topbar-bg:          #f8f9fa;
-  --tree-bg:            #f0f1f3;
-  --node-bg:            #ffffff;
-  --node-border:        #e2e5ea;
-  --node-active-border: #7c3aed;
-  --node-active-bg:     #f0ebff;
-  --modal-bg:           #ffffff;
-  --modal-overlay:      rgba(0, 0, 0, 0.40);
-  --shadow-sm:          0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md:          0 4px 8px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-lg:          0 10px 28px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.07);
-  --edge-color:         #c4b5fd;
-  --edge-active:        #7c3aed;
-  --code-bg:            #f0f1f3;
-  --code-text:          #1a1d23;
-  --code-border:        #d8dade;
-  --blockquote-border:  #c4b5fd;
-  --color-error:        #ef4444;
-  --color-error-bg:     #fef2f2;
-  --color-error-border: #fecaca;
-}
-
-/* ── Dark theme ────────────────────────────────────────────────── */
-[data-theme="dark"] {
-  --bg-base:            #16181c;
-  --bg-subtle:          #1e2025;
-  --bg-muted:           #282b32;
-  --border:             #2e3138;
-  --border-strong:      #3d4149;
-  --text-primary:       #e9eaee;
-  --text-secondary:     #9499a3;
-  --text-muted:         #555c69;
-  --accent:             #8b5cf6;
-  --accent-hover:       #7c3aed;
-  --accent-bg:          #1e1a35;
-  --accent-text:        #b197fc;
-  --user-bubble-bg:     #1e1a35;
-  --user-bubble-border: #3d3272;
-  --ai-card-bg:         #1e2025;
-  --ai-card-border:     #2e3138;
-  --input-bg:           #1e2025;
-  --sidebar-bg:         #12141a;
-  --topbar-bg:          #16181c;
-  --tree-bg:            #12141a;
-  --node-bg:            #1e2025;
-  --node-border:        #2e3138;
-  --node-active-border: #8b5cf6;
-  --node-active-bg:     #1e1a35;
-  --modal-bg:           #1e2025;
-  --modal-overlay:      rgba(0, 0, 0, 0.72);
-  --shadow-sm:          0 1px 3px rgba(0,0,0,0.50), 0 1px 2px rgba(0,0,0,0.35);
-  --shadow-md:          0 4px 14px rgba(0,0,0,0.60), 0 2px 6px rgba(0,0,0,0.40);
-  --shadow-lg:          0 12px 36px rgba(0,0,0,0.70), 0 4px 14px rgba(0,0,0,0.45);
-  --edge-color:         #4a3d7a;
-  --edge-active:        #8b5cf6;
-  --code-bg:            #282b32;
-  --code-text:          #cdd9e5;
-  --code-border:        #3d4149;
-  --blockquote-border:  #4a3d7a;
-  --color-error:        #f87171;
-  --color-error-bg:     #2d1a1a;
-  --color-error-border: #7f1d1d;
-}
-
-@keyframes upgradeIn {
-  from { opacity: 0; transform: scale(0.94) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* Rotating spinner — e.g. the "Update Conversation" sync button while syncing */
-@keyframes nx-spin { to { transform: rotate(360deg); } }
-.nx-spin { animation: nx-spin 0.8s linear infinite; }
-
-/* Conversation context menu — "Move to project" rows.
-   The current project is clickable to detach; on hover the trailing checkmark
-   swaps to a red ✕ to signal "click to remove from this project". */
-.conv-proj-item--current .conv-proj-remove { display: none; }
-.conv-proj-item--current:hover .conv-proj-check { display: none; }
-.conv-proj-item--current:hover .conv-proj-remove { display: block; }
-
-/* Sidebar "generating" indicator — pulsing ring dot on busy conversations */
-@keyframes convGenPulse {
-  0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent); }
-  100% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 0%, transparent); }
-}
-.conv-gen-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-  animation: convGenPulse 1.6s ease-out infinite;
-}
-.conv-gen-dot--collapsed {
-  position: absolute;
-  top: 7px; right: 7px;
-}
-
-html, body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-/* Dot-grid colour (used in tree panel) */
-:root        { --grid-dot: rgba(0, 0, 0, 0.14); }
-[data-theme="dark"] { --grid-dot: rgba(255, 255, 255, 0.10); }
-
-/* Tree node text — 2-line clamp */
-.tree-node-text {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
-  text-overflow: ellipsis;
-}
-
-/* Thin scrollbars */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-/* Markdown content styles */
-.md-content h1 { font-size: 22px; font-weight: 700; line-height: 1.3; margin: 16px 0 8px; color: var(--text-primary); }
-.md-content h2 { font-size: 19px; font-weight: 700; line-height: 1.35; margin: 14px 0 6px; color: var(--text-primary); }
-.md-content h3 { font-size: 17px; font-weight: 600; line-height: 1.4; margin: 12px 0 5px; color: var(--text-primary); }
-.md-content h4 { font-size: 16px; font-weight: 600; line-height: 1.4; margin: 10px 0 4px; color: var(--text-primary); }
-.md-content h1:first-child,
-.md-content h2:first-child,
-.md-content h3:first-child,
-.md-content h4:first-child { margin-top: 0; }
-.md-content p  { font-size: 15px; line-height: 1.75; margin: 16px 0; color: var(--text-primary); }
-.md-content p:first-child { margin-top: 0; }
-.md-content ul { padding-left: 18px; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; list-style: disc; }
-.md-content ol { padding-left: 20px; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; list-style: decimal; }
-.md-content li { font-size: 15px; line-height: 1.65; color: var(--text-primary); }
-.md-content strong { font-weight: 600; color: var(--text-primary); }
-.md-content em { font-style: italic; }
-.md-content del { text-decoration: line-through; opacity: 0.7; }
-.md-content code {
-  font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace;
-  font-size: 0.88em;
-  background: var(--code-bg);
-  color: var(--accent-text);
-  padding: 2px 6px;
-  border-radius: 5px;
-  border: 1px solid var(--code-border);
-}
-.md-content pre {
-  background: var(--code-bg);
-  border: 1px solid var(--code-border);
-  border-radius: 9px;
-  overflow: hidden;
-  margin: 8px 0;
-}
-.md-content pre code {
-  display: block;
-  padding: 13px 15px;
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--code-text);
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  overflow-x: auto;
-  white-space: pre;
-}
-.md-content blockquote {
-  border-left: 3px solid var(--blockquote-border);
-  padding: 6px 0 6px 14px;
-  margin: 8px 0;
-  color: var(--text-secondary);
-  font-style: italic;
-}
-.md-content blockquote p { font-size: 15px; color: var(--text-secondary); }
-.md-content hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 12px 0;
-}
-.md-content .code-block-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  background: var(--bg-muted);
-  border-bottom: 1px solid var(--code-border);
-  font-size: 11px;
-  font-family: 'JetBrains Mono', Consolas, monospace;
-  color: var(--text-muted);
-}
-
-/* ── Nodea Minimal (2a) UI ──────────────────────────────────────────
-   Active when the app root carries data-minimal-ui (the default). The
-   Settings → "MVP UI" toggle removes the attribute, restoring the old
-   skin — so every rule here must be scoped under [data-minimal-ui].
-
-   Hover-reveal utilities mirror the design mock's data-hr/data-hrp
-   (panel-level) and data-row/data-rowp (row-level) patterns:
-   controls stay invisible until the containing panel/row is hovered. */
-
-[data-minimal-ui] {
-  /* Exact 2a palette. The mock is neutral everywhere — violet exists ONLY
-     as the single accent (New chat, Branch, send, active tree path). All
-     violet-tinted surfaces (user bubble, active rows, node glows, edges)
-     demote to the mock's grays. */
-  --bg-subtle:          #EFF0F3;   /* mock hover / active-row / user-bubble gray */
-  --bg-muted:           #E4E6EA;   /* mock internal borders */
-  --accent-bg:          #EFF0F3;   /* was violet #f0ebff */
-  --accent-text:        #7C3AED;   /* raw violet, not the darker #6d28d9 */
-  --user-bubble-bg:     #EFF0F3;   /* was violet #ede9fe */
-  --user-bubble-border: transparent;  /* mock bubble has no border */
-  --sidebar-bg:         #F8F9FA;   /* same as base — mock has one flat surface */
-  --topbar-bg:          #F8F9FA;
-  --tree-bg:            #F2F3F5;
-  --node-border:        #D8DADE;
-  --node-active-bg:     #ffffff;   /* active card = white + violet border, no tint */
-  --edge-color:         #CDD1D8;   /* inactive edges gray; active path keeps accent */
-  --blockquote-border:  #CDD1D8;
-}
-[data-theme="dark"] [data-minimal-ui] {
-  /* Same "neutral, not violet" principle mapped onto the dark scale. */
-  --bg-subtle:          #1e2025;
-  --bg-muted:           #282b32;
-  --accent-bg:          #23262c;
-  --accent-text:        #8b5cf6;
-  --user-bubble-bg:     #23262c;
-  --user-bubble-border: transparent;
-  --sidebar-bg:         #16181c;
-  --topbar-bg:          #16181c;
-  --tree-bg:            #17191e;
-  --node-border:        #2e3138;
-  --node-active-bg:     #1e2025;
-  --edge-color:         #3d4149;
-  --blockquote-border:  #3d4149;
-}
-
-[data-minimal-ui] .mui-hr,
-[data-minimal-ui] .mui-row {
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-[data-minimal-ui] .mui-hrp:hover .mui-hr,
-[data-minimal-ui] .mui-hrp:focus-within .mui-hr,
-[data-minimal-ui] .mui-rowp:hover .mui-row,
-[data-minimal-ui] .mui-rowp:focus-within .mui-row {
-  opacity: 1;
-}
-
-/* Sidebar rows tighten from 15px to the mock's 13px. !important because
-   the rows are styled inline. */
-[data-minimal-ui] .mui-conv-row {
-  font-size: 13px !important;
-}
-
-
+:root { color-scheme: light; background: #f7f5ef; color: #292d27; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+::selection { background: #dce3d1; }
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid #365633; outline-offset: 5px; }
+.farewell { width: min(100% - 48px, 560px); margin: 0 auto; padding: clamp(64px, 12vh, 120px) 0 64px; }
+h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(44px, 7vw, 64px); line-height: 1.04; letter-spacing: -0.045em; font-weight: 400; margin: 0 0 38px; }
+.letter-copy { font-size: 18px; line-height: 1.65; }
+p { margin: 0 0 23px; }
+.signature { margin: 35px 0 0; }
+.feedback { border-top: 1px solid #b7bcaf; margin-top: 52px; padding-top: 30px; font-size: 17px; line-height: 1.6; }
+.feedback form { display: flex; flex-direction: column; gap: 12px; }
+.feedback label { display: block; }
+.feedback input, .feedback textarea { border: 1px solid #999f91; border-radius: 3px; padding: 12px; width: 100%; background: transparent; color: inherit; font: inherit; }
+.feedback textarea { resize: vertical; min-height: 124px; max-height: 480px; }
+.feedback input { margin-bottom: 4px; }
+.feedback button { display: inline-flex; align-items: center; justify-content: space-between; gap: 32px; align-self: flex-start; padding: 11px 17px; margin-top: 5px; border: 1px solid #292d27; border-radius: 3px; background: #292d27; color: #f7f5ef; font: inherit; cursor: pointer; }
+.feedback button:hover { background: #414a39; }
+.feedback button:disabled { opacity: .65; cursor: wait; }
+.feedback p { margin: 4px 0; }
+.feedback-trap { display: none; }
+.farewell-links { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 36px; font-size: 17px; }
+.blog-chrome { width: min(100% - 48px, 920px); margin: 0 auto; padding: 28px 0; font-size: 17px; line-height: 1.6; }
+.blog-chrome nav { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+.blog-chrome p { margin: 24px 0 0; padding-bottom: 24px; border-bottom: 1px solid #b7bcaf; }
+.bl-root { --bg-base: #f7f5ef; --bg-subtle: #f0eee6; --bg-muted: #e9e7df; --text-primary: #292d27; --text-secondary: #292d27; --text-muted: #292d27; --border: #b7bcaf; --border-strong: #999f91; --accent: #365633; --accent-hover: #294027; --accent-bg: #e0e7d9; --accent-text: #294027; --code-bg: #e9e7df; --code-text: #292d27; --code-border: #b7bcaf; }
+.legal { width: min(100% - 48px, 680px); margin: 0 auto; padding: 48px 0 72px; font-size: 18px; line-height: 1.7; }
+.legal > a { display: inline-block; margin-bottom: 48px; }
+.legal h1 { font-size: 44px; }
+.legal h2 { font-size: 23px; font-weight: 500; margin: 36px 0 14px; }
+.legal h3 { font-size: 20px; font-weight: 500; margin: 28px 0 12px; }
+.legal ul { list-style: disc; padding-left: 24px; margin-bottom: 23px; }
+.legal li { margin-bottom: 10px; }
+.blog-index article { padding: 30px 0; border-bottom: 1px solid #b7bcaf; }
+.blog-index article p { margin: 0 0 14px; }
+.blog-index article h2 { margin: 0 0 14px; }
+@media (max-width: 480px) { .farewell { padding-top: 60px; } h1 { margin-bottom: 30px; } .feedback { margin-top: 40px; } }

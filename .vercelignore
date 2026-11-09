@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+.env*
+retired
+extension
+.tmp-*
+.claude*
+.codex
+supabase/.temp
+supabase/.branches
+HANDOFF.md
+*.zip
